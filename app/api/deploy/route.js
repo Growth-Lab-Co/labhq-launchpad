@@ -1,0 +1,102 @@
+import { NextResponse } from "next/server";
+import { askClaude, extractJson } from "@/lib/claude";
+import { getTenant, ghlCredsFor } from "@/lib/tenants";
+import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
+import { createSubAccount, pushAllCustomValues } from "@/lib/ghl";
+
+export const maxDuration = 120;
+
+// action: "generate" -> interview answers => custom values JSON (for review screen)
+// action: "deploy"   -> create GHL sub-account from snapshot + push custom values
+
+export async function POST(req) {
+  try {
+    const { tenant: slug, answers = {}, customValues, action } = await req.json();
+    const tenant = getTenant(slug);
+    if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+
+    if (action === "generate") {
+      const system = `You are configuring an AI-powered onboarding system for a small business, based on an intake interview.
+Produce the configuration values below. Write in Australian English. Be specific to THIS business - no generic filler.
+
+Keys to produce (ALL required):
+- business_name: clean business name
+- services_summary: 2-3 sentences describing what they do, written for an AI receptionist to reference
+- service_area: where they operate
+- opening_hours: their hours, plain format
+- qualification_questions: the 1-3 questions the AI receptionist should ask to qualify a caller, phrased naturally as questions
+- booking_rules: appointment rules the AI must follow (length, buffers, who, constraints)
+- faq_block: their top customer FAQs with answers, formatted as "Q: ... A: ..." lines
+- tone_style: 1-2 sentences instructing the AI how to sound for this business
+- greeting_line: the exact opening line the AI receptionist says when answering a call (include business name, warm, under 20 words)
+- escalation_name: who to hand off to
+- escalation_contact: their contact detail
+- website_url: their website or empty string
+- mia_guardrails: things the AI must never say or do, as clear instructions
+- nurture_hook: one sentence used in follow-up messages describing the value of booking with this business
+
+Interview answers:
+${JSON.stringify(answers, null, 2)}
+
+Respond ONLY with a JSON object of exactly those keys, string values only.`;
+      const raw = await askClaude({
+        system,
+        messages: [{ role: "user", content: "Generate the configuration now." }],
+        maxTokens: 1800,
+      });
+      const values = extractJson(raw);
+      // Guarantee every expected key exists so the review screen is stable.
+      const complete = {};
+      for (const k of CUSTOM_VALUE_KEYS) complete[k] = values[k] ?? "";
+      return NextResponse.json({ customValues: complete });
+    }
+
+    if (action === "deploy") {
+      if (!customValues) return NextResponse.json({ error: "Missing customValues" }, { status: 400 });
+      const creds = ghlCredsFor(tenant);
+
+      // Demo mode: no GHL creds for this tenant -> simulate success.
+      if (!creds.configured) {
+        await new Promise((r) => setTimeout(r, 4000));
+        return NextResponse.json({
+          ok: true,
+          demo: true,
+          locationId: "demo-" + Math.random().toString(36).slice(2, 8),
+          pushed: Object.keys(customValues).map((name) => ({ name, ok: true })),
+        });
+      }
+
+      const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
+      const { id: locationId } = await createSubAccount({
+        token: creds.token,
+        companyId: creds.companyId,
+        snapshotId: creds.snapshotId,
+        businessName,
+        contact: { website: customValues.website_url },
+      });
+
+      const pushed = await pushAllCustomValues({
+        token: creds.token,
+        locationId,
+        values: customValues,
+      });
+      const failures = pushed.filter((p) => !p.ok);
+
+      return NextResponse.json({
+        ok: true,
+        demo: false,
+        locationId,
+        pushed,
+        warning: failures.length
+          ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
+              .map((f) => f.name)
+              .join(", ")}`
+          : null,
+      });
+    }
+
+    return NextResponse.json({ error: "Unknown action" }, { status: 400 });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
