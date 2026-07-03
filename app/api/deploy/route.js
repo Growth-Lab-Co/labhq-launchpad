@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
-import { createSubAccount, pushAllCustomValues, createContact } from "@/lib/ghl";
+import { createSubAccount, pushAllCustomValues, createContact, getForms } from "@/lib/ghl";
 
 export const maxDuration = 120;
 
@@ -145,6 +145,23 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           contactWarning = `Couldn't create the onboarding contact automatically (${e.message}) - add one manually with the "onboarding" tag so the Go-Live workflow fires.`;
         }
 
+        // Form embed for the client's website - best effort, skip silently on failure.
+        let formEmbed = null;
+        try {
+          const forms = await getForms({ token: creds.token, locationId });
+          const form = forms[0];
+          if (form?.id) {
+            const formName = form.name || "Contact form";
+            formEmbed = {
+              formId: form.id,
+              name: formName,
+              snippet: `<script src="https://link.msgsndr.com/js/form_embed.js"></script>\n<iframe src="https://api.leadconnectorhq.com/widget/form/${form.id}" style="width:100%;height:600px;border:none;border-radius:4px" id="inline-${form.id}" data-form-id="${form.id}" title="${formName}"></iframe>`,
+            };
+          }
+        } catch {
+          // Forms aren't essential to a successful deploy - skip silently.
+        }
+
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
 
         return NextResponse.json({
@@ -158,6 +175,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
                 .join(", ")}`
             : null,
           contactWarning,
+          formEmbed,
         });
       } catch (e) {
         // Allow a legitimate retry after a genuine failure.

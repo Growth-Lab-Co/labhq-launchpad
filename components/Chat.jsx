@@ -22,7 +22,7 @@ export default function Chat({ tenant }) {
   const [launchStep, setLaunchStep] = useState(0);
   const [error, setError] = useState(null);
   const [complianceConfirmed, setComplianceConfirmed] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState(null);
   const bottomRef = useRef(null);
   const startedRef = useRef(false);
   const deployingRef = useRef(false);
@@ -132,11 +132,11 @@ export default function Chat({ tenant }) {
     setConfig((c) => ({ ...c, [key]: value }));
   }
 
-  function copyPrivacySnippet() {
-    if (!config?.privacy_policy_snippet) return;
-    navigator.clipboard?.writeText(config.privacy_policy_snippet);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  function copyText(text, key) {
+    if (!text) return;
+    navigator.clipboard?.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
   }
 
   return (
@@ -307,8 +307,51 @@ export default function Chat({ tenant }) {
               <p style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 14, whiteSpace: "pre-wrap" }}>
                 {config.privacy_policy_snippet}
               </p>
-              <button className="btn ghost" onClick={copyPrivacySnippet}>
-                {copied ? "Copied ✓" : "Copy privacy policy text"}
+              <button className="btn ghost" onClick={() => copyText(config.privacy_policy_snippet, "privacy")}>
+                {copiedKey === "privacy" ? "Copied ✓" : "Copy privacy policy text"}
+              </button>
+            </div>
+          )}
+          {deployResult.formEmbed && (
+            <div
+              style={{
+                marginTop: 16,
+                textAlign: "left",
+                background: "var(--card)",
+                border: "1px solid var(--line)",
+                borderRadius: 12,
+                padding: "16px 18px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--violet-soft)",
+                  marginBottom: 8,
+                }}
+              >
+                Website form embed
+              </div>
+              <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
+                Send this to whoever manages your website.
+              </p>
+              <pre
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  marginBottom: 14,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  fontFamily: "monospace",
+                  color: "var(--muted)",
+                }}
+              >
+                {deployResult.formEmbed.snippet}
+              </pre>
+              <button className="btn ghost" onClick={() => copyText(deployResult.formEmbed.snippet, "embed")}>
+                {copiedKey === "embed" ? "Copied ✓" : "Copy embed code"}
               </button>
             </div>
           )}
