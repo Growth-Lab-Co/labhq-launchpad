@@ -8,6 +8,9 @@ const LAUNCH_STEPS = [
   "Activating pipelines and follow-up sequences",
 ];
 
+// Required for Australian compliance, shown separately on the review screen.
+const COMPLIANCE_KEYS = ["greeting_line", "sms_compliance_footer", "privacy_policy_snippet"];
+
 export default function Chat({ tenant }) {
   const [messages, setMessages] = useState([]);
   const [answers, setAnswers] = useState({});
@@ -18,6 +21,8 @@ export default function Chat({ tenant }) {
   const [deployResult, setDeployResult] = useState(null);
   const [launchStep, setLaunchStep] = useState(0);
   const [error, setError] = useState(null);
+  const [complianceConfirmed, setComplianceConfirmed] = useState(false);
+  const [copied, setCopied] = useState(false);
   const bottomRef = useRef(null);
   const startedRef = useRef(false);
 
@@ -72,6 +77,7 @@ export default function Chat({ tenant }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Config generation failed");
       setConfig(data.customValues);
+      setComplianceConfirmed(false);
       setPhase("review");
     } catch (e) {
       setError(e.message);
@@ -114,6 +120,13 @@ export default function Chat({ tenant }) {
 
   function updateConfigKey(key, value) {
     setConfig((c) => ({ ...c, [key]: value }));
+  }
+
+  function copyPrivacySnippet() {
+    if (!config?.privacy_policy_snippet) return;
+    navigator.clipboard?.writeText(config.privacy_policy_snippet);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -173,22 +186,51 @@ export default function Chat({ tenant }) {
             This is everything {tenant.assistantName} will know about the business. Edit anything
             that doesn&apos;t sound right, then deploy.
           </p>
-          <div className="cv-grid">
-            {Object.entries(config).map(([key, value]) => (
+          <div className="cv-grid" style={{ marginBottom: 20 }}>
+            <p className="sub" style={{ marginBottom: 0 }}>
+              Compliance — these are required for Australian compliance and are included in every
+              deployment.
+            </p>
+            {COMPLIANCE_KEYS.map((key) => (
               <div className="cv-item" key={key}>
                 <label htmlFor={`cv-${key}`}>{key.replaceAll("_", " ")}</label>
                 <textarea
                   id={`cv-${key}`}
-                  value={value}
-                  rows={Math.min(6, Math.max(1, Math.ceil(String(value).length / 70)))}
+                  value={config[key] ?? ""}
+                  readOnly={key !== "privacy_policy_snippet"}
+                  rows={Math.min(6, Math.max(1, Math.ceil(String(config[key] ?? "").length / 70)))}
                   onChange={(e) => updateConfigKey(key, e.target.value)}
                 />
               </div>
             ))}
           </div>
+          <div className="cv-grid">
+            {Object.entries(config)
+              .filter(([key]) => !COMPLIANCE_KEYS.includes(key))
+              .map(([key, value]) => (
+                <div className="cv-item" key={key}>
+                  <label htmlFor={`cv-${key}`}>{key.replaceAll("_", " ")}</label>
+                  <textarea
+                    id={`cv-${key}`}
+                    value={value}
+                    rows={Math.min(6, Math.max(1, Math.ceil(String(value).length / 70)))}
+                    onChange={(e) => updateConfigKey(key, e.target.value)}
+                  />
+                </div>
+              ))}
+          </div>
           {error && <div className="error-note">{error}</div>}
+          <label style={{ display: "flex", gap: 10, alignItems: "flex-start", fontSize: 14, margin: "20px 0" }}>
+            <input
+              type="checkbox"
+              checked={complianceConfirmed}
+              onChange={(e) => setComplianceConfirmed(e.target.checked)}
+              style={{ marginTop: 3 }}
+            />
+            I confirm I&apos;m authorised to set this up for this business and accept the Terms
+          </label>
           <div style={{ display: "flex", gap: 12 }}>
-            <button className="btn" onClick={deploy}>Deploy my system</button>
+            <button className="btn" onClick={deploy} disabled={!complianceConfirmed}>Deploy my system</button>
             <button className="btn ghost" onClick={() => setPhase("chat")}>Back to chat</button>
           </div>
         </section>
@@ -221,6 +263,39 @@ export default function Chat({ tenant }) {
           {deployResult.locationId && <div className="loc">system id: {deployResult.locationId}</div>}
           {deployResult.demo && (
             <div className="badge-demo">Demo mode — no live system was created</div>
+          )}
+          {config?.privacy_policy_snippet && (
+            <div
+              style={{
+                marginTop: 28,
+                textAlign: "left",
+                background: "var(--card)",
+                border: "1px solid var(--line)",
+                borderRadius: 12,
+                padding: "16px 18px",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: "var(--violet-soft)",
+                  marginBottom: 8,
+                }}
+              >
+                Your compliance pack
+              </div>
+              <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
+                Add this to {answers.business_name || "their"} privacy policy before go-live.
+              </p>
+              <p style={{ fontSize: 14, lineHeight: 1.5, marginBottom: 14, whiteSpace: "pre-wrap" }}>
+                {config.privacy_policy_snippet}
+              </p>
+              <button className="btn ghost" onClick={copyPrivacySnippet}>
+                {copied ? "Copied ✓" : "Copy privacy policy text"}
+              </button>
+            </div>
           )}
         </section>
       )}

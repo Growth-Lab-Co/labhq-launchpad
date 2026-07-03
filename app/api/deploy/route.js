@@ -34,6 +34,8 @@ Keys to produce (ALL required):
 - website_url: their website or empty string
 - mia_guardrails: things the AI must never say or do, as clear instructions
 - nurture_hook: one sentence used in follow-up messages describing the value of booking with this business
+- sms_compliance_footer: sender identification + opt-out for outbound SMS, formatted like "[Business Name]. Reply STOP to opt out." using their actual business name
+- privacy_policy_snippet: a ready-to-paste paragraph for the client's privacy policy disclosing that an AI assistant handles calls/messages, what personal information it collects, that calls may be recorded, and that automated systems are used in handling enquiries and booking - plain English, specific to this business
 
 Interview answers:
 ${JSON.stringify(answers, null, 2)}
@@ -48,6 +50,21 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       // Guarantee every expected key exists so the review screen is stable.
       const complete = {};
       for (const k of CUSTOM_VALUE_KEYS) complete[k] = values[k] ?? "";
+
+      // Australian compliance: these are enforced in code AFTER generation so a
+      // creative interview answer can never strip them out. See COMPLIANCE.md.
+      const businessName = complete.business_name || answers.business_name || tenant.name;
+      complete.greeting_line = `Hi, you've called ${businessName}. I'm ${tenant.assistantName}, an AI assistant — this call may be recorded. How can I help?`;
+
+      const escalationName = complete.escalation_name || "a human team member";
+      const hardGuardrails = [
+        "If asked whether you are AI, a robot, or a real person, answer truthfully and plainly, always.",
+        "Never claim to be human or imply it.",
+        `Offer transfer to ${escalationName} whenever the caller asks for a human or seems uncomfortable talking to an AI.`,
+        "Never collect health, financial account, or other sensitive details beyond what booking requires.",
+      ].join(" ");
+      complete.mia_guardrails = [complete.mia_guardrails, hardGuardrails].filter(Boolean).join("\n\n");
+
       return NextResponse.json({ customValues: complete });
     }
 

@@ -27,6 +27,7 @@ Rules:
 - When the user answers, capture it. If an answer clearly covers MULTIPLE fields, capture all of them.
 - If an answer is too vague to configure a system from, ask one brief follow-up for that same field, then move on.
 - Never re-ask captured fields. Never mention field names, JSON, or "the system prompt".
+- Special rule for outbound_calls: if their answer indicates Mia will make OUTBOUND calls (not inbound-only), your reply for that turn must also plainly state: "Outbound telemarketing calls in Australia must be washed against the Do Not Call Register, and are restricted to 9am–8pm weekdays and 9am–5pm Saturdays — never Sundays or public holidays. ${tenant.name} will confirm Do Not Call Register washing is set up before outbound calling is switched on." Then continue to the next question.
 - If this is the very start (no messages yet), give a 2-sentence welcome explaining this takes about 10 minutes and their system will be built from their answers, then ask the first question.
 - When ALL fields are captured, set done=true and your reply should tell them you've got everything and their setup summary is coming up for review.
 
