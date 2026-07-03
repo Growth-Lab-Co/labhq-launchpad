@@ -9,9 +9,31 @@ export const maxDuration = 120;
 // action: "generate" -> interview answers => custom values JSON (for review screen)
 // action: "deploy"   -> create GHL sub-account from snapshot + push custom values
 
+// Best-effort idempotency guard for "deploy": in-memory, per-session, per
+// function instance. Not distributed-safe, but it's exactly what's needed to
+// stop a double-click creating two sub-accounts. Resets on cold start.
+const DEPLOY_LOCK_TTL_MS = 3 * 60 * 1000;
+const deployLocks = new Map(); // sessionId -> { status: "in-progress" | "done", ts }
+
+function claimDeployLock(sessionId) {
+  if (!sessionId) return { ok: true };
+  const existing = deployLocks.get(sessionId);
+  if (existing) {
+    const age = Date.now() - existing.ts;
+    if (existing.status === "in-progress" && age < DEPLOY_LOCK_TTL_MS) {
+      return { ok: false, message: "This system is already being deployed — hang tight, it'll finish shortly." };
+    }
+    if (existing.status === "done") {
+      return { ok: false, message: "This session has already deployed a system. Refresh to start a new one." };
+    }
+  }
+  deployLocks.set(sessionId, { status: "in-progress", ts: Date.now() });
+  return { ok: true };
+}
+
 export async function POST(req) {
   try {
-    const { tenant: slug, answers = {}, customValues, action } = await req.json();
+    const { tenant: slug, answers = {}, customValues, action, sessionId } = await req.json();
     const tenant = getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
@@ -70,46 +92,59 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
 
     if (action === "deploy") {
       if (!customValues) return NextResponse.json({ error: "Missing customValues" }, { status: 400 });
-      const creds = ghlCredsFor(tenant);
 
-      // Demo mode: no GHL creds for this tenant -> simulate success.
-      if (!creds.configured) {
-        await new Promise((r) => setTimeout(r, 4000));
+      const lock = claimDeployLock(sessionId);
+      if (!lock.ok) return NextResponse.json({ error: lock.message }, { status: 409 });
+
+      try {
+        const creds = ghlCredsFor(tenant);
+
+        // Demo mode: no GHL creds for this tenant -> simulate success.
+        if (!creds.configured) {
+          await new Promise((r) => setTimeout(r, 4000));
+          if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+          return NextResponse.json({
+            ok: true,
+            demo: true,
+            locationId: "demo-" + Math.random().toString(36).slice(2, 8),
+            pushed: Object.keys(customValues).map((name) => ({ name, ok: true })),
+          });
+        }
+
+        const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
+        const { id: locationId } = await createSubAccount({
+          token: creds.token,
+          companyId: creds.companyId,
+          snapshotId: creds.snapshotId,
+          businessName,
+          contact: { website: customValues.website_url },
+        });
+
+        const pushed = await pushAllCustomValues({
+          token: creds.token,
+          locationId,
+          values: customValues,
+        });
+        const failures = pushed.filter((p) => !p.ok);
+
+        if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+
         return NextResponse.json({
           ok: true,
-          demo: true,
-          locationId: "demo-" + Math.random().toString(36).slice(2, 8),
-          pushed: Object.keys(customValues).map((name) => ({ name, ok: true })),
+          demo: false,
+          locationId,
+          pushed,
+          warning: failures.length
+            ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
+                .map((f) => f.name)
+                .join(", ")}`
+            : null,
         });
+      } catch (e) {
+        // Allow a legitimate retry after a genuine failure.
+        if (sessionId) deployLocks.delete(sessionId);
+        throw e;
       }
-
-      const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
-      const { id: locationId } = await createSubAccount({
-        token: creds.token,
-        companyId: creds.companyId,
-        snapshotId: creds.snapshotId,
-        businessName,
-        contact: { website: customValues.website_url },
-      });
-
-      const pushed = await pushAllCustomValues({
-        token: creds.token,
-        locationId,
-        values: customValues,
-      });
-      const failures = pushed.filter((p) => !p.ok);
-
-      return NextResponse.json({
-        ok: true,
-        demo: false,
-        locationId,
-        pushed,
-        warning: failures.length
-          ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
-              .map((f) => f.name)
-              .join(", ")}`
-          : null,
-      });
     }
 
     return NextResponse.json({ error: "Unknown action" }, { status: 400 });

@@ -25,6 +25,10 @@ export default function Chat({ tenant }) {
   const [copied, setCopied] = useState(false);
   const bottomRef = useRef(null);
   const startedRef = useRef(false);
+  const deployingRef = useRef(false);
+  const sessionIdRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
+  );
 
   const progress = Math.min(Object.keys(answers).length / 12, 1);
 
@@ -87,6 +91,10 @@ export default function Chat({ tenant }) {
   }
 
   async function deploy() {
+    // Guards the double-click race: two rapid clicks can both fire this
+    // handler before React re-renders and removes the button.
+    if (deployingRef.current) return;
+    deployingRef.current = true;
     setPhase("deploying");
     setError(null);
     setLaunchStep(0);
@@ -103,6 +111,7 @@ export default function Chat({ tenant }) {
           answers,
           customValues: config,
           action: "deploy",
+          sessionId: sessionIdRef.current,
         }),
       });
       const data = await res.json();
@@ -113,6 +122,7 @@ export default function Chat({ tenant }) {
     } catch (e) {
       setError(e.message);
       setPhase("review");
+      deployingRef.current = false; // allow a real retry after a genuine failure
     } finally {
       clearInterval(ticker);
     }
