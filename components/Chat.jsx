@@ -414,6 +414,24 @@ export default function Chat({ tenant }) {
               </button>
             </div>
           )}
+          <details className="checklist">
+            <summary>Go-live checklist</summary>
+            <ol>
+              <li>Assign the client as a calendar staff member.</li>
+              <li>Connect their Google or Outlook calendar.</li>
+              <li>Tune calendar availability — days ahead, buffers, slot length.</li>
+              <li>Attach or forward their phone number.</li>
+              <li>
+                Swap {tenant.assistantName}&apos;s transfer number to{" "}
+                {config?.escalation_contact || "the client's escalation contact"}.
+              </li>
+              <li>Connect Facebook Lead Ads, if they use it.</li>
+              <li>
+                Run the four-question test call: are you a robot? a known FAQ? an unknown
+                question? ask for a human?
+              </li>
+            </ol>
+          </details>
         </section>
       )}
     </main>
