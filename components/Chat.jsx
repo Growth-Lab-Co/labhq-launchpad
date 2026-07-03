@@ -11,6 +11,38 @@ const LAUNCH_STEPS = [
 // Required for Australian compliance, shown separately on the review screen.
 const COMPLIANCE_KEYS = ["greeting_line", "sms_compliance_footer", "privacy_policy_snippet"];
 
+// Total messages (user + assistant) before we force a wrap-up to review,
+// so a rambling or looping interview can't run forever.
+const MAX_TURNS = 40;
+
+function loadStoredChat(slug) {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(`labhq:chat:${slug}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredChat(slug, messages, answers) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(`labhq:chat:${slug}`, JSON.stringify({ messages, answers }));
+  } catch {
+    // Private browsing / quota exceeded - this is a resilience nicety, skip silently.
+  }
+}
+
+function clearStoredChat(slug) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(`labhq:chat:${slug}`);
+  } catch {
+    // Nothing to do if storage isn't available.
+  }
+}
+
 export default function Chat({ tenant }) {
   const [messages, setMessages] = useState([]);
   const [answers, setAnswers] = useState({});
@@ -39,8 +71,23 @@ export default function Chat({ tenant }) {
   useEffect(() => {
     if (startedRef.current) return;
     startedRef.current = true;
-    send(null); // kick off with Mia's opening message
+    const stored = loadStoredChat(tenant.slug);
+    if (stored?.messages?.length) {
+      setMessages([
+        ...stored.messages,
+        { role: "assistant", content: "Welcome back — picking up where you left off." },
+      ]);
+      setAnswers(stored.answers || {});
+    } else {
+      send(null); // kick off with Mia's opening message
+    }
   }, []);
+
+  // Persist as the conversation progresses, so a reload can restore it.
+  useEffect(() => {
+    if (messages.length === 0) return;
+    saveStoredChat(tenant.slug, messages, answers);
+  }, [messages, answers]);
 
   async function send(userText) {
     setError(null);
@@ -51,6 +98,17 @@ export default function Chat({ tenant }) {
       setMessages(nextMessages);
       setInput("");
     }
+
+    if (nextMessages.length >= MAX_TURNS) {
+      const wrapUp = [
+        ...nextMessages,
+        { role: "assistant", content: "We've covered a lot — let's get you to review with what we've got so far." },
+      ];
+      setMessages(wrapUp);
+      await generateConfig(answers);
+      return;
+    }
+
     setBusy(true);
     try {
       const res = await fetch("/api/chat", {
@@ -118,6 +176,7 @@ export default function Chat({ tenant }) {
       if (!res.ok) throw new Error(data.error || "Deployment failed");
       setDeployResult(data);
       setLaunchStep(LAUNCH_STEPS.length);
+      clearStoredChat(tenant.slug);
       setTimeout(() => setPhase("done"), 600);
     } catch (e) {
       setError(e.message);

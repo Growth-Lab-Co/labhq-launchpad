@@ -5,8 +5,36 @@ import { INTERVIEW_FIELDS } from "@/lib/questions";
 
 export const maxDuration = 60;
 
+// Basic in-memory per-IP rate limit - best effort (resets on cold start,
+// not shared across instances) but enough to blunt a runaway client loop.
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 20;
+const rateLimitBuckets = new Map(); // ip -> { count, windowStart }
+
+function withinRateLimit(ip) {
+  const now = Date.now();
+  const bucket = rateLimitBuckets.get(ip);
+  if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitBuckets.set(ip, { count: 1, windowStart: now });
+    return true;
+  }
+  bucket.count += 1;
+  return bucket.count <= RATE_LIMIT_MAX;
+}
+
 export async function POST(req) {
   try {
+    const ip =
+      req.headers.get("x-nf-client-connection-ip") ||
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+      "unknown";
+    if (!withinRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Too many requests - please slow down and try again in a minute." },
+        { status: 429 }
+      );
+    }
+
     const { tenant: slug, messages = [], answers = {} } = await req.json();
     const tenant = getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
