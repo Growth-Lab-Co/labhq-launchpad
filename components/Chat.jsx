@@ -274,6 +274,11 @@ export default function Chat({ tenant }) {
           {deployResult.demo && (
             <div className="badge-demo">Demo mode — no live system was created</div>
           )}
+          {deployResult.contactWarning && (
+            <div className="error-note" style={{ textAlign: "left" }}>
+              Manual step needed: {deployResult.contactWarning}
+            </div>
+          )}
           {config?.privacy_policy_snippet && (
             <div
               style={{

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
-import { createSubAccount, pushAllCustomValues } from "@/lib/ghl";
+import { createSubAccount, pushAllCustomValues, createContact } from "@/lib/ghl";
 
 export const maxDuration = 120;
 
@@ -127,6 +127,24 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         });
         const failures = pushed.filter((p) => !p.ok);
 
+        // Post-deploy contact: fires the snapshot's Go-Live workflow (trigger:
+        // contact tagged "onboarding"). Never fails the whole deploy - surface
+        // a warning instead so the operator can add it manually.
+        let contactWarning = null;
+        const rawName = (answers.contact_name || "").trim();
+        const [firstName, ...rest] = rawName.split(/\s+/).filter(Boolean);
+        try {
+          await createContact({
+            token: creds.token,
+            locationId,
+            firstName,
+            lastName: rest.join(" "),
+            tags: ["onboarding"],
+          });
+        } catch (e) {
+          contactWarning = `Couldn't create the onboarding contact automatically (${e.message}) - add one manually with the "onboarding" tag so the Go-Live workflow fires.`;
+        }
+
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
 
         return NextResponse.json({
@@ -139,6 +157,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
                 .map((f) => f.name)
                 .join(", ")}`
             : null,
+          contactWarning,
         });
       } catch (e) {
         // Allow a legitimate retry after a genuine failure.
