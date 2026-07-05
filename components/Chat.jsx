@@ -348,7 +348,7 @@ export default function Chat({ tenant }) {
               style={{
                 marginTop: 28,
                 textAlign: "left",
-                background: "var(--card)",
+                background: "var(--surface)",
                 border: "1px solid var(--line)",
                 borderRadius: 12,
                 padding: "16px 18px",
@@ -359,7 +359,7 @@ export default function Chat({ tenant }) {
                   fontSize: 12,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  color: "var(--violet-soft)",
+                  color: "var(--accent)",
                   marginBottom: 8,
                 }}
               >
@@ -381,7 +381,7 @@ export default function Chat({ tenant }) {
               style={{
                 marginTop: 16,
                 textAlign: "left",
-                background: "var(--card)",
+                background: "var(--surface)",
                 border: "1px solid var(--line)",
                 borderRadius: 12,
                 padding: "16px 18px",
@@ -392,7 +392,7 @@ export default function Chat({ tenant }) {
                   fontSize: 12,
                   letterSpacing: "0.08em",
                   textTransform: "uppercase",
-                  color: "var(--violet-soft)",
+                  color: "var(--accent)",
                   marginBottom: 8,
                 }}
               >
