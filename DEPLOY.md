@@ -140,6 +140,16 @@ without digging through GHL.
   4. `qa_passed` — the go-live checklist (visible per-row on the dashboard)
      has been run and passed.
   5. `live` — client is fully live and taking real calls/bookings.
+- **Branding** — the "Branding" panel on the dashboard lets a tenant set a
+  custom favicon (any http/https image URL). It replaces the default
+  Launchpad icon across both their intake page and their dashboard, stored
+  in Netlify Blobs (store `branding`, via `lib/branding.js`). Each tenant's
+  brand accent colour (`lib/tenants.js` → `accent`/`accentSoft`) is applied
+  the same way, via CSS custom properties in `app/[tenant]/layout.jsx`.
+- **Starting a new client** — the "+ New client" button in the dashboard
+  header opens the tenant's normal intake chat (`/{tenant}`) in a new tab -
+  the same flow a client would use themselves, for when an operator wants
+  to drive it directly.
 
 ## Launch-day runbook (Sunday)
 

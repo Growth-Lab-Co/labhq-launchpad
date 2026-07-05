@@ -48,6 +48,9 @@ export default function MissionControlPage({ params }) {
   const [deployments, setDeployments] = useState(null);
   const [error, setError] = useState(null);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const [faviconInput, setFaviconInput] = useState("");
+  const [brandingStatus, setBrandingStatus] = useState(null); // null | "saving" | "saved" | error string
+  const [brandingOpen, setBrandingOpen] = useState(false);
 
   useEffect(() => {
     const stored = window.sessionStorage.getItem(sessionKey(slug));
@@ -87,6 +90,14 @@ export default function MissionControlPage({ params }) {
   useEffect(() => {
     if (mcKey) fetchDeployments(mcKey);
   }, [mcKey, fetchDeployments]);
+
+  useEffect(() => {
+    if (!mcKey) return;
+    fetch(`/api/branding?tenant=${encodeURIComponent(slug)}`)
+      .then((r) => r.json())
+      .then((d) => setFaviconInput(d.faviconUrl || ""))
+      .catch(() => {});
+  }, [mcKey, slug]);
 
   async function submitCreatePassword(e) {
     e.preventDefault();
@@ -174,6 +185,25 @@ export default function MissionControlPage({ params }) {
     });
   }
 
+  async function saveFavicon(e) {
+    e.preventDefault();
+    if (!mcKey) return;
+    setBrandingStatus("saving");
+    try {
+      const res = await fetch("/api/branding", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-mc-key": mcKey },
+        body: JSON.stringify({ tenant: slug, faviconUrl: faviconInput.trim() || null }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to save favicon");
+      setBrandingStatus("saved");
+      setTimeout(() => setBrandingStatus((s) => (s === "saved" ? null : s)), 2000);
+    } catch (e) {
+      setBrandingStatus(e.message);
+    }
+  }
+
   if (!tenant) {
     return (
       <main className="mc-shell">
@@ -184,19 +214,19 @@ export default function MissionControlPage({ params }) {
 
   return (
     <main className="mc-shell">
-      <link rel="preconnect" href="https://fonts.googleapis.com" />
-      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      <link
-        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-
       <header className="mc-topbar">
         <div className="mc-brand">
           {tenant.logoUrl ? <img src={tenant.logoUrl} alt={tenant.name} /> : tenant.logoText}
         </div>
-        <div className="mc-powered">
-          Mission Control — <b>{tenant.name}</b>
+        <div className="mc-topbar-right">
+          <div className="mc-powered">
+            Mission Control — <b>{tenant.name}</b>
+          </div>
+          {mcKey && (
+            <a className="mc-btn-outline" href={`/${slug}`} target="_blank" rel="noopener noreferrer">
+              + New client
+            </a>
+          )}
         </div>
       </header>
 
@@ -263,58 +293,85 @@ export default function MissionControlPage({ params }) {
       )}
 
       {mcKey && (
-        <section className="mc-list">
-          {error && <div className="mc-error">{error}</div>}
+        <>
+          <details className="mc-branding" open={brandingOpen} onToggle={(e) => setBrandingOpen(e.target.open)}>
+            <summary>Branding</summary>
+            <form className="mc-branding-form" onSubmit={saveFavicon}>
+              {faviconInput && <img className="mc-favicon-preview" src={faviconInput} alt="" />}
+              <input
+                type="url"
+                value={faviconInput}
+                onChange={(e) => setFaviconInput(e.target.value)}
+                placeholder="https://example.com/favicon.png"
+                aria-label="Favicon URL"
+              />
+              <button className="mc-btn-outline" type="submit" disabled={brandingStatus === "saving"}>
+                {brandingStatus === "saving" ? "Saving…" : "Save favicon"}
+              </button>
+            </form>
+            <p className="mc-sub">
+              This appears in the browser tab across {tenant.name}&apos;s intake page and dashboard. Leave blank to
+              use the default Launchpad icon.
+            </p>
+            {brandingStatus === "saved" && <div className="mc-saved">Saved ✓</div>}
+            {brandingStatus && brandingStatus !== "saving" && brandingStatus !== "saved" && (
+              <div className="mc-error">{brandingStatus}</div>
+            )}
+          </details>
 
-          {deployments === null && <p className="mc-sub">Loading…</p>}
+          <section className="mc-list">
+            {error && <div className="mc-error">{error}</div>}
 
-          {deployments && deployments.length === 0 && (
-            <div className="mc-empty">No deployments yet — they&apos;ll appear here the moment one lands.</div>
-          )}
+            {deployments === null && <p className="mc-sub">Loading…</p>}
 
-          {deployments && deployments.length > 0 && (
-            <div className="mc-rows">
-              {deployments.map((d) => {
-                const currentIndex = STATUS_STEPS.findIndex((s) => s.key === d.status);
-                const expanded = expandedIds.has(d.id);
-                return (
-                  <div className="mc-row" key={d.id}>
-                    <div className="mc-row-head">
-                      <div className="mc-row-title">
-                        <span className="mc-biz-name">{d.businessName || "Unnamed business"}</span>
-                        {d.demo && <span className="mc-badge-demo">Demo</span>}
+            {deployments && deployments.length === 0 && (
+              <div className="mc-empty">No deployments yet — they&apos;ll appear here the moment one lands.</div>
+            )}
+
+            {deployments && deployments.length > 0 && (
+              <div className="mc-rows">
+                {deployments.map((d) => {
+                  const currentIndex = STATUS_STEPS.findIndex((s) => s.key === d.status);
+                  const expanded = expandedIds.has(d.id);
+                  return (
+                    <div className="mc-row" key={d.id}>
+                      <div className="mc-row-head">
+                        <div className="mc-row-title">
+                          <span className="mc-biz-name">{d.businessName || "Unnamed business"}</span>
+                          {d.demo && <span className="mc-badge-demo">Demo</span>}
+                        </div>
+                        <div className="mc-row-date">{formatDate(d.createdAt)}</div>
                       </div>
-                      <div className="mc-row-date">{formatDate(d.createdAt)}</div>
-                    </div>
 
-                    <div className="mc-stepper" role="group" aria-label="Deployment status">
-                      {STATUS_STEPS.map((step, i) => (
-                        <button
-                          key={step.key}
-                          type="button"
-                          className={`mc-step ${i < currentIndex ? "done" : i === currentIndex ? "active" : ""}`}
-                          onClick={() => setStatus(d.id, step.key)}
-                        >
-                          <span className="mc-step-dot" />
-                          <span className="mc-step-label">{step.label}</span>
-                        </button>
-                      ))}
-                    </div>
-
-                    <details className="mc-checklist" open={expanded} onToggle={() => toggleExpanded(d.id)}>
-                      <summary>QA checklist</summary>
-                      <ol>
-                        {QA_CHECKLIST.map((item, i) => (
-                          <li key={i}>{item}</li>
+                      <div className="mc-stepper" role="group" aria-label="Deployment status">
+                        {STATUS_STEPS.map((step, i) => (
+                          <button
+                            key={step.key}
+                            type="button"
+                            className={`mc-step ${i < currentIndex ? "done" : i === currentIndex ? "active" : ""}`}
+                            onClick={() => setStatus(d.id, step.key)}
+                          >
+                            <span className="mc-step-dot" />
+                            <span className="mc-step-label">{step.label}</span>
+                          </button>
                         ))}
-                      </ol>
-                    </details>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+                      </div>
+
+                      <details className="mc-checklist" open={expanded} onToggle={() => toggleExpanded(d.id)}>
+                        <summary>QA checklist</summary>
+                        <ol>
+                          {QA_CHECKLIST.map((item, i) => (
+                            <li key={i}>{item}</li>
+                          ))}
+                        </ol>
+                      </details>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       <style jsx>{`
@@ -323,7 +380,6 @@ export default function MissionControlPage({ params }) {
           margin: 0 auto;
           padding: 24px 20px 64px;
           min-height: 100vh;
-          font-family: "Space Grotesk", Arial, "Helvetica Neue", Helvetica, sans-serif;
         }
         .mc-topbar {
           display: flex;
@@ -335,10 +391,26 @@ export default function MissionControlPage({ params }) {
           border-bottom: 1px solid var(--line);
           margin-bottom: 28px;
         }
+        .mc-topbar-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
         .mc-brand { font-weight: 700; font-size: 18px; letter-spacing: 0.02em; }
         .mc-brand img { max-height: 34px; display: block; }
         .mc-powered { font-size: 13px; color: var(--muted); }
-        .mc-powered b { color: var(--violet-soft); font-weight: 600; }
+        .mc-powered b { color: var(--accent); font-weight: 600; }
+
+        .mc-btn-outline {
+          background: transparent;
+          color: var(--accent);
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          padding: 8px 16px;
+          font-family: inherit;
+          font-weight: 600;
+          font-size: 13px;
+          cursor: pointer;
+          white-space: nowrap;
+          display: inline-block;
+        }
+        .mc-btn-outline:hover { border-color: var(--accent-soft); }
 
         .mc-sub { color: var(--muted); font-size: 14px; }
 
@@ -359,18 +431,18 @@ export default function MissionControlPage({ params }) {
         }
         .mc-gate-form input {
           flex: 1;
-          background: rgba(248, 248, 248, 0.06);
+          background: var(--surface);
           border: 1px solid var(--line);
           border-radius: 12px;
           padding: 12px 14px;
-          color: var(--white);
+          color: var(--text);
           font-family: inherit;
           font-size: 15px;
         }
-        .mc-gate-form input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+        .mc-gate-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
 
         .mc-btn {
-          background: var(--violet);
+          background: var(--accent);
           color: #14102e;
           border: none;
           border-radius: 12px;
@@ -384,9 +456,14 @@ export default function MissionControlPage({ params }) {
         .mc-btn:disabled { opacity: 0.4; cursor: default; }
 
         .mc-error {
-          color: #ff8b8b;
+          color: #ac2f34;
           font-size: 14px;
           margin-top: 14px;
+        }
+        .mc-saved {
+          color: #2fa876;
+          font-size: 14px;
+          margin-top: 10px;
         }
 
         .mc-empty {
@@ -398,9 +475,54 @@ export default function MissionControlPage({ params }) {
           border-radius: 14px;
         }
 
+        .mc-branding {
+          background: var(--surface);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          padding: 4px 18px;
+          margin-bottom: 20px;
+        }
+        .mc-branding summary {
+          cursor: pointer;
+          padding: 14px 0;
+          font-size: 13px;
+          font-weight: 700;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          color: var(--accent);
+          list-style: none;
+        }
+        .mc-branding summary::-webkit-details-marker { display: none; }
+        .mc-branding-form {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex-wrap: wrap;
+          padding-bottom: 10px;
+        }
+        .mc-branding-form input {
+          flex: 1;
+          min-width: 200px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px 12px;
+          color: var(--text);
+          font-family: inherit;
+          font-size: 14px;
+        }
+        .mc-favicon-preview {
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          border: 1px solid var(--line);
+          object-fit: contain;
+        }
+        .mc-branding .mc-sub { padding-bottom: 14px; }
+
         .mc-rows { display: flex; flex-direction: column; gap: 16px; }
         .mc-row {
-          background: var(--card);
+          background: var(--surface);
           border: 1px solid var(--line);
           border-radius: 14px;
           padding: 16px 18px;
@@ -420,7 +542,7 @@ export default function MissionControlPage({ params }) {
           font-size: 11px;
           letter-spacing: 0.06em;
           text-transform: uppercase;
-          color: var(--violet-soft);
+          color: var(--accent);
           border: 1px solid var(--line);
           border-radius: 999px;
           padding: 2px 8px;
@@ -446,18 +568,18 @@ export default function MissionControlPage({ params }) {
           cursor: pointer;
           transition: color 150ms ease, border-color 150ms ease;
         }
-        .mc-step:hover { color: var(--white); border-color: var(--violet-soft); }
+        .mc-step:hover { color: var(--text); border-color: var(--accent-soft); }
         .mc-step-dot {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: rgba(248, 248, 248, 0.15);
+          background: var(--line);
           flex-shrink: 0;
         }
-        .mc-step.active { color: var(--white); border-color: var(--violet); }
-        .mc-step.active .mc-step-dot { background: var(--violet); }
-        .mc-step.done { color: var(--white); }
-        .mc-step.done .mc-step-dot { background: #5ddba5; }
+        .mc-step.active { color: var(--text); border-color: var(--accent); }
+        .mc-step.active .mc-step-dot { background: var(--accent); }
+        .mc-step.done { color: var(--text); }
+        .mc-step.done .mc-step-dot { background: #2fa876; }
 
         .mc-checklist {
           margin-top: 12px;
@@ -467,7 +589,7 @@ export default function MissionControlPage({ params }) {
         .mc-checklist summary {
           cursor: pointer;
           font-size: 13px;
-          color: var(--violet-soft);
+          color: var(--accent);
         }
         .mc-checklist ol {
           margin: 10px 0 0 18px;
