@@ -55,6 +55,7 @@ export default function Chat({ tenant }) {
   const [error, setError] = useState(null);
   const [complianceConfirmed, setComplianceConfirmed] = useState(false);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [isOperator, setIsOperator] = useState(false);
   const bottomRef = useRef(null);
   const startedRef = useRef(false);
   const deployingRef = useRef(false);
@@ -67,6 +68,10 @@ export default function Chat({ tenant }) {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, phase]);
+
+  useEffect(() => {
+    setIsOperator(new URLSearchParams(window.location.search).get("operator") === "1");
+  }, []);
 
   useEffect(() => {
     if (startedRef.current) return;
@@ -432,6 +437,11 @@ export default function Chat({ tenant }) {
               </li>
             </ol>
           </details>
+          {isOperator && (
+            <div style={{ marginTop: 24, fontSize: 12, color: "var(--muted)" }}>
+              <a href={`/${tenant.slug}/missioncontrol`}>Mission Control →</a>
+            </div>
+          )}
         </section>
       )}
     </main>
