@@ -103,6 +103,40 @@ The GHL API v2 payload occasionally differs by account age/plan. If `test:ghl` f
 2. Add `{PREFIX}_GHL_*` env vars in Vercel.
 3. Their subdomain works instantly (wildcard already covers it).
 
+## Mission Control
+
+A password-gated deployment log and status dashboard, so anyone on the ops
+team can see what's been deployed and where each client is in go-live
+without digging through GHL.
+
+- **What it is** — every deploy (real or demo) writes a record to Netlify
+  Blobs (store `deployments`) via `lib/deployments.js`: business name,
+  contact, location ID, demo flag, and a status. The dashboard reads/writes
+  those records through `app/api/deployments/route.js`.
+- **URL pattern** — `https://{tenant}.labhq.co/missioncontrol`, e.g.
+  `obm.labhq.co/missioncontrol`. On a root host it's
+  `labhq.co/{tenant}/missioncontrol`.
+- **Password** — set via the `MC_PASSWORD` env var. The dashboard prompts
+  for it on first load, stores it in `sessionStorage`, and sends it back as
+  the `x-mc-key` header on every API call. There's one shared password per
+  deployment of Launchpad (not per-tenant).
+- **Getting there from the app** — on the deploy success screen, add
+  `?operator=1` to the URL to reveal a "Mission Control →" link. Clients
+  never see this; it's for whoever drove the deploy.
+- **Status meanings** (click any step on a row to set it):
+  1. `deployed` — sub-account created, custom values pushed. Set automatically.
+  2. `calendar_connected` — client's Google/Outlook calendar is connected.
+  3. `phone_live` — their phone number is attached/forwarded.
+  4. `qa_passed` — the go-live checklist (visible per-row on the dashboard)
+     has been run and passed.
+  5. `live` — client is fully live and taking real calls/bookings.
+
+Set the password once per environment, then redeploy:
+
+```bash
+netlify env:set MC_PASSWORD <a value you choose>
+```
+
 ## Launch-day runbook (Sunday)
 
 1. `npm run test:ghl` ✅
