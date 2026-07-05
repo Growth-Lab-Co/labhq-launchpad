@@ -141,11 +141,17 @@ without digging through GHL.
      has been run and passed.
   5. `live` — client is fully live and taking real calls/bookings.
 - **Branding** — the "Branding" panel on the dashboard lets a tenant set a
-  custom favicon (any http/https image URL). It replaces the default
-  Launchpad icon across both their intake page and their dashboard, stored
-  in Netlify Blobs (store `branding`, via `lib/branding.js`). Each tenant's
+  custom favicon and logo, either by pasting an image URL or uploading a
+  file directly (PNG/JPEG/SVG/WebP/GIF, max 2MB). Uploaded files are stored
+  as raw bytes in Netlify Blobs (store `branding-assets`) and served back
+  through `app/api/branding/asset/route.js`; the URL form just stores
+  whatever link was pasted. Either way the change is live immediately across
+  the tenant's intake page and dashboard - no redeploy needed. Each tenant's
   brand accent colour (`lib/tenants.js` → `accent`/`accentSoft`) is applied
   the same way, via CSS custom properties in `app/[tenant]/layout.jsx`.
+- **Client onboarding link** — the dashboard shows `{tenant}.labhq.co` with
+  a one-click copy button, so an operator can grab the exact link to hand
+  to a client.
 - **Starting a new client** — the "+ New client" button in the dashboard
   header opens the tenant's normal intake chat (`/{tenant}`) in a new tab -
   the same flow a client would use themselves, for when an operator wants
