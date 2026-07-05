@@ -116,10 +116,20 @@ without digging through GHL.
 - **URL pattern** — `https://{tenant}.labhq.co/missioncontrol`, e.g.
   `obm.labhq.co/missioncontrol`. On a root host it's
   `labhq.co/{tenant}/missioncontrol`.
-- **Password** — set via the `MC_PASSWORD` env var. The dashboard prompts
-  for it on first load, stores it in `sessionStorage`, and sends it back as
-  the `x-mc-key` header on every API call. There's one shared password per
-  deployment of Launchpad (not per-tenant).
+- **Password** — self-service, per tenant. The first person to open a
+  tenant's dashboard (e.g. `obm.labhq.co/missioncontrol`) is prompted to
+  create a password for it (min. 8 characters), hashed and stored in
+  Netlify Blobs (store `mc-auth`, via `lib/mcAuth.js`). After that, it's a
+  normal login prompt for anyone else opening that tenant's dashboard.
+  Nothing to configure before launch.
+- **Master override** — the optional `MC_PASSWORD` env var, if set,
+  authenticates against *any* tenant's dashboard. Use it to get in (or
+  rotate a tenant's password via the API) if a tenant forgets theirs:
+  ```bash
+  curl -X POST https://labhq.co/api/mc-auth \
+    -H "content-type: application/json" -H "x-mc-key: $MC_PASSWORD" \
+    -d '{"tenant":"obm","password":"<new password>"}'
+  ```
 - **Getting there from the app** — on the deploy success screen, add
   `?operator=1` to the URL to reveal a "Mission Control →" link. Clients
   never see this; it's for whoever drove the deploy.
@@ -130,12 +140,6 @@ without digging through GHL.
   4. `qa_passed` — the go-live checklist (visible per-row on the dashboard)
      has been run and passed.
   5. `live` — client is fully live and taking real calls/bookings.
-
-Set the password once per environment, then redeploy:
-
-```bash
-netlify env:set MC_PASSWORD <a value you choose>
-```
 
 ## Launch-day runbook (Sunday)
 
