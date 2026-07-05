@@ -1,0 +1,403 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { getTenant } from "@/lib/tenants";
+
+const STATUS_STEPS = [
+  { key: "deployed", label: "Deployed" },
+  { key: "calendar_connected", label: "Calendar connected" },
+  { key: "phone_live", label: "Phone live" },
+  { key: "qa_passed", label: "QA passed" },
+  { key: "live", label: "Live" },
+];
+
+// Mirrors the go-live checklist shown on the deploy success screen
+// (components/Chat.jsx), so an operator can eyeball what "qa_passed" means.
+const QA_CHECKLIST = [
+  "Assign the client as a calendar staff member.",
+  "Connect their Google or Outlook calendar.",
+  "Tune calendar availability — days ahead, buffers, slot length.",
+  "Attach or forward their phone number.",
+  "Swap the AI receptionist's transfer number to the client's escalation contact.",
+  "Connect Facebook Lead Ads, if they use it.",
+  "Run the four-question test call: are you a robot? a known FAQ? an unknown question? ask for a human?",
+];
+
+function sessionKey(tenant) {
+  return `labhq:mc:${tenant}`;
+}
+
+function formatDate(iso) {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  } catch {
+    return iso;
+  }
+}
+
+export default function MissionControlPage({ params }) {
+  const slug = params.tenant;
+  const tenant = getTenant(slug);
+
+  const [mcKey, setMcKey] = useState(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [authError, setAuthError] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [deployments, setDeployments] = useState(null);
+  const [error, setError] = useState(null);
+  const [expandedIds, setExpandedIds] = useState(() => new Set());
+
+  useEffect(() => {
+    const stored = window.sessionStorage.getItem(sessionKey(slug));
+    if (stored) setMcKey(stored);
+  }, [slug]);
+
+  const fetchDeployments = useCallback(
+    async (key) => {
+      setError(null);
+      try {
+        const res = await fetch(`/api/deployments?tenant=${encodeURIComponent(slug)}`, {
+          headers: { "x-mc-key": key },
+        });
+        if (res.status === 401) {
+          window.sessionStorage.removeItem(sessionKey(slug));
+          setMcKey(null);
+          setAuthError("Incorrect password.");
+          return;
+        }
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load deployments");
+        setDeployments(data.deployments || []);
+      } catch (e) {
+        setError(e.message);
+      }
+    },
+    [slug]
+  );
+
+  useEffect(() => {
+    if (mcKey) fetchDeployments(mcKey);
+  }, [mcKey, fetchDeployments]);
+
+  async function submitPassword(e) {
+    e.preventDefault();
+    if (!passwordInput.trim() || checking) return;
+    setChecking(true);
+    setAuthError(null);
+    const key = passwordInput.trim();
+    try {
+      const res = await fetch(`/api/deployments?tenant=${encodeURIComponent(slug)}`, {
+        headers: { "x-mc-key": key },
+      });
+      if (res.status === 401) {
+        setAuthError("Incorrect password.");
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to load deployments");
+      window.sessionStorage.setItem(sessionKey(slug), key);
+      setMcKey(key);
+      setDeployments(data.deployments || []);
+    } catch (e) {
+      setAuthError(e.message);
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function setStatus(id, status) {
+    if (!mcKey) return;
+    const previous = deployments;
+    setDeployments((prev) => prev.map((d) => (d.id === id ? { ...d, status } : d)));
+    try {
+      const res = await fetch("/api/deployments", {
+        method: "PATCH",
+        headers: { "content-type": "application/json", "x-mc-key": mcKey },
+        body: JSON.stringify({ id, status }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update status");
+      setDeployments((prev) => prev.map((d) => (d.id === id ? data.deployment : d)));
+    } catch (e) {
+      setError(e.message);
+      setDeployments(previous);
+    }
+  }
+
+  function toggleExpanded(id) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  if (!tenant) {
+    return (
+      <main className="mc-shell">
+        <p className="mc-error">Unknown tenant.</p>
+      </main>
+    );
+  }
+
+  return (
+    <main className="mc-shell">
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+
+      <header className="mc-topbar">
+        <div className="mc-brand">
+          {tenant.logoUrl ? <img src={tenant.logoUrl} alt={tenant.name} /> : tenant.logoText}
+        </div>
+        <div className="mc-powered">
+          Mission Control — <b>{tenant.name}</b>
+        </div>
+      </header>
+
+      {!mcKey && (
+        <section className="mc-gate">
+          <h2>Enter password</h2>
+          <p className="mc-sub">This dashboard is restricted to the operations team.</p>
+          <form onSubmit={submitPassword} className="mc-gate-form">
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="Password"
+              aria-label="Mission Control password"
+              autoFocus
+            />
+            <button className="mc-btn" type="submit" disabled={checking || !passwordInput.trim()}>
+              {checking ? "Checking…" : "Enter"}
+            </button>
+          </form>
+          {authError && <div className="mc-error">{authError}</div>}
+        </section>
+      )}
+
+      {mcKey && (
+        <section className="mc-list">
+          {error && <div className="mc-error">{error}</div>}
+
+          {deployments === null && <p className="mc-sub">Loading…</p>}
+
+          {deployments && deployments.length === 0 && (
+            <div className="mc-empty">No deployments yet — they&apos;ll appear here the moment one lands.</div>
+          )}
+
+          {deployments && deployments.length > 0 && (
+            <div className="mc-rows">
+              {deployments.map((d) => {
+                const currentIndex = STATUS_STEPS.findIndex((s) => s.key === d.status);
+                const expanded = expandedIds.has(d.id);
+                return (
+                  <div className="mc-row" key={d.id}>
+                    <div className="mc-row-head">
+                      <div className="mc-row-title">
+                        <span className="mc-biz-name">{d.businessName || "Unnamed business"}</span>
+                        {d.demo && <span className="mc-badge-demo">Demo</span>}
+                      </div>
+                      <div className="mc-row-date">{formatDate(d.createdAt)}</div>
+                    </div>
+
+                    <div className="mc-stepper" role="group" aria-label="Deployment status">
+                      {STATUS_STEPS.map((step, i) => (
+                        <button
+                          key={step.key}
+                          type="button"
+                          className={`mc-step ${i < currentIndex ? "done" : i === currentIndex ? "active" : ""}`}
+                          onClick={() => setStatus(d.id, step.key)}
+                        >
+                          <span className="mc-step-dot" />
+                          <span className="mc-step-label">{step.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    <details className="mc-checklist" open={expanded} onToggle={() => toggleExpanded(d.id)}>
+                      <summary>QA checklist</summary>
+                      <ol>
+                        {QA_CHECKLIST.map((item, i) => (
+                          <li key={i}>{item}</li>
+                        ))}
+                      </ol>
+                    </details>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
+      <style jsx>{`
+        .mc-shell {
+          max-width: 880px;
+          margin: 0 auto;
+          padding: 24px 20px 64px;
+          min-height: 100vh;
+          font-family: "Space Grotesk", Arial, "Helvetica Neue", Helvetica, sans-serif;
+        }
+        .mc-topbar {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          padding-bottom: 20px;
+          border-bottom: 1px solid var(--line);
+          margin-bottom: 28px;
+        }
+        .mc-brand { font-weight: 700; font-size: 18px; letter-spacing: 0.02em; }
+        .mc-brand img { max-height: 34px; display: block; }
+        .mc-powered { font-size: 13px; color: var(--muted); }
+        .mc-powered b { color: var(--violet-soft); font-weight: 600; }
+
+        .mc-sub { color: var(--muted); font-size: 14px; }
+
+        .mc-gate {
+          max-width: 360px;
+          margin: 10vh auto 0;
+          text-align: center;
+        }
+        .mc-gate h2 { font-size: 22px; margin-bottom: 6px; }
+        .mc-gate-form {
+          display: flex;
+          gap: 10px;
+          margin-top: 18px;
+        }
+        .mc-gate-form input {
+          flex: 1;
+          background: rgba(248, 248, 248, 0.06);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px 14px;
+          color: var(--white);
+          font-family: inherit;
+          font-size: 15px;
+        }
+        .mc-gate-form input:focus { outline: 2px solid var(--violet); outline-offset: 1px; }
+
+        .mc-btn {
+          background: var(--violet);
+          color: #14102e;
+          border: none;
+          border-radius: 12px;
+          padding: 12px 20px;
+          font-family: inherit;
+          font-weight: 700;
+          font-size: 15px;
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .mc-btn:disabled { opacity: 0.4; cursor: default; }
+
+        .mc-error {
+          color: #ff8b8b;
+          font-size: 14px;
+          margin-top: 14px;
+        }
+
+        .mc-empty {
+          color: var(--muted);
+          font-size: 15px;
+          text-align: center;
+          padding: 64px 20px;
+          border: 1px dashed var(--line);
+          border-radius: 14px;
+        }
+
+        .mc-rows { display: flex; flex-direction: column; gap: 16px; }
+        .mc-row {
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 14px;
+          padding: 16px 18px;
+        }
+        .mc-row-head {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+          margin-bottom: 14px;
+        }
+        .mc-row-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .mc-biz-name { font-size: 16px; font-weight: 600; }
+        .mc-row-date { font-size: 12px; color: var(--muted); }
+        .mc-badge-demo {
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--violet-soft);
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          padding: 2px 8px;
+        }
+
+        .mc-stepper {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px 4px;
+          margin-bottom: 4px;
+        }
+        .mc-step {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          padding: 6px 12px 6px 8px;
+          color: var(--muted);
+          font-family: inherit;
+          font-size: 12px;
+          cursor: pointer;
+          transition: color 150ms ease, border-color 150ms ease;
+        }
+        .mc-step:hover { color: var(--white); border-color: var(--violet-soft); }
+        .mc-step-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: rgba(248, 248, 248, 0.15);
+          flex-shrink: 0;
+        }
+        .mc-step.active { color: var(--white); border-color: var(--violet); }
+        .mc-step.active .mc-step-dot { background: var(--violet); }
+        .mc-step.done { color: var(--white); }
+        .mc-step.done .mc-step-dot { background: #5ddba5; }
+
+        .mc-checklist {
+          margin-top: 12px;
+          border-top: 1px solid var(--line);
+          padding-top: 10px;
+        }
+        .mc-checklist summary {
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--violet-soft);
+        }
+        .mc-checklist ol {
+          margin: 10px 0 0 18px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 13px;
+          color: var(--muted);
+          line-height: 1.5;
+        }
+
+        @media (max-width: 480px) {
+          .mc-step { padding: 6px 10px 6px 7px; font-size: 11px; }
+          .mc-row-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+        }
+      `}</style>
+    </main>
+  );
+}
