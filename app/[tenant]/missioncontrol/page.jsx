@@ -39,8 +39,10 @@ export default function MissionControlPage({ params }) {
   const slug = params.tenant;
   const tenant = getTenant(slug);
 
+  const [configured, setConfigured] = useState(null); // null = still checking
   const [mcKey, setMcKey] = useState(null);
   const [passwordInput, setPasswordInput] = useState("");
+  const [confirmInput, setConfirmInput] = useState("");
   const [authError, setAuthError] = useState(null);
   const [checking, setChecking] = useState(false);
   const [deployments, setDeployments] = useState(null);
@@ -50,6 +52,13 @@ export default function MissionControlPage({ params }) {
   useEffect(() => {
     const stored = window.sessionStorage.getItem(sessionKey(slug));
     if (stored) setMcKey(stored);
+  }, [slug]);
+
+  useEffect(() => {
+    fetch(`/api/mc-auth?tenant=${encodeURIComponent(slug)}`)
+      .then((r) => r.json())
+      .then((d) => setConfigured(Boolean(d.configured)))
+      .catch(() => setConfigured(false));
   }, [slug]);
 
   const fetchDeployments = useCallback(
@@ -78,6 +87,38 @@ export default function MissionControlPage({ params }) {
   useEffect(() => {
     if (mcKey) fetchDeployments(mcKey);
   }, [mcKey, fetchDeployments]);
+
+  async function submitCreatePassword(e) {
+    e.preventDefault();
+    if (checking) return;
+    const pw = passwordInput.trim();
+    if (pw.length < 8) {
+      setAuthError("Password must be at least 8 characters.");
+      return;
+    }
+    if (pw !== confirmInput.trim()) {
+      setAuthError("Passwords don't match.");
+      return;
+    }
+    setChecking(true);
+    setAuthError(null);
+    try {
+      const res = await fetch("/api/mc-auth", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenant: slug, password: pw }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to set password");
+      window.sessionStorage.setItem(sessionKey(slug), pw);
+      setMcKey(pw);
+      setConfigured(true);
+    } catch (e) {
+      setAuthError(e.message);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function submitPassword(e) {
     e.preventDefault();
@@ -113,7 +154,7 @@ export default function MissionControlPage({ params }) {
       const res = await fetch("/api/deployments", {
         method: "PATCH",
         headers: { "content-type": "application/json", "x-mc-key": mcKey },
-        body: JSON.stringify({ id, status }),
+        body: JSON.stringify({ id, status, tenant: slug }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to update status");
@@ -159,7 +200,48 @@ export default function MissionControlPage({ params }) {
         </div>
       </header>
 
-      {!mcKey && (
+      {!mcKey && configured === null && (
+        <section className="mc-gate">
+          <p className="mc-sub">Loading…</p>
+        </section>
+      )}
+
+      {!mcKey && configured === false && (
+        <section className="mc-gate">
+          <h2>Create a password</h2>
+          <p className="mc-sub">
+            No password has been set for {tenant.name}&apos;s dashboard yet. Choose one now — you&apos;ll use it
+            every time you come back.
+          </p>
+          <form onSubmit={submitCreatePassword} className="mc-gate-form stacked">
+            <input
+              type="password"
+              value={passwordInput}
+              onChange={(e) => setPasswordInput(e.target.value)}
+              placeholder="New password (min. 8 characters)"
+              aria-label="New Mission Control password"
+              autoFocus
+            />
+            <input
+              type="password"
+              value={confirmInput}
+              onChange={(e) => setConfirmInput(e.target.value)}
+              placeholder="Confirm password"
+              aria-label="Confirm Mission Control password"
+            />
+            <button
+              className="mc-btn"
+              type="submit"
+              disabled={checking || !passwordInput.trim() || !confirmInput.trim()}
+            >
+              {checking ? "Saving…" : "Set password"}
+            </button>
+          </form>
+          {authError && <div className="mc-error">{authError}</div>}
+        </section>
+      )}
+
+      {!mcKey && configured === true && (
         <section className="mc-gate">
           <h2>Enter password</h2>
           <p className="mc-sub">This dashboard is restricted to the operations team.</p>
@@ -270,6 +352,10 @@ export default function MissionControlPage({ params }) {
           display: flex;
           gap: 10px;
           margin-top: 18px;
+        }
+        .mc-gate-form.stacked {
+          flex-direction: column;
+          align-items: stretch;
         }
         .mc-gate-form input {
           flex: 1;
