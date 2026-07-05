@@ -24,7 +24,7 @@ const QA_CHECKLIST = [
 
 const FAVICON_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp,image/gif,image/x-icon";
 const LOGO_ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp,image/gif";
-const TRANSIENT_STATUSES = ["saving", "uploading", "saved"];
+const TRANSIENT_STATUSES = ["uploading", "saved"];
 
 function sessionKey(tenant) {
   return `labhq:mc:${tenant}`;
@@ -194,25 +194,6 @@ export default function MissionControlPage({ params }) {
     setTimeout(() => setAssetStatus((s) => (s[type] === "saved" ? { ...s, [type]: null } : s)), 2000);
   }
 
-  async function saveAssetUrl(type, e) {
-    e.preventDefault();
-    if (!mcKey) return;
-    setAssetStatus((s) => ({ ...s, [type]: "saving" }));
-    try {
-      const res = await fetch("/api/branding", {
-        method: "PATCH",
-        headers: { "content-type": "application/json", "x-mc-key": mcKey },
-        body: JSON.stringify({ tenant: slug, [`${type}Url`]: assetInputs[type].trim() || null }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Failed to save ${type}`);
-      setAssetStatus((s) => ({ ...s, [type]: "saved" }));
-      clearAssetStatusSoon(type);
-    } catch (e) {
-      setAssetStatus((s) => ({ ...s, [type]: e.message }));
-    }
-  }
-
   async function uploadAsset(type, file) {
     if (!mcKey || !file) return;
     setAssetStatus((s) => ({ ...s, [type]: "uploading" }));
@@ -349,27 +330,15 @@ export default function MissionControlPage({ params }) {
               <span className="mc-brand-row-label">Favicon</span>
               <div className="mc-brand-row-body">
                 {assetInputs.favicon && <img className="mc-asset-preview" src={assetInputs.favicon} alt="" />}
-                <form className="mc-branding-form" onSubmit={(e) => saveAssetUrl("favicon", e)}>
+                <label className="mc-btn-outline mc-upload-btn">
+                  {assetStatus.favicon === "uploading" ? "Uploading…" : assetInputs.favicon ? "Replace" : "Upload"}
                   <input
-                    type="url"
-                    value={assetInputs.favicon}
-                    onChange={(e) => setAssetInputs((s) => ({ ...s, favicon: e.target.value }))}
-                    placeholder="https://example.com/favicon.png"
-                    aria-label="Favicon URL"
+                    type="file"
+                    accept={FAVICON_ACCEPT}
+                    onChange={(e) => e.target.files[0] && uploadAsset("favicon", e.target.files[0])}
+                    hidden
                   />
-                  <button className="mc-btn-outline" type="submit" disabled={assetStatus.favicon === "saving"}>
-                    {assetStatus.favicon === "saving" ? "Saving…" : "Save"}
-                  </button>
-                  <label className="mc-btn-outline mc-upload-btn">
-                    {assetStatus.favicon === "uploading" ? "Uploading…" : "Upload"}
-                    <input
-                      type="file"
-                      accept={FAVICON_ACCEPT}
-                      onChange={(e) => e.target.files[0] && uploadAsset("favicon", e.target.files[0])}
-                      hidden
-                    />
-                  </label>
-                </form>
+                </label>
               </div>
               {assetStatus.favicon === "saved" && <div className="mc-saved">Saved ✓</div>}
               {assetStatus.favicon && !TRANSIENT_STATUSES.includes(assetStatus.favicon) && (
@@ -381,27 +350,15 @@ export default function MissionControlPage({ params }) {
               <span className="mc-brand-row-label">Logo</span>
               <div className="mc-brand-row-body">
                 {assetInputs.logo && <img className="mc-asset-preview mc-asset-preview-logo" src={assetInputs.logo} alt="" />}
-                <form className="mc-branding-form" onSubmit={(e) => saveAssetUrl("logo", e)}>
+                <label className="mc-btn-outline mc-upload-btn">
+                  {assetStatus.logo === "uploading" ? "Uploading…" : assetInputs.logo ? "Replace" : "Upload"}
                   <input
-                    type="url"
-                    value={assetInputs.logo}
-                    onChange={(e) => setAssetInputs((s) => ({ ...s, logo: e.target.value }))}
-                    placeholder="https://example.com/logo.png"
-                    aria-label="Logo URL"
+                    type="file"
+                    accept={LOGO_ACCEPT}
+                    onChange={(e) => e.target.files[0] && uploadAsset("logo", e.target.files[0])}
+                    hidden
                   />
-                  <button className="mc-btn-outline" type="submit" disabled={assetStatus.logo === "saving"}>
-                    {assetStatus.logo === "saving" ? "Saving…" : "Save"}
-                  </button>
-                  <label className="mc-btn-outline mc-upload-btn">
-                    {assetStatus.logo === "uploading" ? "Uploading…" : "Upload"}
-                    <input
-                      type="file"
-                      accept={LOGO_ACCEPT}
-                      onChange={(e) => e.target.files[0] && uploadAsset("logo", e.target.files[0])}
-                      hidden
-                    />
-                  </label>
-                </form>
+                </label>
               </div>
               {assetStatus.logo === "saved" && <div className="mc-saved">Saved ✓</div>}
               {assetStatus.logo && !TRANSIENT_STATUSES.includes(assetStatus.logo) && (
@@ -410,8 +367,7 @@ export default function MissionControlPage({ params }) {
             </div>
 
             <p className="mc-sub">
-              Paste a link or upload a file directly - changes take effect immediately across {tenant.name}&apos;s
-              intake page and dashboard, no redeploy needed. Leave blank to use the default.
+              Uploads apply immediately across {tenant.name}&apos;s intake page and dashboard - no redeploy needed.
             </p>
           </details>
 
@@ -618,24 +574,6 @@ export default function MissionControlPage({ params }) {
           margin-bottom: 8px;
         }
         .mc-brand-row-body { display: flex; align-items: center; gap: 10px; }
-        .mc-branding-form {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
-          flex: 1;
-        }
-        .mc-branding-form input {
-          flex: 1;
-          min-width: 180px;
-          background: var(--bg);
-          border: 1px solid var(--line);
-          border-radius: 10px;
-          padding: 10px 12px;
-          color: var(--text);
-          font-family: inherit;
-          font-size: 14px;
-        }
         .mc-asset-preview {
           width: 32px;
           height: 32px;

@@ -140,13 +140,12 @@ without digging through GHL.
   4. `qa_passed` — the go-live checklist (visible per-row on the dashboard)
      has been run and passed.
   5. `live` — client is fully live and taking real calls/bookings.
-- **Branding** — the "Branding" panel on the dashboard lets a tenant set a
-  custom favicon and logo, either by pasting an image URL or uploading a
-  file directly (PNG/JPEG/SVG/WebP/GIF, max 2MB). Uploaded files are stored
-  as raw bytes in Netlify Blobs (store `branding-assets`) and served back
-  through `app/api/branding/asset/route.js`; the URL form just stores
-  whatever link was pasted. Either way the change is live immediately across
-  the tenant's intake page and dashboard - no redeploy needed. Each tenant's
+- **Branding** — the "Branding" panel on the dashboard lets a tenant upload
+  a custom favicon and logo directly (PNG/JPEG/SVG/WebP/GIF, max 2MB) - no
+  need to have the image hosted anywhere else. Uploaded files are stored as
+  raw bytes in Netlify Blobs (store `branding-assets`) and served back
+  through `app/api/branding/asset/route.js`. Live immediately across the
+  tenant's intake page and dashboard - no redeploy needed. Each tenant's
   brand accent colour (`lib/tenants.js` → `accent`/`accentSoft`) is applied
   the same way, via CSS custom properties in `app/[tenant]/layout.jsx`.
 - **Client onboarding link** — the dashboard shows `{tenant}.labhq.co` with
