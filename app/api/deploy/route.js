@@ -3,6 +3,7 @@ import { askClaude, extractJson } from "@/lib/claude";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
 import { createSubAccount, pushAllCustomValues, createContact, getForms } from "@/lib/ghl";
+import { recordDeployment } from "@/lib/deployments";
 
 export const maxDuration = 120;
 
@@ -103,10 +104,18 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         if (!creds.configured) {
           await new Promise((r) => setTimeout(r, 4000));
           if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+          const demoLocationId = "demo-" + Math.random().toString(36).slice(2, 8);
+          await recordDeployment({
+            tenant: slug,
+            businessName: customValues.business_name || answers.business_name || "New Lab HQ Client",
+            contactName: answers.contact_name || "",
+            locationId: demoLocationId,
+            demo: true,
+          });
           return NextResponse.json({
             ok: true,
             demo: true,
-            locationId: "demo-" + Math.random().toString(36).slice(2, 8),
+            locationId: demoLocationId,
             pushed: Object.keys(customValues).map((name) => ({ name, ok: true })),
           });
         }
@@ -163,6 +172,14 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         }
 
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+
+        await recordDeployment({
+          tenant: slug,
+          businessName,
+          contactName: answers.contact_name || "",
+          locationId,
+          demo: false,
+        });
 
         return NextResponse.json({
           ok: true,
