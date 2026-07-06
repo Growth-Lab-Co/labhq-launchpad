@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { getTenant } from "@/lib/tenants";
+import { INTERVIEW_FIELDS, CUSTOM_VALUE_KEYS } from "@/lib/questions";
 
 const STATUS_STEPS = [
   { key: "deployed", label: "Deployed" },
@@ -52,6 +53,9 @@ export default function MissionControlPage({ params }) {
   const [deployments, setDeployments] = useState(null);
   const [error, setError] = useState(null);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
+  const [setupOpenIds, setSetupOpenIds] = useState(() => new Set());
+  const [setupTab, setSetupTab] = useState({});
+  const [copyStatus, setCopyStatus] = useState({});
   const [assetInputs, setAssetInputs] = useState({ favicon: "", logo: "" });
   const [assetStatus, setAssetStatus] = useState({ favicon: null, logo: null });
   const [brandingOpen, setBrandingOpen] = useState(false);
@@ -188,6 +192,55 @@ export default function MissionControlPage({ params }) {
       else next.add(id);
       return next;
     });
+  }
+
+  function toggleSetupExpanded(id) {
+    setSetupOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  // Tries the modern async clipboard API first, falls back to the legacy
+  // execCommand approach (needed on non-secure origins / older browsers) so
+  // operators pasting into GHL during QA get an honest success/failure signal
+  // instead of a silent no-op.
+  async function copyToClipboard(text) {
+    if (!text) return false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        // fall through to legacy fallback below
+      }
+    }
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function copyRow(key, text) {
+    const ok = await copyToClipboard(text);
+    setCopyStatus((s) => ({ ...s, [key]: ok ? "copied" : "error" }));
+    setTimeout(() => setCopyStatus((s) => (s[key] ? { ...s, [key]: null } : s)), 2000);
+  }
+
+  function copyLabel(key, defaultLabel) {
+    return copyStatus[key] === "copied" ? "Copied ✓" : copyStatus[key] === "error" ? "Failed" : defaultLabel;
   }
 
   function clearAssetStatusSoon(type) {
@@ -408,6 +461,79 @@ export default function MissionControlPage({ params }) {
                           </button>
                         ))}
                       </div>
+
+                      <details
+                        className="mc-setup"
+                        open={setupOpenIds.has(d.id)}
+                        onToggle={() => toggleSetupExpanded(d.id)}
+                      >
+                        <summary>Setup details</summary>
+                        <div className="mc-setup-tabs">
+                          <button
+                            type="button"
+                            className={`mc-tab ${(setupTab[d.id] || "answers") === "answers" ? "active" : ""}`}
+                            onClick={() => setSetupTab((s) => ({ ...s, [d.id]: "answers" }))}
+                          >
+                            Interview answers
+                          </button>
+                          <button
+                            type="button"
+                            className={`mc-tab ${setupTab[d.id] === "values" ? "active" : ""}`}
+                            onClick={() => setSetupTab((s) => ({ ...s, [d.id]: "values" }))}
+                          >
+                            Custom values
+                          </button>
+                        </div>
+
+                        {(setupTab[d.id] || "answers") === "answers" ? (
+                          !d.answers ? (
+                            <p className="mc-sub">Not recorded for this deployment.</p>
+                          ) : (
+                            <div className="mc-kv-list">
+                              {INTERVIEW_FIELDS.map((f) => (
+                                <div className="mc-kv-row" key={f.field}>
+                                  <div className="mc-kv-label">{f.ask}</div>
+                                  <div className="mc-kv-value">{d.answers[f.field] || "—"}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        ) : !d.customValues ? (
+                          <p className="mc-sub">Not recorded for this deployment.</p>
+                        ) : (
+                          <>
+                            <div className="mc-copy-all-row">
+                              <button
+                                type="button"
+                                className="mc-btn-outline"
+                                onClick={() =>
+                                  copyRow(
+                                    `${d.id}:all`,
+                                    CUSTOM_VALUE_KEYS.map((key) => `${key}: ${d.customValues[key] ?? ""}`).join("\n")
+                                  )
+                                }
+                              >
+                                {copyLabel(`${d.id}:all`, "Copy all")}
+                              </button>
+                            </div>
+                            <div className="mc-kv-list">
+                              {CUSTOM_VALUE_KEYS.map((key) => (
+                                <div className="mc-kv-row" key={key}>
+                                  <div className="mc-kv-label">{key.replaceAll("_", " ")}</div>
+                                  <div className="mc-kv-value">{d.customValues[key] ?? ""}</div>
+                                  <button
+                                    type="button"
+                                    className="mc-copy-btn"
+                                    onClick={() => copyRow(`${d.id}:${key}`, String(d.customValues[key] ?? ""))}
+                                  >
+                                    {copyLabel(`${d.id}:${key}`, "Copy")}
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </details>
 
                       <details className="mc-checklist" open={expanded} onToggle={() => toggleExpanded(d.id)}>
                         <summary>QA checklist</summary>
@@ -668,9 +794,85 @@ export default function MissionControlPage({ params }) {
           line-height: 1.5;
         }
 
+        .mc-setup {
+          margin-top: 12px;
+          border-top: 1px solid var(--line);
+          padding-top: 10px;
+        }
+        .mc-setup summary {
+          cursor: pointer;
+          font-size: 13px;
+          color: var(--accent);
+        }
+        .mc-setup-tabs {
+          display: flex;
+          gap: 8px;
+          margin: 12px 0;
+        }
+        .mc-tab {
+          background: transparent;
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          padding: 6px 14px;
+          font-family: inherit;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--muted);
+          cursor: pointer;
+        }
+        .mc-tab:hover { color: var(--text); border-color: var(--accent-soft); }
+        .mc-tab.active { color: var(--text); border-color: var(--accent); background: var(--surface); }
+
+        .mc-copy-all-row { margin-bottom: 10px; }
+
+        .mc-kv-list {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .mc-kv-row {
+          display: flex;
+          align-items: flex-start;
+          gap: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px 12px;
+        }
+        .mc-kv-label {
+          flex: 0 0 180px;
+          font-size: 11px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+          color: var(--accent);
+        }
+        .mc-kv-value {
+          flex: 1;
+          font-size: 13px;
+          color: var(--text);
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+        .mc-copy-btn {
+          flex-shrink: 0;
+          background: transparent;
+          border: 1px solid var(--line);
+          border-radius: 999px;
+          padding: 4px 10px;
+          font-family: inherit;
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--accent);
+          cursor: pointer;
+          white-space: nowrap;
+        }
+        .mc-copy-btn:hover { border-color: var(--accent-soft); }
+
         @media (max-width: 480px) {
           .mc-step { padding: 6px 10px 6px 7px; font-size: 11px; }
           .mc-row-head { flex-direction: column; align-items: flex-start; gap: 4px; }
+          .mc-kv-row { flex-direction: column; align-items: stretch; }
+          .mc-kv-label { flex-basis: auto; }
         }
       `}</style>
     </main>

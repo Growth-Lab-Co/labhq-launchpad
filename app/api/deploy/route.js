@@ -111,6 +111,8 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
             contactName: answers.contact_name || "",
             locationId: demoLocationId,
             demo: true,
+            answers,
+            customValues,
           });
           return NextResponse.json({
             ok: true,
@@ -189,6 +191,8 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           contactName: answers.contact_name || "",
           locationId,
           demo: false,
+          answers,
+          customValues,
         });
 
         return NextResponse.json({
