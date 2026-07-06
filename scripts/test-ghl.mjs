@@ -4,6 +4,7 @@
 // Env comes from .env.local (Next convention) - we read it manually here.
 
 import { readFileSync } from "node:fs";
+import { getTenant, ghlCredsFor } from "../lib/tenants.js";
 
 try {
   const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
@@ -14,11 +15,9 @@ try {
 } catch { console.log("(.env.local not found - using shell env)"); }
 
 const BASE = "https://services.leadconnectorhq.com";
-const token = process.env.GHL_AGENCY_TOKEN;
-const companyId = process.env.GHL_COMPANY_ID;
-const snapshotId = process.env.GHL_SNAPSHOT_ID;
+const { token, companyId, snapshotId, configured } = ghlCredsFor(getTenant("growthlab"));
 
-if (!token || !companyId || !snapshotId) {
+if (!configured) {
   console.error("Missing GHL_AGENCY_TOKEN / GHL_COMPANY_ID / GHL_SNAPSHOT_ID in .env.local");
   process.exit(1);
 }
