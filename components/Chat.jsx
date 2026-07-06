@@ -203,6 +203,14 @@ export default function Chat({ tenant }) {
     setTimeout(() => setCopiedKey((k) => (k === key ? null : k)), 2000);
   }
 
+  function copyAllValues() {
+    if (!config) return;
+    const text = Object.entries(config)
+      .map(([key, value]) => `${key}: ${value}`)
+      .join("\n");
+    copyText(text, "all-values");
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -260,6 +268,11 @@ export default function Chat({ tenant }) {
             This is everything {tenant.assistantName} will know about the business. Edit anything
             that doesn&apos;t sound right, then deploy.
           </p>
+          <div style={{ marginBottom: 16 }}>
+            <button className="btn ghost" onClick={copyAllValues}>
+              {copiedKey === "all-values" ? "Copied ✓" : "Copy all values"}
+            </button>
+          </div>
           <div className="cv-grid" style={{ marginBottom: 20 }}>
             <p className="sub" style={{ marginBottom: 0 }}>
               Compliance — these are required for Australian compliance and are included in every
