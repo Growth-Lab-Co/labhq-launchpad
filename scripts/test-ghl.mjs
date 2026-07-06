@@ -5,6 +5,7 @@
 
 import { readFileSync } from "node:fs";
 import { getTenant, ghlCredsFor } from "../lib/tenants.js";
+import { pushAllCustomValues } from "../lib/ghl.js";
 
 try {
   const env = readFileSync(new URL("../.env.local", import.meta.url), "utf8");
@@ -49,15 +50,14 @@ if (!res.ok || !locationId) {
   process.exit(1);
 }
 
-console.log("\n2) Pushing a test custom value ...");
-res = await fetch(`${BASE}/locations/${locationId}/customValues`, {
-  method: "POST",
-  headers,
-  body: JSON.stringify({ name: "business_name", value: "Launchpad Test Pty Ltd" }),
+console.log("\n2) Pushing a test custom value (via lib/ghl.js pushAllCustomValues, with location-token fallback) ...");
+const pushed = await pushAllCustomValues({
+  token,
+  companyId,
+  locationId,
+  values: { business_name: "Launchpad Test Pty Ltd" },
 });
-body = await res.json().catch(() => ({}));
-console.log("   status:", res.status);
-console.log("   body:", JSON.stringify(body).slice(0, 300));
+console.log("   result:", JSON.stringify(pushed));
 
 console.log(`\nDone. Test sub-account id: ${locationId}`);
 console.log("Now open GHL, confirm the snapshot cloned and the custom value exists, then DELETE the test sub-account.");

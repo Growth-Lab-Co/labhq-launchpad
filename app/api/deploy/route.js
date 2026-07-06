@@ -131,6 +131,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
 
         const pushed = await pushAllCustomValues({
           token: creds.token,
+          companyId: creds.companyId,
           locationId,
           values: customValues,
         });
