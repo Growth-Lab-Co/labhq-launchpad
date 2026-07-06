@@ -151,7 +151,12 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
             tags: ["onboarding"],
           });
         } catch (e) {
-          contactWarning = `Couldn't create the onboarding contact automatically (${e.message}) - add one manually with the "onboarding" tag so the Go-Live workflow fires.`;
+          console.error(
+            `[DEPLOY-FAIL] tenant=${slug} step=createContact locationId=${locationId} status=${e.status ?? "-"}`,
+            e.body ?? e.message
+          );
+          contactWarning =
+            "We couldn't automatically create the onboarding contact — our team has been notified and will add it manually so your Go-Live workflow fires.";
         }
 
         // Form embed for the client's website - best effort, skip silently on failure.
@@ -167,8 +172,12 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
               snippet: `<script src="https://link.msgsndr.com/js/form_embed.js"></script>\n<iframe src="https://api.leadconnectorhq.com/widget/form/${form.id}" style="width:100%;height:600px;border:none;border-radius:4px" id="inline-${form.id}" data-form-id="${form.id}" title="${formName}"></iframe>`,
             };
           }
-        } catch {
-          // Forms aren't essential to a successful deploy - skip silently.
+        } catch (e) {
+          // Forms aren't essential to a successful deploy - skip silently for the user.
+          console.error(
+            `[DEPLOY-FAIL] tenant=${slug} step=getForms locationId=${locationId} status=${e.status ?? "-"}`,
+            e.body ?? e.message
+          );
         }
 
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
@@ -197,7 +206,17 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       } catch (e) {
         // Allow a legitimate retry after a genuine failure.
         if (sessionId) deployLocks.delete(sessionId);
-        throw e;
+        console.error(
+          `[DEPLOY-FAIL] tenant=${slug} sessionId=${sessionId || "-"} step=${e.path || "deploy"} status=${e.status ?? "-"}`,
+          e.body ?? e.message
+        );
+        return NextResponse.json(
+          {
+            error:
+              "We hit a snag creating your system — our team has been notified and will finish your setup manually within the hour.",
+          },
+          { status: 502 }
+        );
       }
     }
 
