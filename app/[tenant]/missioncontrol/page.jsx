@@ -483,6 +483,15 @@ export default function MissionControlPage({ params }) {
 
                       {d.locationAuthNeeded && (
                         <div style={{ marginTop: 8 }}>
+                          <a
+                            className="mc-btn-outline"
+                            style={{ display: "inline-block", textDecoration: "none", marginRight: 8 }}
+                            href={`/api/oauth/start?app=location&tenant=${slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Authorise data sync
+                          </a>
                           <button
                             type="button"
                             className="mc-btn-outline"
@@ -491,6 +500,10 @@ export default function MissionControlPage({ params }) {
                           >
                             {retrySyncStatus[d.id] === "running" ? "Retrying…" : "Retry data sync"}
                           </button>
+                          <div className="mc-sub" style={{ marginTop: 4 }}>
+                            GHL doesn't let us preselect the location — when the picker opens, choose{" "}
+                            <strong>{d.businessName || "this business"}</strong>, then click Retry data sync above.
+                          </div>
                           {retrySyncStatus[d.id] === "error" && (
                             <span className="mc-sub"> Still not authorised — connect the location app for this sub-account first.</span>
                           )}

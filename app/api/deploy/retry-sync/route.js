@@ -32,7 +32,12 @@ export async function POST(req) {
     });
     if (!locationAuth.token) {
       return NextResponse.json(
-        { ok: false, locationAuthNeeded: true, error: "Location app still isn't authorised for this sub-account." },
+        {
+          ok: false,
+          locationAuthNeeded: true,
+          authorizeUrl: locationAuth.authorizeUrl,
+          error: "Location app still isn't authorised for this sub-account.",
+        },
         { status: 409 }
       );
     }

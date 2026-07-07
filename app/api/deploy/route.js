@@ -239,6 +239,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           contactWarning,
           formEmbed,
           locationAuthNeeded,
+          authorizeUrl: locationAuthNeeded ? locationAuth.authorizeUrl : null,
         });
       } catch (e) {
         // Allow a legitimate retry after a genuine failure.

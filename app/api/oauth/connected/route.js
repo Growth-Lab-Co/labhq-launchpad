@@ -19,11 +19,13 @@ export async function GET(req) {
   const reason = searchParams.get("reason") || "";
 
   const appLabel = app === "agency" ? "Agency" : app === "location" ? "Location" : app || "App";
-  const title = ok ? "Connected" : "Connection failed";
+  const title = ok ? "Connected" : reason === "no_portal_state" ? "Connect from your portal instead" : "Connection failed";
   const body = ok
     ? `<p>${escapeHtml(appLabel)} app connected${tenant ? ` for <strong>${escapeHtml(tenant)}</strong>` : ""}${
         locationId ? ` (location ${escapeHtml(locationId)})` : ""
       }.</p><p>You can close this tab.</p>`
+    : reason === "no_portal_state"
+    ? `<p>We couldn't tell which account this install belongs to.</p><p>If you clicked "Install" directly from the GHL Marketplace listing page, please go back to your Launchpad portal and use the Connect link there instead - that's what lets us match the connection to your account.</p>`
     : `<p>Something went wrong connecting the ${escapeHtml(appLabel)} app${
         tenant ? ` for <strong>${escapeHtml(tenant)}</strong>` : ""
       }.</p>${reason ? `<p>Reason: ${escapeHtml(reason)}</p>` : ""}`;

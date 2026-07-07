@@ -18,9 +18,24 @@ export async function GET(req) {
   }
 
   const state = verifyState(searchParams.get("state"));
-  if (!code || !state) {
-    console.error("[APP-OAUTH-FAIL] missing or invalid code/state");
-    return NextResponse.redirect(`${origin}/api/oauth/connected?ok=0&reason=invalid_state`);
+  if (!state) {
+    // No usable state means this install wasn't kicked off via our own
+    // /api/oauth/start (most likely: someone clicked "Install" straight from
+    // the GHL Marketplace listing page). We have no way to know which
+    // tenant/app this belongs to, so there's nothing to exchange - just
+    // point them back to the portal instead of throwing.
+    console.error(
+      `[APP-OAUTH-NO-STATE] code=${code ? "present" : "missing"} referer=${
+        req.headers.get("referer") || "-"
+      } ua=${req.headers.get("user-agent") || "-"}`
+    );
+    return NextResponse.redirect(`${origin}/api/oauth/connected?ok=0&reason=no_portal_state`);
+  }
+  if (!code) {
+    console.error(`[APP-OAUTH-FAIL] app=${state.app} tenant=${state.tenant} missing code param`);
+    return NextResponse.redirect(
+      `${origin}/api/oauth/connected?ok=0&app=${state.app}&tenant=${state.tenant}&reason=missing_code`
+    );
   }
 
   const { app, tenant } = state;
