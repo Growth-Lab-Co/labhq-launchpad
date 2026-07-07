@@ -103,6 +103,82 @@ The GHL API v2 payload occasionally differs by account age/plan. If `test:ghl` f
 2. Add `{PREFIX}_GHL_*` env vars in Vercel.
 3. Their subdomain works instantly (wildcard already covers it).
 
+## OAuth apps
+
+Two private GHL Marketplace apps, shared across every tenant (they're not
+per-agency like the legacy Private Integration tokens):
+
+- **Agency app "Launchpad Agency"** — agency/company-level. Scopes:
+  locations read/write, snapshots readonly, companies readonly. Used to
+  **create sub-accounts**.
+- **Location app "Launchpad Sync"** — sub-account-level. Scopes: customValues
+  read/write, customFields read/write, contacts read/write, forms readonly.
+  Used for **all location-data writes** (custom values, contacts, forms).
+
+Route names deliberately avoid the string "ghl" — GHL's Marketplace review
+rejects listing/redirect URLs containing their own name.
+
+### Env vars
+
+```
+GHL_AGENCY_APP_CLIENT_ID
+GHL_AGENCY_APP_CLIENT_SECRET
+GHL_AGENCY_APP_INSTALL_URL       # the "Install" link from the app's Marketplace listing
+GHL_LOCATION_APP_CLIENT_ID
+GHL_LOCATION_APP_CLIENT_SECRET
+GHL_LOCATION_APP_INSTALL_URL
+LAUNCHPAD_MASTER_KEY             # 32+ chars, e.g. `openssl rand -base64 32`
+```
+
+Set all six via `netlify env:set NAME "value"` (and mirror into `.env.local`
+for local dev) — never commit real values; `.env.example` only has blank
+placeholders.
+
+### Connect flow
+
+1. Send whoever needs to authorize a connection to
+   `/api/oauth/start?app=agency&tenant=<slug>` (or `app=location`). It
+   redirects to that app's GHL authorize URL (the install link's own
+   `chooselocation`/consent flow), with a signed `state` param carrying
+   which app + tenant this is for.
+2. GHL redirects back to `/api/oauth/callback` with a `code`. The route
+   verifies `state`, exchanges the code for access + refresh tokens, and
+   stores the connection in Netlify Blobs (store `ghl-connections`),
+   AES-256-GCM encrypted with `LAUNCHPAD_MASTER_KEY`. Keys:
+   `<tenant>:agency`, `<tenant>:location:company` (location app authorized
+   at agency/company level), or `<tenant>:location:<locationId>` (location
+   app authorized directly against one sub-account).
+3. You land on a plain `/api/oauth/connected` confirmation page.
+
+`lib/ghlOAuth.js` handles refresh-on-read automatically (`getValidToken`).
+
+### Two-key auth in `lib/ghl.js`
+
+- **Sub-account creation** (`resolveSubAccountAuth`): uses the tenant's
+  agency-app OAuth connection if one exists; otherwise falls back to the
+  legacy `GHL_AGENCY_TOKEN`/`{PREFIX}_GHL_TOKEN` Private Integration path
+  unchanged.
+- **Location data** (`resolveLocationDataAuth`): tries a location-app token
+  for that specific location first (minting one from a company-level
+  location-app connection via the documented `/oauth/locationToken`
+  exchange, if that's how it was authorized), then falls back to the legacy
+  token.
+
+### Manual-authorise fallback
+
+If a newly created sub-account has no way to get a location-app token yet
+(no company-level location-app connection, and nobody's authorized the
+location app directly against it), the deploy **does not fail**:
+
+- `[LOCATION-AUTH-NEEDED]` is logged server-side with the `locationId`.
+- The deploy response includes `locationAuthNeeded: true`, and the client
+  gets a warning instead of a silent gap.
+- The deployment record in Mission Control shows a **"Retry data sync"**
+  button. Once someone authorizes the location app for that sub-account
+  (`/api/oauth/start?app=location&tenant=<slug>`, then complete GHL's
+  consent for that specific location), clicking it re-runs the custom
+  value push + contact creation via `/api/deploy/retry-sync`.
+
 ## Mission Control
 
 A password-gated deployment log and status dashboard, so anyone on the ops
