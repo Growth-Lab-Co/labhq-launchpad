@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
-import { createSubAccount, pushAllCustomValues, createContact, getForms } from "@/lib/ghl";
+import {
+  createSubAccount,
+  pushAllCustomValues,
+  createContact,
+  getForms,
+  resolveSubAccountAuth,
+  resolveLocationDataAuth,
+} from "@/lib/ghl";
 import { recordDeployment } from "@/lib/deployments";
 
 export const maxDuration = 120;
@@ -98,10 +105,12 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       if (!lock.ok) return NextResponse.json({ error: lock.message }, { status: 409 });
 
       try {
-        const creds = ghlCredsFor(tenant);
+        const legacyCreds = ghlCredsFor(tenant);
+        const agencyAuth = await resolveSubAccountAuth(slug, legacyCreds);
+        const configured = Boolean(legacyCreds.snapshotId && agencyAuth.token && agencyAuth.companyId);
 
-        // Demo mode: no GHL creds for this tenant -> simulate success.
-        if (!creds.configured) {
+        // Demo mode: no usable GHL auth for this tenant -> simulate success.
+        if (!configured) {
           await new Promise((r) => setTimeout(r, 4000));
           if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
           const demoLocationId = "demo-" + Math.random().toString(36).slice(2, 8);
@@ -124,63 +133,82 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
 
         const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
         const { id: locationId } = await createSubAccount({
-          token: creds.token,
-          companyId: creds.companyId,
-          snapshotId: creds.snapshotId,
+          token: agencyAuth.token,
+          companyId: agencyAuth.companyId,
+          snapshotId: legacyCreds.snapshotId,
           businessName,
           contact: { website: customValues.website_url },
         });
 
-        const pushed = await pushAllCustomValues({
-          token: creds.token,
-          companyId: creds.companyId,
-          locationId,
-          values: customValues,
-        });
+        // All location-data writes below use the LOCATION APP's auth for this
+        // specific location, falling back to the legacy agency PI token. If
+        // neither is available yet, [LOCATION-AUTH-NEEDED] is logged and the
+        // deploy still succeeds - the operator retries the sync from Mission
+        // Control once the location app is authorised.
+        const locationAuth = await resolveLocationDataAuth({ tenantSlug: slug, locationId, legacyCreds });
+        const locationAuthNeeded = !locationAuth.token;
+
+        const pushed = locationAuth.token
+          ? await pushAllCustomValues({
+              token: locationAuth.token,
+              companyId: agencyAuth.companyId,
+              locationId,
+              values: customValues,
+            })
+          : Object.keys(customValues).map((name) => ({ name, ok: false }));
         const failures = pushed.filter((p) => !p.ok);
 
         // Post-deploy contact: fires the snapshot's Go-Live workflow (trigger:
         // contact tagged "onboarding"). Never fails the whole deploy - surface
         // a warning instead so the operator can add it manually.
         let contactWarning = null;
-        const rawName = (answers.contact_name || "").trim();
-        const [firstName, ...rest] = rawName.split(/\s+/).filter(Boolean);
-        try {
-          await createContact({
-            token: creds.token,
-            locationId,
-            firstName,
-            lastName: rest.join(" "),
-            tags: ["onboarding"],
-          });
-        } catch (e) {
-          console.error(
-            `[DEPLOY-FAIL] tenant=${slug} step=createContact locationId=${locationId} status=${e.status ?? "-"}`,
-            e.body ?? e.message
-          );
+        let contactCreated = false;
+        if (locationAuth.token) {
+          const rawName = (answers.contact_name || "").trim();
+          const [firstName, ...rest] = rawName.split(/\s+/).filter(Boolean);
+          try {
+            await createContact({
+              token: locationAuth.token,
+              locationId,
+              firstName,
+              lastName: rest.join(" "),
+              tags: ["onboarding"],
+            });
+            contactCreated = true;
+          } catch (e) {
+            console.error(
+              `[DEPLOY-FAIL] tenant=${slug} step=createContact locationId=${locationId} status=${e.status ?? "-"}`,
+              e.body ?? e.message
+            );
+            contactWarning =
+              "We couldn't automatically create the onboarding contact — our team has been notified and will add it manually so your Go-Live workflow fires.";
+          }
+        } else {
           contactWarning =
-            "We couldn't automatically create the onboarding contact — our team has been notified and will add it manually so your Go-Live workflow fires.";
+            "This sub-account is waiting on location app authorisation before we can sync its data — use \"Retry data sync\" in Mission Control once it's connected.";
         }
 
         // Form embed for the client's website - best effort, skip silently on failure.
         let formEmbed = null;
-        try {
-          const forms = await getForms({ token: creds.token, locationId });
-          const form = forms[0];
-          if (form?.id) {
-            const formName = form.name || "Contact form";
-            formEmbed = {
-              formId: form.id,
-              name: formName,
-              snippet: `<script src="https://link.msgsndr.com/js/form_embed.js"></script>\n<iframe src="https://api.leadconnectorhq.com/widget/form/${form.id}" style="width:100%;height:600px;border:none;border-radius:4px" id="inline-${form.id}" data-form-id="${form.id}" title="${formName}"></iframe>`,
-            };
+        if (locationAuth.token) {
+          try {
+            const forms = await getForms({ token: locationAuth.token, locationId });
+            const form = forms[0];
+            if (form?.id) {
+              const formName = form.name || "Contact form";
+              formEmbed = {
+                formId: form.id,
+                name: formName,
+                snippet: `<script src="https://link.msgsndr.com/js/form_embed.js"></script>\n<iframe src="https://api.leadconnectorhq.com/widget/form/${form.id}" style="width:100%;height:600px;border:none;border-radius:4px" id="inline-${form.id}" data-form-id="${form.id}" title="${formName}"></iframe>`,
+              };
+            }
+          } catch (e) {
+            // Forms aren't essential to a successful deploy - skip silently for the user.
+            console.error(
+              `[DEPLOY-FAIL] tenant=${slug} step=getForms locationId=${locationId} status=${e.status ?? "-"}`,
+              e.body ?? e.message
+            );
           }
-        } catch (e) {
-          // Forms aren't essential to a successful deploy - skip silently for the user.
-          console.error(
-            `[DEPLOY-FAIL] tenant=${slug} step=getForms locationId=${locationId} status=${e.status ?? "-"}`,
-            e.body ?? e.message
-          );
         }
 
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
@@ -193,6 +221,8 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           demo: false,
           answers,
           customValues,
+          locationAuthNeeded,
+          contactCreated,
         });
 
         return NextResponse.json({
@@ -200,13 +230,15 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           demo: false,
           locationId,
           pushed,
-          warning: failures.length
-            ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
-                .map((f) => f.name)
-                .join(", ")}`
-            : null,
+          warning:
+            !locationAuthNeeded && failures.length
+              ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
+                  .map((f) => f.name)
+                  .join(", ")}`
+              : null,
           contactWarning,
           formEmbed,
+          locationAuthNeeded,
         });
       } catch (e) {
         // Allow a legitimate retry after a genuine failure.

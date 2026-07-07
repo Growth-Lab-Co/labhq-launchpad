@@ -56,6 +56,7 @@ export default function MissionControlPage({ params }) {
   const [setupOpenIds, setSetupOpenIds] = useState(() => new Set());
   const [setupTab, setSetupTab] = useState({});
   const [copyStatus, setCopyStatus] = useState({});
+  const [retrySyncStatus, setRetrySyncStatus] = useState({}); // id -> "running" | "error" | null
   const [assetInputs, setAssetInputs] = useState({ favicon: "", logo: "" });
   const [assetStatus, setAssetStatus] = useState({ favicon: null, logo: null });
   const [brandingOpen, setBrandingOpen] = useState(false);
@@ -182,6 +183,24 @@ export default function MissionControlPage({ params }) {
     } catch (e) {
       setError(e.message);
       setDeployments(previous);
+    }
+  }
+
+  async function retrySync(id) {
+    if (!mcKey) return;
+    setRetrySyncStatus((prev) => ({ ...prev, [id]: "running" }));
+    try {
+      const res = await fetch("/api/deploy/retry-sync", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-mc-key": mcKey },
+        body: JSON.stringify({ id, tenant: slug }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Retry failed");
+      setDeployments((prev) => prev.map((d) => (d.id === id ? data.deployment : d)));
+      setRetrySyncStatus((prev) => ({ ...prev, [id]: null }));
+    } catch (e) {
+      setRetrySyncStatus((prev) => ({ ...prev, [id]: "error" }));
     }
   }
 
@@ -461,6 +480,22 @@ export default function MissionControlPage({ params }) {
                           </button>
                         ))}
                       </div>
+
+                      {d.locationAuthNeeded && (
+                        <div style={{ marginTop: 8 }}>
+                          <button
+                            type="button"
+                            className="mc-btn-outline"
+                            disabled={retrySyncStatus[d.id] === "running"}
+                            onClick={() => retrySync(d.id)}
+                          >
+                            {retrySyncStatus[d.id] === "running" ? "Retrying…" : "Retry data sync"}
+                          </button>
+                          {retrySyncStatus[d.id] === "error" && (
+                            <span className="mc-sub"> Still not authorised — connect the location app for this sub-account first.</span>
+                          )}
+                        </div>
+                      )}
 
                       <details
                         className="mc-setup"
