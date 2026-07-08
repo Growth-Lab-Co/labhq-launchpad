@@ -3,6 +3,8 @@ import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import {
   createSubAccount,
   pushAllCustomValues,
+  pushCustomValue,
+  getCustomValues,
   createContact,
   getForms,
   resolveSubAccountAuth,
@@ -19,7 +21,13 @@ import { getAgencyConnection } from "@/lib/ghlOAuth";
 //
 // POST /api/test-deploy
 // Header: x-mc-key: <MC_PASSWORD>
-// Body (optional JSON): { "tenant": "growthlab" }
+// Body (optional JSON): { "tenant": "growthlab", "locationId": "<existing location>" }
+//   - Without locationId: creates a fresh throwaway sub-account and runs the
+//     full chain (same as scripts/test-ghl.mjs's "OAuth chain mode").
+//   - With locationId: skips creation and runs the same location_app_auth ->
+//     push_custom_value -> create_contact -> read_forms chain against that
+//     existing location - i.e. the same logic /api/deploy/retry-sync uses,
+//     without needing a deployments store record for it.
 
 async function step(name, fn) {
   try {
@@ -37,9 +45,11 @@ export async function POST(req) {
   }
 
   let tenantSlug = "growthlab";
+  let existingLocationId = null;
   try {
     const body = await req.json();
     if (body?.tenant) tenantSlug = body.tenant;
+    if (body?.locationId) existingLocationId = body.locationId;
   } catch {
     // no/invalid JSON body - use default tenant
   }
@@ -71,21 +81,25 @@ export async function POST(req) {
 
   const agencyAuth = await resolveSubAccountAuth(tenantSlug, legacyCreds);
   const steps = [];
-  let locationId = null;
+  let locationId = existingLocationId;
+  let proceedToAuth = Boolean(existingLocationId);
 
-  const created = await step("create_sub_account", async () => {
-    const { id } = await createSubAccount({
-      token: agencyAuth.token,
-      companyId: agencyAuth.companyId,
-      snapshotId: legacyCreds.snapshotId,
-      businessName: "Launchpad Test - DELETE ME",
+  if (!existingLocationId) {
+    const created = await step("create_sub_account", async () => {
+      const { id } = await createSubAccount({
+        token: agencyAuth.token,
+        companyId: agencyAuth.companyId,
+        snapshotId: legacyCreds.snapshotId,
+        businessName: "Launchpad Test - DELETE ME",
+      });
+      locationId = id;
+      return { locationId: id, authSource: agencyAuth.source };
     });
-    locationId = id;
-    return { locationId: id, authSource: agencyAuth.source };
-  });
-  steps.push(created);
+    steps.push(created);
+    proceedToAuth = created.ok;
+  }
 
-  if (created.ok) {
+  if (proceedToAuth) {
     let locationToken = null;
     const authed = await step("location_app_auth", async () => {
       const locationAuth = await resolveLocationDataAuth({ tenantSlug, locationId, legacyCreds });
@@ -96,6 +110,24 @@ export async function POST(req) {
     steps.push(authed);
 
     if (authed.ok) {
+      // Diagnostic: call the single-value push directly so a failure's real
+      // status/body surfaces here, instead of pushAllCustomValues's swallow-
+      // to-boolean behaviour (it's built for the real deploy flow, where the
+      // detail goes to console.error instead).
+      steps.push(
+        await step("push_custom_value_raw", async () => {
+          const existing = await getCustomValues({ token: locationToken, locationId });
+          const match = existing.find((cv) => cv.name === "business_name");
+          return await pushCustomValue({
+            token: locationToken,
+            locationId,
+            name: "business_name",
+            value: "Launchpad Test Pty Ltd",
+            existingId: match?.id,
+          });
+        })
+      );
+
       steps.push(
         await step("push_custom_value", async () => {
           const pushed = await pushAllCustomValues({
