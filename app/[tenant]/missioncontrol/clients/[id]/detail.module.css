@@ -1,0 +1,191 @@
+.notFound { padding: 32px; font-size: 13px; color: #6b6980; }
+.muted { color: #6b6980; font-size: 13px; }
+
+.crumbLink { display: flex; align-items: center; gap: 4px; color: inherit; text-decoration: none; transition: color var(--duration) var(--ease); }
+.crumbLink:hover { color: #111827; }
+.crumbSep { margin: 0 8px; color: #d1d5db; }
+.crumbCurrent { color: #111827; font-weight: 500; }
+
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; gap: 12px; flex-wrap: wrap; }
+.headerLeft { display: flex; align-items: center; gap: 10px; }
+.backLink { color: #9ca3af; display: flex; margin-left: -2px; transition: color var(--duration) var(--ease); }
+.backLink:hover { color: #374151; }
+.title { font-size: 20px; font-weight: 600; color: #111827; margin: 0; }
+.headerActions { display: flex; gap: 8px; }
+
+.secondaryButton {
+  padding: 0 12px;
+  height: 30px;
+  border: 1px solid #e8e8ef;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color var(--duration) var(--ease);
+}
+.secondaryButton:hover { background: #fafafa; }
+.secondaryButton:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* Tabs */
+.tabs { display: flex; gap: 20px; border-bottom: 1px solid #e8e8ef; margin-bottom: 32px; }
+.tab {
+  height: 34px;
+  font-size: 13px;
+  font-weight: 500;
+  position: relative;
+  color: #6b6980;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease);
+}
+.tab:hover { color: #374151; }
+.tabActive, .tabActive:hover { color: #111827; }
+.tabIndicator { position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #7c4dff; border-radius: 1px 1px 0 0; }
+
+.tabContent { padding-bottom: 48px; }
+
+/* Overview */
+.overview { display: flex; flex-direction: column; gap: 40px; max-width: 800px; }
+.detailsGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 48px; }
+.detailRow { display: flex; padding: 12px 0; border-bottom: 1px solid #e8e8ef; align-items: center; }
+.detailLabel { width: 140px; flex-shrink: 0; font-size: 13px; color: #6b6980; }
+.rowValue { font-size: 13px; color: #111827; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+.mono { font-family: var(--font-mono); font-weight: 400; }
+.copyGroup { gap: 8px; }
+.copyIconButton { color: #9e9cb0; background: none; border: none; cursor: pointer; display: flex; padding: 0; transition: color var(--duration) var(--ease); }
+.copyIconButton:hover { color: #111827; }
+.copiedIcon { color: #16a34a; }
+
+.dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dotOn { background: #22c55e; }
+.dotOff { background: #9ca3af; }
+
+.sectionLabel { font-size: 13px; font-weight: 500; color: #111827; margin: 0 0 20px; }
+
+.stepperWrap { position: relative; padding-left: 9px; display: flex; flex-direction: column; gap: 20px; }
+.stepperLine { position: absolute; left: 13px; top: 12px; bottom: 12px; width: 1px; background: #e8e8ef; }
+.stepRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  position: relative;
+  z-index: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  width: fit-content;
+}
+.stepRow:disabled { cursor: default; opacity: 0.7; }
+.stepDot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #d1d5db; box-shadow: 0 0 0 3px #fff; }
+.stepDotPast { background: #22c55e; }
+.stepDotCurrent { background: #7c4dff; }
+.stepLabel { font-size: 13px; color: #6b6980; transition: color var(--duration) var(--ease); }
+.stepRow:hover .stepLabel { color: #111827; }
+.stepLabelCurrent { font-weight: 600; color: #111827; }
+.attentionPill { margin-left: 8px; font-size: 11px; font-weight: 500; color: #dc2626; background: #fef2f2; padding: 2px 6px; border-radius: 4px; }
+
+.syncActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.helpText { font-size: 12px; color: #9ca3af; }
+
+/* Setup answers */
+.setup { max-width: 600px; }
+.setupToolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+.segmented { display: flex; gap: 4px; background: #f4f4f8; padding: 3px; border-radius: 8px; }
+.segmentButton {
+  height: 26px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: #6b6980;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.segmentActive { background: #fff; color: #111827; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+.setupActions { display: flex; gap: 8px; }
+.smallButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  border: 1px solid #e8e8ef;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease);
+}
+.smallButton:hover { background: #fafafa; }
+
+.setupRow { display: flex; padding: 12px 0; border-bottom: 1px solid #e8e8ef; align-items: flex-start; }
+.setupLabel { width: 180px; flex-shrink: 0; font-size: 13px; color: #6b6980; padding-top: 1px; text-transform: capitalize; }
+.setupValue { font-size: 13px; color: #111827; flex: 1; display: flex; align-items: flex-start; gap: 8px; }
+.setupValueText { flex: 1; white-space: pre-wrap; word-break: break-word; }
+
+/* Checklist */
+.checklist { max-width: 700px; }
+.checklistProgressTrack { height: 3px; width: 100%; background: #f3f4f6; border-radius: 999px; margin-bottom: 32px; overflow: hidden; }
+.checklistProgressFill { height: 100%; background: #7c4dff; border-radius: 999px; transition: width 300ms var(--ease); }
+.checklistGroup { margin-bottom: 32px; }
+.checklistGroupLabel { font-size: 11px; font-weight: 500; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 8px; }
+.checklistGroupBody { border-top: 1px solid #e8e8ef; }
+.checklistRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  margin: 0 -12px;
+  border-bottom: 1px solid #e8e8ef;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color var(--duration) var(--ease);
+}
+.checklistRow:hover { background: #fafafa; }
+.checklistRowLeft { display: flex; align-items: center; gap: 12px; }
+.checkbox {
+  width: 15px;
+  height: 15px;
+  border-radius: 3px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease);
+}
+.checklistRow:hover .checkbox:not(.checkboxOn) { border-color: #9ca3af; }
+.checkboxOn { background: #7c4dff; border-color: #7c4dff; }
+.checkboxIcon { color: #fff; }
+.checklistText { font-size: 13px; color: #111827; user-select: none; }
+.checklistTextDone { color: #9ca3af; text-decoration: line-through; }
+.ownerTag { font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; flex-shrink: 0; }
+.ownerYou { background: #ede9fe; color: #7c4dff; }
+.ownerClient { background: #fef3c7; color: #b45309; }
+
+/* Activity */
+.activityTimeline { max-width: 600px; position: relative; padding-left: 16px; padding-top: 8px; padding-bottom: 8px; }
+.activityLine { position: absolute; left: 19px; top: 0; bottom: 0; width: 1px; background: #e8e8ef; }
+.activityRow { position: relative; display: flex; align-items: center; height: 40px; }
+.activityDot { position: absolute; left: -16px; width: 7px; height: 7px; border-radius: 50%; background: #d1d5db; box-shadow: 0 0 0 3px #fff; z-index: 1; }
+.activityDotRecent { background: #7c4dff; }
+.activityContent { padding-left: 24px; display: flex; align-items: center; }
+.activityText { font-size: 13px; color: #374151; }
+.activityMeta { font-size: 12px; color: #9ca3af; margin-left: 8px; }
+
+@media (max-width: 640px) {
+  .detailsGrid { grid-template-columns: 1fr; }
+}
