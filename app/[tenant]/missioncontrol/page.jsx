@@ -1,14 +1,17 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { getTenant } from "@/lib/tenants";
 import { INTERVIEW_FIELDS, CUSTOM_VALUE_KEYS } from "@/lib/questions";
+import { Button, Badge, Card, Table, Tabs, ProgressBar, EmptyState, ToastProvider, useToast } from "@/components/ui";
+import fieldStyles from "@/components/ui/Field.module.css";
+import s from "./missioncontrol.module.css";
 
 const STATUS_STEPS = [
-  { key: "deployed", label: "Deployed" },
-  { key: "calendar_connected", label: "Calendar connected" },
-  { key: "phone_live", label: "Phone live" },
-  { key: "qa_passed", label: "QA passed" },
-  { key: "live", label: "Live" },
+  { key: "deployed", label: "Deployed", tone: "neutral" },
+  { key: "calendar_connected", label: "Calendar connected", tone: "neutral" },
+  { key: "phone_live", label: "Phone live", tone: "warning" },
+  { key: "qa_passed", label: "QA passed", tone: "accent" },
+  { key: "live", label: "Live", tone: "success" },
 ];
 
 // Mirrors the go-live checklist shown on the deploy success screen
@@ -41,8 +44,17 @@ function formatDate(iso) {
 }
 
 export default function MissionControlPage({ params }) {
+  return (
+    <ToastProvider>
+      <MissionControl params={params} />
+    </ToastProvider>
+  );
+}
+
+function MissionControl({ params }) {
   const slug = params.tenant;
   const tenant = getTenant(slug);
+  const toast = useToast();
 
   const [configured, setConfigured] = useState(null); // null = still checking
   const [mcKey, setMcKey] = useState(null);
@@ -54,12 +66,12 @@ export default function MissionControlPage({ params }) {
   const [error, setError] = useState(null);
   const [expandedIds, setExpandedIds] = useState(() => new Set());
   const [setupOpenIds, setSetupOpenIds] = useState(() => new Set());
+  const [qaOpenIds, setQaOpenIds] = useState(() => new Set());
   const [setupTab, setSetupTab] = useState({});
   const [copyStatus, setCopyStatus] = useState({});
-  const [retrySyncStatus, setRetrySyncStatus] = useState({}); // id -> "running" | "error" | null
+  const [retrySyncStatus, setRetrySyncStatus] = useState({}); // id -> "running" | null
   const [assetInputs, setAssetInputs] = useState({ favicon: "", logo: "" });
   const [assetStatus, setAssetStatus] = useState({ favicon: null, logo: null });
-  const [brandingOpen, setBrandingOpen] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
   useEffect(() => {
@@ -84,11 +96,11 @@ export default function MissionControlPage({ params }) {
         if (res.status === 401) {
           window.sessionStorage.removeItem(sessionKey(slug));
           setMcKey(null);
-          setAuthError("Incorrect password.");
+          setAuthError("That password isn't right. Try again.");
           return;
         }
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Failed to load deployments");
+        if (!res.ok) throw new Error(data.error || "Couldn't load your clients. Refresh the page to try again.");
         setDeployments(data.deployments || []);
       } catch (e) {
         setError(e.message);
@@ -114,11 +126,11 @@ export default function MissionControlPage({ params }) {
     if (checking) return;
     const pw = passwordInput.trim();
     if (pw.length < 8) {
-      setAuthError("Password must be at least 8 characters.");
+      setAuthError("Use at least 8 characters.");
       return;
     }
     if (pw !== confirmInput.trim()) {
-      setAuthError("Passwords don't match.");
+      setAuthError("Those passwords don't match.");
       return;
     }
     setChecking(true);
@@ -130,7 +142,7 @@ export default function MissionControlPage({ params }) {
         body: JSON.stringify({ tenant: slug, password: pw }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to set password");
+      if (!res.ok) throw new Error(data.error || "Couldn't set the password. Try again.");
       window.sessionStorage.setItem(sessionKey(slug), pw);
       setMcKey(pw);
       setConfigured(true);
@@ -152,11 +164,11 @@ export default function MissionControlPage({ params }) {
         headers: { "x-mc-key": key },
       });
       if (res.status === 401) {
-        setAuthError("Incorrect password.");
+        setAuthError("That password isn't right. Try again.");
         return;
       }
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to load deployments");
+      if (!res.ok) throw new Error(data.error || "Couldn't load your clients. Try again.");
       window.sessionStorage.setItem(sessionKey(slug), key);
       setMcKey(key);
       setDeployments(data.deployments || []);
@@ -178,11 +190,11 @@ export default function MissionControlPage({ params }) {
         body: JSON.stringify({ id, status, tenant: slug }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to update status");
+      if (!res.ok) throw new Error(data.error || "Couldn't update the status.");
       setDeployments((prev) => prev.map((d) => (d.id === id ? data.deployment : d)));
     } catch (e) {
-      setError(e.message);
       setDeployments(previous);
+      toast.push("Couldn't update the status. Try again.", "error");
     }
   }
 
@@ -199,8 +211,10 @@ export default function MissionControlPage({ params }) {
       if (!res.ok) throw new Error(data.error || "Retry failed");
       setDeployments((prev) => prev.map((d) => (d.id === id ? data.deployment : d)));
       setRetrySyncStatus((prev) => ({ ...prev, [id]: null }));
+      toast.push("Data sync retried.", "success");
     } catch (e) {
-      setRetrySyncStatus((prev) => ({ ...prev, [id]: "error" }));
+      setRetrySyncStatus((prev) => ({ ...prev, [id]: null }));
+      toast.push("Still not authorised. Connect the location app for this sub-account, then retry.", "error");
     }
   }
 
@@ -215,6 +229,15 @@ export default function MissionControlPage({ params }) {
 
   function toggleSetupExpanded(id) {
     setSetupOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleQaExpanded(id) {
+    setQaOpenIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -259,7 +282,7 @@ export default function MissionControlPage({ params }) {
   }
 
   function copyLabel(key, defaultLabel) {
-    return copyStatus[key] === "copied" ? "Copied ✓" : copyStatus[key] === "error" ? "Failed" : defaultLabel;
+    return copyStatus[key] === "copied" ? "Copied" : copyStatus[key] === "error" ? "Couldn't copy" : defaultLabel;
   }
 
   function clearAssetStatusSoon(type) {
@@ -280,7 +303,7 @@ export default function MissionControlPage({ params }) {
         body: form,
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || `Failed to upload ${type}`);
+      if (!res.ok) throw new Error(data.error || `Couldn't upload the ${type}. Try a different file.`);
       setAssetInputs((s) => ({ ...s, [type]: data[`${type}Url`] || "" }));
       setAssetStatus((s) => ({ ...s, [type]: "saved" }));
       clearAssetStatusSoon(type);
@@ -297,8 +320,8 @@ export default function MissionControlPage({ params }) {
 
   if (!tenant) {
     return (
-      <main className="mc-shell">
-        <p className="mc-error">Unknown tenant.</p>
+      <main className={s.shell}>
+        <p className={s.errorText}>We don't recognise this workspace.</p>
       </main>
     );
   }
@@ -306,39 +329,37 @@ export default function MissionControlPage({ params }) {
   const logoSrc = assetInputs.logo || tenant.logoUrl;
 
   return (
-    <main className="mc-shell">
-      <header className="mc-topbar">
-        <div className="mc-brand">
-          {logoSrc ? <img src={logoSrc} alt={tenant.name} /> : tenant.logoText}
-        </div>
-        <div className="mc-topbar-right">
-          <div className="mc-powered">
-            Mission Control — <b>{tenant.name}</b>
+    <main className={s.shell}>
+      <header className={s.header}>
+        <div className={s.headerLeft}>
+          {logoSrc ? <img src={logoSrc} alt={tenant.name} style={{ maxHeight: 28 }} /> : <span className={s.brand}>{tenant.logoText}</span>}
+          <div className={s.headerMeta}>
+            <span className={s.title}>Mission control</span>
+            <span className={s.subtitle}>{tenant.name}</span>
           </div>
-          {mcKey && (
-            <a className="mc-btn-outline" href={`/${slug}`} target="_blank" rel="noopener noreferrer">
-              + New client
-            </a>
-          )}
         </div>
+        {mcKey && (
+          <div className={s.headerRight}>
+            <Button href={`/${slug}`} target="_blank" rel="noopener noreferrer" variant="secondary" size="sm">
+              New client
+            </Button>
+          </div>
+        )}
       </header>
 
-      {!mcKey && configured === null && (
-        <section className="mc-gate">
-          <p className="mc-sub">Loading…</p>
-        </section>
-      )}
+      {!mcKey && configured === null && <p className={s.muted}>Loading…</p>}
 
       {!mcKey && configured === false && (
-        <section className="mc-gate">
-          <h2>Create a password</h2>
-          <p className="mc-sub">
-            No password has been set for {tenant.name}&apos;s dashboard yet. Choose one now — you&apos;ll use it
-            every time you come back.
+        <section className={s.gate}>
+          <h2>Set a password</h2>
+          <p className={s.muted}>
+            {tenant.name} doesn't have a dashboard password yet. Choose one now — you'll use it every time you come
+            back.
           </p>
-          <form onSubmit={submitCreatePassword} className="mc-gate-form stacked">
+          <form onSubmit={submitCreatePassword} className={s.gateForm}>
             <input
               type="password"
+              className={fieldStyles.control}
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               placeholder="New password (min. 8 characters)"
@@ -347,582 +368,300 @@ export default function MissionControlPage({ params }) {
             />
             <input
               type="password"
+              className={fieldStyles.control}
               value={confirmInput}
               onChange={(e) => setConfirmInput(e.target.value)}
               placeholder="Confirm password"
               aria-label="Confirm Mission Control password"
             />
-            <button
-              className="mc-btn"
-              type="submit"
-              disabled={checking || !passwordInput.trim() || !confirmInput.trim()}
-            >
+            <Button type="submit" disabled={checking || !passwordInput.trim() || !confirmInput.trim()}>
               {checking ? "Saving…" : "Set password"}
-            </button>
+            </Button>
           </form>
-          {authError && <div className="mc-error">{authError}</div>}
+          {authError && <div className={s.errorText}>{authError}</div>}
         </section>
       )}
 
       {!mcKey && configured === true && (
-        <section className="mc-gate">
+        <section className={s.gate}>
           <h2>Enter password</h2>
-          <p className="mc-sub">This dashboard is restricted to the operations team.</p>
-          <form onSubmit={submitPassword} className="mc-gate-form">
+          <p className={s.muted}>This dashboard is restricted to the operations team.</p>
+          <form onSubmit={submitPassword} className={s.gateForm}>
             <input
               type="password"
+              className={fieldStyles.control}
               value={passwordInput}
               onChange={(e) => setPasswordInput(e.target.value)}
               placeholder="Password"
               aria-label="Mission Control password"
               autoFocus
             />
-            <button className="mc-btn" type="submit" disabled={checking || !passwordInput.trim()}>
+            <Button type="submit" disabled={checking || !passwordInput.trim()}>
               {checking ? "Checking…" : "Enter"}
-            </button>
+            </Button>
           </form>
-          {authError && <div className="mc-error">{authError}</div>}
+          {authError && <div className={s.errorText}>{authError}</div>}
         </section>
       )}
 
       {mcKey && (
         <>
-          <div className="mc-link-row">
-            <span className="mc-sub">Client onboarding link:</span>
-            <code className="mc-link-code">{`${slug}.labhq.co`}</code>
-            <button type="button" className="mc-btn-outline" onClick={copyLink}>
-              {linkCopied ? "Copied ✓" : "Copy link"}
-            </button>
+          <div className={s.linkRow}>
+            <span className={s.muted}>Client onboarding link</span>
+            <code className={s.linkCode}>{`${slug}.labhq.co`}</code>
+            <Button variant="secondary" size="sm" onClick={copyLink}>
+              {linkCopied ? "Copied" : "Copy link"}
+            </Button>
           </div>
 
-          <details className="mc-branding" open={brandingOpen} onToggle={(e) => setBrandingOpen(e.target.open)}>
-            <summary>Branding</summary>
-
-            <div className="mc-brand-row">
-              <span className="mc-brand-row-label">Favicon</span>
-              <div className="mc-brand-row-body">
-                {assetInputs.favicon && <img className="mc-asset-preview" src={assetInputs.favicon} alt="" />}
-                <label className="mc-btn-outline mc-upload-btn">
-                  {assetStatus.favicon === "uploading" ? "Uploading…" : assetInputs.favicon ? "Replace" : "Upload"}
-                  <input
-                    type="file"
-                    accept={FAVICON_ACCEPT}
-                    onChange={(e) => e.target.files[0] && uploadAsset("favicon", e.target.files[0])}
-                    hidden
-                  />
-                </label>
+          <Card padded={false} className={s.brandingCard}>
+            <Card.Header title="Branding" />
+            <div style={{ padding: "0 20px 20px" }}>
+              <div className={s.brandRow}>
+                <span className={fieldStyles.label}>Favicon</span>
+                <div className={s.brandRowBody}>
+                  {assetInputs.favicon && <img className={s.assetPreview} src={assetInputs.favicon} alt="" />}
+                  <Button as="label" variant="secondary" size="sm">
+                    {assetStatus.favicon === "uploading" ? "Uploading…" : assetInputs.favicon ? "Replace" : "Upload"}
+                    <input
+                      type="file"
+                      accept={FAVICON_ACCEPT}
+                      onChange={(e) => e.target.files[0] && uploadAsset("favicon", e.target.files[0])}
+                      hidden
+                    />
+                  </Button>
+                  {assetStatus.favicon === "saved" && <span className={s.saved}>Saved</span>}
+                </div>
+                {assetStatus.favicon && !TRANSIENT_STATUSES.includes(assetStatus.favicon) ? (
+                  <span className={fieldStyles.error}>{assetStatus.favicon}</span>
+                ) : (
+                  <span className={fieldStyles.help}>Square image, up to 2MB. Used as the browser tab icon.</span>
+                )}
               </div>
-              {assetStatus.favicon === "saved" && <div className="mc-saved">Saved ✓</div>}
-              {assetStatus.favicon && !TRANSIENT_STATUSES.includes(assetStatus.favicon) && (
-                <div className="mc-error">{assetStatus.favicon}</div>
-              )}
-            </div>
 
-            <div className="mc-brand-row">
-              <span className="mc-brand-row-label">Logo</span>
-              <div className="mc-brand-row-body">
-                {assetInputs.logo && <img className="mc-asset-preview mc-asset-preview-logo" src={assetInputs.logo} alt="" />}
-                <label className="mc-btn-outline mc-upload-btn">
-                  {assetStatus.logo === "uploading" ? "Uploading…" : assetInputs.logo ? "Replace" : "Upload"}
-                  <input
-                    type="file"
-                    accept={LOGO_ACCEPT}
-                    onChange={(e) => e.target.files[0] && uploadAsset("logo", e.target.files[0])}
-                    hidden
-                  />
-                </label>
+              <div className={s.brandRow}>
+                <span className={fieldStyles.label}>Logo</span>
+                <div className={s.brandRowBody}>
+                  {assetInputs.logo && <img className={`${s.assetPreview} ${s.assetPreviewLogo}`} src={assetInputs.logo} alt="" />}
+                  <Button as="label" variant="secondary" size="sm">
+                    {assetStatus.logo === "uploading" ? "Uploading…" : assetInputs.logo ? "Replace" : "Upload"}
+                    <input
+                      type="file"
+                      accept={LOGO_ACCEPT}
+                      onChange={(e) => e.target.files[0] && uploadAsset("logo", e.target.files[0])}
+                      hidden
+                    />
+                  </Button>
+                  {assetStatus.logo === "saved" && <span className={s.saved}>Saved</span>}
+                </div>
+                {assetStatus.logo && !TRANSIENT_STATUSES.includes(assetStatus.logo) ? (
+                  <span className={fieldStyles.error}>{assetStatus.logo}</span>
+                ) : (
+                  <span className={fieldStyles.help}>
+                    Up to 2MB. Shows on {tenant.name}'s intake page and dashboard — no redeploy needed.
+                  </span>
+                )}
               </div>
-              {assetStatus.logo === "saved" && <div className="mc-saved">Saved ✓</div>}
-              {assetStatus.logo && !TRANSIENT_STATUSES.includes(assetStatus.logo) && (
-                <div className="mc-error">{assetStatus.logo}</div>
-              )}
             </div>
+          </Card>
 
-            <p className="mc-sub">
-              Uploads apply immediately across {tenant.name}&apos;s intake page and dashboard - no redeploy needed.
-            </p>
-          </details>
+          <section className={s.list}>
+            {error && <div className={s.errorText}>{error}</div>}
 
-          <section className="mc-list">
-            {error && <div className="mc-error">{error}</div>}
-
-            {deployments === null && <p className="mc-sub">Loading…</p>}
+            {deployments === null && <p className={s.muted}>Loading…</p>}
 
             {deployments && deployments.length === 0 && (
-              <div className="mc-empty">No deployments yet — they&apos;ll appear here the moment one lands.</div>
+              <EmptyState
+                title="No clients yet"
+                description="They'll show up here the moment one lands."
+              />
             )}
 
             {deployments && deployments.length > 0 && (
-              <div className="mc-rows">
-                {deployments.map((d) => {
-                  const currentIndex = STATUS_STEPS.findIndex((s) => s.key === d.status);
-                  const expanded = expandedIds.has(d.id);
-                  return (
-                    <div className="mc-row" key={d.id}>
-                      <div className="mc-row-head">
-                        <div className="mc-row-title">
-                          <span className="mc-biz-name">{d.businessName || "Unnamed business"}</span>
-                          {d.demo && <span className="mc-badge-demo">Demo</span>}
-                        </div>
-                        <div className="mc-row-date">{formatDate(d.createdAt)}</div>
-                      </div>
-
-                      <div className="mc-stepper" role="group" aria-label="Deployment status">
-                        {STATUS_STEPS.map((step, i) => (
-                          <button
-                            key={step.key}
-                            type="button"
-                            className={`mc-step ${i < currentIndex ? "done" : i === currentIndex ? "active" : ""}`}
-                            onClick={() => setStatus(d.id, step.key)}
-                          >
-                            <span className="mc-step-dot" />
-                            <span className="mc-step-label">{step.label}</span>
-                          </button>
-                        ))}
-                      </div>
-
-                      {d.locationAuthNeeded && (
-                        <div style={{ marginTop: 8 }}>
-                          <a
-                            className="mc-btn-outline"
-                            style={{ display: "inline-block", textDecoration: "none", marginRight: 8 }}
-                            href={`/api/oauth/start?app=location&tenant=${slug}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                          >
-                            Authorise data sync
-                          </a>
-                          <button
-                            type="button"
-                            className="mc-btn-outline"
-                            disabled={retrySyncStatus[d.id] === "running"}
-                            onClick={() => retrySync(d.id)}
-                          >
-                            {retrySyncStatus[d.id] === "running" ? "Retrying…" : "Retry data sync"}
-                          </button>
-                          <div className="mc-sub" style={{ marginTop: 4 }}>
-                            GHL doesn't let us preselect the location — when the picker opens, choose{" "}
-                            <strong>{d.businessName || "this business"}</strong>, then click Retry data sync above.
-                          </div>
-                          {retrySyncStatus[d.id] === "error" && (
-                            <span className="mc-sub"> Still not authorised — connect the location app for this sub-account first.</span>
-                          )}
-                        </div>
-                      )}
-
-                      <details
-                        className="mc-setup"
-                        open={setupOpenIds.has(d.id)}
-                        onToggle={() => toggleSetupExpanded(d.id)}
-                      >
-                        <summary>Setup details</summary>
-                        <div className="mc-setup-tabs">
-                          <button
-                            type="button"
-                            className={`mc-tab ${(setupTab[d.id] || "answers") === "answers" ? "active" : ""}`}
-                            onClick={() => setSetupTab((s) => ({ ...s, [d.id]: "answers" }))}
-                          >
-                            Interview answers
-                          </button>
-                          <button
-                            type="button"
-                            className={`mc-tab ${setupTab[d.id] === "values" ? "active" : ""}`}
-                            onClick={() => setSetupTab((s) => ({ ...s, [d.id]: "values" }))}
-                          >
-                            Custom values
-                          </button>
-                        </div>
-
-                        {(setupTab[d.id] || "answers") === "answers" ? (
-                          !d.answers ? (
-                            <p className="mc-sub">Not recorded for this deployment.</p>
-                          ) : (
-                            <div className="mc-kv-list">
-                              {INTERVIEW_FIELDS.map((f) => (
-                                <div className="mc-kv-row" key={f.field}>
-                                  <div className="mc-kv-label">{f.ask}</div>
-                                  <div className="mc-kv-value">{d.answers[f.field] || "—"}</div>
-                                </div>
-                              ))}
+              <Table>
+                <thead>
+                  <tr>
+                    <th>Client</th>
+                    <th>Status</th>
+                    <th className={s.progressCell}>Progress</th>
+                    <th>Created</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {deployments.map((d) => {
+                    const currentIndex = STATUS_STEPS.findIndex((st) => st.key === d.status);
+                    const currentStep = STATUS_STEPS[currentIndex] || STATUS_STEPS[0];
+                    const expanded = expandedIds.has(d.id);
+                    return (
+                      <Fragment key={d.id}>
+                        <Table.Row interactive onClick={() => toggleExpanded(d.id)}>
+                          <td>
+                            <div className={s.rowMain}>
+                              <span className={`${s.chevron} ${expanded ? s.chevronOpen : ""}`}>▸</span>
+                              <span className={s.bizName}>{d.businessName || "Unnamed business"}</span>
+                              {d.demo && <Badge tone="neutral" dot={false}>Demo</Badge>}
+                              {d.locationAuthNeeded && <Badge tone="warning">Sync needed</Badge>}
                             </div>
-                          )
-                        ) : !d.customValues ? (
-                          <p className="mc-sub">Not recorded for this deployment.</p>
-                        ) : (
-                          <>
-                            <div className="mc-copy-all-row">
-                              <button
-                                type="button"
-                                className="mc-btn-outline"
-                                onClick={() =>
-                                  copyRow(
-                                    `${d.id}:all`,
-                                    CUSTOM_VALUE_KEYS.map((key) => `${key}: ${d.customValues[key] ?? ""}`).join("\n")
-                                  )
-                                }
+                          </td>
+                          <td>
+                            <Badge tone={currentStep.tone}>{currentStep.label}</Badge>
+                          </td>
+                          <td className={s.progressCell}>
+                            <ProgressBar
+                              value={Math.max(currentIndex, 0)}
+                              max={STATUS_STEPS.length - 1}
+                              aria-label="Setup progress"
+                            />
+                          </td>
+                          <td className={s.rowDate}>{formatDate(d.createdAt)}</td>
+                        </Table.Row>
+
+                        {expanded && (
+                          <Table.ExpandRow colSpan={4}>
+                            <div className={s.detail} onClick={(e) => e.stopPropagation()}>
+                              <div>
+                                <div className={s.detailLabel} style={{ marginBottom: 8 }}>
+                                  Status
+                                </div>
+                                <div className={s.stepper} role="group" aria-label="Deployment status">
+                                  {STATUS_STEPS.map((step, i) => (
+                                    <button
+                                      key={step.key}
+                                      type="button"
+                                      className={`${s.step} ${i < currentIndex ? s.done : i === currentIndex ? s.active : ""}`}
+                                      onClick={() => setStatus(d.id, step.key)}
+                                    >
+                                      <span className={s.stepDot} />
+                                      {step.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {d.locationAuthNeeded && (
+                                <div>
+                                  <div className={s.detailLabel} style={{ marginBottom: 8 }}>
+                                    Data sync
+                                  </div>
+                                  <div className={s.syncActions}>
+                                    <Button
+                                      href={`/api/oauth/start?app=location&tenant=${slug}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      variant="secondary"
+                                      size="sm"
+                                    >
+                                      Authorise data sync
+                                    </Button>
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      disabled={retrySyncStatus[d.id] === "running"}
+                                      onClick={() => retrySync(d.id)}
+                                    >
+                                      {retrySyncStatus[d.id] === "running" ? "Retrying…" : "Retry data sync"}
+                                    </Button>
+                                  </div>
+                                  <p className={fieldStyles.help} style={{ marginTop: 8 }}>
+                                    GHL doesn't let us preselect the location. When the picker opens, choose{" "}
+                                    <strong>{d.businessName || "this business"}</strong>, then select Retry data
+                                    sync.
+                                  </p>
+                                </div>
+                              )}
+
+                              <details
+                                className={s.disclosure}
+                                open={setupOpenIds.has(d.id)}
+                                onToggle={() => toggleSetupExpanded(d.id)}
                               >
-                                {copyLabel(`${d.id}:all`, "Copy all")}
-                              </button>
-                            </div>
-                            <div className="mc-kv-list">
-                              {CUSTOM_VALUE_KEYS.map((key) => (
-                                <div className="mc-kv-row" key={key}>
-                                  <div className="mc-kv-label">{key.replaceAll("_", " ")}</div>
-                                  <div className="mc-kv-value">{d.customValues[key] ?? ""}</div>
-                                  <button
-                                    type="button"
-                                    className="mc-copy-btn"
-                                    onClick={() => copyRow(`${d.id}:${key}`, String(d.customValues[key] ?? ""))}
-                                  >
-                                    {copyLabel(`${d.id}:${key}`, "Copy")}
-                                  </button>
-                                </div>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </details>
+                                <summary>Setup details</summary>
+                                <Tabs
+                                  className={s.tabs}
+                                  value={setupTab[d.id] || "answers"}
+                                  onChange={(val) => setSetupTab((prevState) => ({ ...prevState, [d.id]: val }))}
+                                  items={[
+                                    { value: "answers", label: "Interview answers" },
+                                    { value: "values", label: "Custom values" },
+                                  ]}
+                                />
 
-                      <details className="mc-checklist" open={expanded} onToggle={() => toggleExpanded(d.id)}>
-                        <summary>QA checklist</summary>
-                        <ol>
-                          {QA_CHECKLIST.map((item, i) => (
-                            <li key={i}>{item}</li>
-                          ))}
-                        </ol>
-                      </details>
-                    </div>
-                  );
-                })}
-              </div>
+                                {(setupTab[d.id] || "answers") === "answers" ? (
+                                  !d.answers ? (
+                                    <p className={s.muted}>Not recorded for this client.</p>
+                                  ) : (
+                                    <div className={s.kvList}>
+                                      {INTERVIEW_FIELDS.map((f) => (
+                                        <div className={s.kvRow} key={f.field}>
+                                          <div className={s.kvLabel}>{f.ask}</div>
+                                          <div className={s.kvValue}>{d.answers[f.field] || "—"}</div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )
+                                ) : !d.customValues ? (
+                                  <p className={s.muted}>Not recorded for this client.</p>
+                                ) : (
+                                  <>
+                                    <div className={s.copyAllRow}>
+                                      <Button
+                                        variant="secondary"
+                                        size="sm"
+                                        onClick={() =>
+                                          copyRow(
+                                            `${d.id}:all`,
+                                            CUSTOM_VALUE_KEYS.map((key) => `${key}: ${d.customValues[key] ?? ""}`).join(
+                                              "\n"
+                                            )
+                                          )
+                                        }
+                                      >
+                                        {copyLabel(`${d.id}:all`, "Copy all")}
+                                      </Button>
+                                    </div>
+                                    <div className={s.kvList}>
+                                      {CUSTOM_VALUE_KEYS.map((key) => (
+                                        <div className={s.kvRow} key={key}>
+                                          <div className={s.kvLabel}>{key.replaceAll("_", " ")}</div>
+                                          <div className={s.kvValue}>{d.customValues[key] ?? ""}</div>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => copyRow(`${d.id}:${key}`, String(d.customValues[key] ?? ""))}
+                                          >
+                                            {copyLabel(`${d.id}:${key}`, "Copy")}
+                                          </Button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                )}
+                              </details>
+
+                              <details
+                                className={s.disclosure}
+                                open={qaOpenIds.has(d.id)}
+                                onToggle={() => toggleQaExpanded(d.id)}
+                              >
+                                <summary>QA checklist</summary>
+                                <ol className={s.checklist}>
+                                  {QA_CHECKLIST.map((item, i) => (
+                                    <li key={i}>{item}</li>
+                                  ))}
+                                </ol>
+                              </details>
+                            </div>
+                          </Table.ExpandRow>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </Table>
             )}
           </section>
         </>
       )}
-
-      <style jsx>{`
-        .mc-shell {
-          max-width: 880px;
-          margin: 0 auto;
-          padding: 24px 20px 64px;
-          min-height: 100vh;
-        }
-        .mc-topbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-          padding-bottom: 20px;
-          border-bottom: 1px solid var(--line);
-          margin-bottom: 28px;
-        }
-        .mc-topbar-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-        .mc-brand { font-weight: 700; font-size: 18px; letter-spacing: 0.02em; }
-        .mc-brand img { max-height: 34px; display: block; }
-        .mc-powered { font-size: 13px; color: var(--muted); }
-        .mc-powered b { color: var(--accent); font-weight: 600; }
-
-        .mc-btn-outline {
-          background: transparent;
-          color: var(--accent);
-          border: 1px solid var(--line);
-          border-radius: 999px;
-          padding: 8px 16px;
-          font-family: inherit;
-          font-weight: 600;
-          font-size: 13px;
-          cursor: pointer;
-          white-space: nowrap;
-          display: inline-block;
-        }
-        .mc-btn-outline:hover { border-color: var(--accent-soft); }
-        .mc-upload-btn { display: inline-flex; align-items: center; }
-
-        .mc-sub { color: var(--muted); font-size: 14px; }
-
-        .mc-link-row {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
-          margin-bottom: 20px;
-        }
-        .mc-link-code {
-          font-family: monospace;
-          font-size: 13px;
-          background: var(--surface);
-          border: 1px solid var(--line);
-          border-radius: 8px;
-          padding: 4px 10px;
-        }
-
-        .mc-gate {
-          max-width: 360px;
-          margin: 10vh auto 0;
-          text-align: center;
-        }
-        .mc-gate h2 { font-size: 22px; margin-bottom: 6px; }
-        .mc-gate-form {
-          display: flex;
-          gap: 10px;
-          margin-top: 18px;
-        }
-        .mc-gate-form.stacked {
-          flex-direction: column;
-          align-items: stretch;
-        }
-        .mc-gate-form input {
-          flex: 1;
-          background: var(--surface);
-          border: 1px solid var(--line);
-          border-radius: 12px;
-          padding: 12px 14px;
-          color: var(--text);
-          font-family: inherit;
-          font-size: 15px;
-        }
-        .mc-gate-form input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
-
-        .mc-btn {
-          background: var(--accent);
-          color: #14102e;
-          border: none;
-          border-radius: 12px;
-          padding: 12px 20px;
-          font-family: inherit;
-          font-weight: 700;
-          font-size: 15px;
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .mc-btn:disabled { opacity: 0.4; cursor: default; }
-
-        .mc-error {
-          color: #ac2f34;
-          font-size: 14px;
-          margin-top: 14px;
-        }
-        .mc-saved {
-          color: #2fa876;
-          font-size: 14px;
-          margin-top: 10px;
-        }
-
-        .mc-empty {
-          color: var(--muted);
-          font-size: 15px;
-          text-align: center;
-          padding: 64px 20px;
-          border: 1px dashed var(--line);
-          border-radius: 14px;
-        }
-
-        .mc-branding {
-          background: var(--surface);
-          border: 1px solid var(--line);
-          border-radius: 14px;
-          padding: 4px 18px;
-          margin-bottom: 20px;
-        }
-        .mc-branding summary {
-          cursor: pointer;
-          padding: 14px 0;
-          font-size: 13px;
-          font-weight: 700;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          color: var(--accent);
-          list-style: none;
-        }
-        .mc-branding summary::-webkit-details-marker { display: none; }
-        .mc-brand-row {
-          padding: 10px 0;
-          border-top: 1px solid var(--line);
-        }
-        .mc-brand-row-label {
-          display: block;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--text);
-          margin-bottom: 8px;
-        }
-        .mc-brand-row-body { display: flex; align-items: center; gap: 10px; }
-        .mc-asset-preview {
-          width: 32px;
-          height: 32px;
-          border-radius: 6px;
-          border: 1px solid var(--line);
-          object-fit: contain;
-          margin-right: 10px;
-          flex-shrink: 0;
-          background: var(--bg);
-        }
-        .mc-asset-preview-logo { border-radius: 4px; }
-        .mc-branding > .mc-sub { padding: 10px 0 14px; }
-
-        .mc-rows { display: flex; flex-direction: column; gap: 16px; }
-        .mc-row {
-          background: var(--surface);
-          border: 1px solid var(--line);
-          border-radius: 14px;
-          padding: 16px 18px;
-        }
-        .mc-row-head {
-          display: flex;
-          align-items: baseline;
-          justify-content: space-between;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-bottom: 14px;
-        }
-        .mc-row-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .mc-biz-name { font-size: 16px; font-weight: 600; }
-        .mc-row-date { font-size: 12px; color: var(--muted); }
-        .mc-badge-demo {
-          font-size: 11px;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--accent);
-          border: 1px solid var(--line);
-          border-radius: 999px;
-          padding: 2px 8px;
-        }
-
-        .mc-stepper {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 6px 4px;
-          margin-bottom: 4px;
-        }
-        .mc-step {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          background: transparent;
-          border: 1px solid var(--line);
-          border-radius: 999px;
-          padding: 6px 12px 6px 8px;
-          color: var(--muted);
-          font-family: inherit;
-          font-size: 12px;
-          cursor: pointer;
-          transition: color 150ms ease, border-color 150ms ease;
-        }
-        .mc-step:hover { color: var(--text); border-color: var(--accent-soft); }
-        .mc-step-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          background: var(--line);
-          flex-shrink: 0;
-        }
-        .mc-step.active { color: var(--text); border-color: var(--accent); }
-        .mc-step.active .mc-step-dot { background: var(--accent); }
-        .mc-step.done { color: var(--text); }
-        .mc-step.done .mc-step-dot { background: #2fa876; }
-
-        .mc-checklist {
-          margin-top: 12px;
-          border-top: 1px solid var(--line);
-          padding-top: 10px;
-        }
-        .mc-checklist summary {
-          cursor: pointer;
-          font-size: 13px;
-          color: var(--accent);
-        }
-        .mc-checklist ol {
-          margin: 10px 0 0 18px;
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-          font-size: 13px;
-          color: var(--muted);
-          line-height: 1.5;
-        }
-
-        .mc-setup {
-          margin-top: 12px;
-          border-top: 1px solid var(--line);
-          padding-top: 10px;
-        }
-        .mc-setup summary {
-          cursor: pointer;
-          font-size: 13px;
-          color: var(--accent);
-        }
-        .mc-setup-tabs {
-          display: flex;
-          gap: 8px;
-          margin: 12px 0;
-        }
-        .mc-tab {
-          background: transparent;
-          border: 1px solid var(--line);
-          border-radius: 999px;
-          padding: 6px 14px;
-          font-family: inherit;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--muted);
-          cursor: pointer;
-        }
-        .mc-tab:hover { color: var(--text); border-color: var(--accent-soft); }
-        .mc-tab.active { color: var(--text); border-color: var(--accent); background: var(--surface); }
-
-        .mc-copy-all-row { margin-bottom: 10px; }
-
-        .mc-kv-list {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .mc-kv-row {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          background: var(--bg);
-          border: 1px solid var(--line);
-          border-radius: 10px;
-          padding: 10px 12px;
-        }
-        .mc-kv-label {
-          flex: 0 0 180px;
-          font-size: 11px;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-          color: var(--accent);
-        }
-        .mc-kv-value {
-          flex: 1;
-          font-size: 13px;
-          color: var(--text);
-          white-space: pre-wrap;
-          word-break: break-word;
-        }
-        .mc-copy-btn {
-          flex-shrink: 0;
-          background: transparent;
-          border: 1px solid var(--line);
-          border-radius: 999px;
-          padding: 4px 10px;
-          font-family: inherit;
-          font-size: 11px;
-          font-weight: 600;
-          color: var(--accent);
-          cursor: pointer;
-          white-space: nowrap;
-        }
-        .mc-copy-btn:hover { border-color: var(--accent-soft); }
-
-        @media (max-width: 480px) {
-          .mc-step { padding: 6px 10px 6px 7px; font-size: 11px; }
-          .mc-row-head { flex-direction: column; align-items: flex-start; gap: 4px; }
-          .mc-kv-row { flex-direction: column; align-items: stretch; }
-          .mc-kv-label { flex-basis: auto; }
-        }
-      `}</style>
     </main>
   );
 }
