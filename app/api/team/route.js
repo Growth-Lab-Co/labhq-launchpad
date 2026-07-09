@@ -25,7 +25,7 @@ export async function POST(req) {
     const { tenant, email, role } = await req.json();
     if (!(await authorized(req, tenant))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const tenantConfig = getTenant(tenant);
+    const tenantConfig = await getTenant(tenant);
     const { members, member } = await inviteTeamMember(tenant, { email, role });
 
     const portalUrl = `https://${tenant}.labhq.co`;

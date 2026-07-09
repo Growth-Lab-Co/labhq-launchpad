@@ -14,7 +14,7 @@ import { verifyPassword } from "@/lib/mcAuth";
 export async function GET(req) {
   const tenant = req.nextUrl.searchParams.get("tenant");
   const type = req.nextUrl.searchParams.get("type");
-  if (!tenant || !getTenant(tenant)) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+  if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
   if (!ASSET_TYPES.includes(type)) return NextResponse.json({ error: "Unknown asset type" }, { status: 400 });
 
   try {
@@ -38,7 +38,7 @@ export async function POST(req) {
     const type = form.get("type");
     const file = form.get("file");
 
-    if (!tenant || !getTenant(tenant)) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+    if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     if (!ASSET_TYPES.includes(type)) return NextResponse.json({ error: "Unknown asset type" }, { status: 400 });
 
     const key = req.headers.get("x-mc-key");

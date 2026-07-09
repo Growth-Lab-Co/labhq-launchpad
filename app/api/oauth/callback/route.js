@@ -40,7 +40,7 @@ export async function GET(req) {
 
   const { app, tenant } = state;
   try {
-    if (!getTenant(tenant)) throw new Error(`Unknown tenant in state: ${tenant}`);
+    if (!(await getTenant(tenant))) throw new Error(`Unknown tenant in state: ${tenant}`);
     const redirectUri = getAppRedirectUri(app);
     const tokenResponse = await exchangeCode({ app, code, redirectUri });
     await storeTokenResponse({ tenant, app, tokenResponse });

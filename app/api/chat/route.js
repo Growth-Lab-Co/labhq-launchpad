@@ -36,7 +36,7 @@ export async function POST(req) {
     }
 
     const { tenant: slug, messages = [], answers = {} } = await req.json();
-    const tenant = getTenant(slug);
+    const tenant = await getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
     const remaining = INTERVIEW_FIELDS.filter((f) => !answers[f.field]);

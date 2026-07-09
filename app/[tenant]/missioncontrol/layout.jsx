@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { getTenant } from "@/lib/tenants";
 import { ToastProvider, useToast } from "@/components/ui";
 import { MissionControlProvider } from "@/components/missioncontrol/MissionControlContext";
 import { SearchProvider } from "@/components/missioncontrol/SearchContext";
@@ -20,15 +19,23 @@ export default function MissionControlLayout({ children, params }) {
 }
 
 function MissionControlGate({ slug, children }) {
-  const tenant = getTenant(slug);
   const toast = useToast();
 
+  // undefined = still loading, null = confirmed unknown tenant
+  const [tenant, setTenant] = useState(undefined);
   const [configured, setConfigured] = useState(null);
   const [mcKey, setMcKey] = useState(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [confirmInput, setConfirmInput] = useState("");
   const [authError, setAuthError] = useState(null);
   const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/tenant-public?slug=${encodeURIComponent(slug)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setTenant)
+      .catch(() => setTenant(null));
+  }, [slug]);
 
   useEffect(() => {
     const stored = window.sessionStorage.getItem(sessionKey(slug));
@@ -124,7 +131,7 @@ function MissionControlGate({ slug, children }) {
     }
   }
 
-  if (!tenant) {
+  if (tenant === null) {
     return (
       <main className={s.shell}>
         <p className={s.errorText}>We don't recognise this workspace. Check the URL and try again.</p>
@@ -132,7 +139,7 @@ function MissionControlGate({ slug, children }) {
     );
   }
 
-  if (!mcKey && configured === null) {
+  if (tenant === undefined || (!mcKey && configured === null)) {
     return (
       <main className={s.shell}>
         <p className={s.muted}>Loading…</p>

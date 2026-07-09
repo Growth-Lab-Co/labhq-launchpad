@@ -8,7 +8,7 @@ import { verifyPassword } from "@/lib/mcAuth";
 // Setting branding happens only via upload - see app/api/branding/asset/route.js.
 export async function GET(req) {
   const tenant = req.nextUrl.searchParams.get("tenant");
-  if (!tenant || !getTenant(tenant)) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+  if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
   try {
     const branding = await getBranding(tenant);
     return NextResponse.json(branding);
@@ -21,7 +21,7 @@ export async function GET(req) {
 export async function PATCH(req) {
   try {
     const { tenant, accent, welcomeMessage } = await req.json();
-    if (!tenant || !getTenant(tenant)) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+    if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     const key = req.headers.get("x-mc-key");
     if (!(await verifyPassword(tenant, key))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

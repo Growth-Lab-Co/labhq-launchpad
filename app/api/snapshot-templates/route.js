@@ -14,8 +14,8 @@ async function authorized(req, tenant) {
   return verifyPassword(tenant, key);
 }
 
-function legacySnapshotId(slug) {
-  const tenant = getTenant(slug);
+async function legacySnapshotId(slug) {
+  const tenant = await getTenant(slug);
   if (!tenant) return null;
   return ghlCredsFor(tenant).snapshotId || null;
 }
@@ -24,7 +24,7 @@ export async function GET(req) {
   const tenant = req.nextUrl.searchParams.get("tenant");
   if (!(await authorized(req, tenant))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const items = await listSnapshotTemplates(tenant, legacySnapshotId(tenant));
+    const items = await listSnapshotTemplates(tenant, await legacySnapshotId(tenant));
     return NextResponse.json({ items });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -35,7 +35,7 @@ export async function POST(req) {
   try {
     const { tenant, name, snapshotId } = await req.json();
     if (!(await authorized(req, tenant))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    const items = await addSnapshotTemplate(tenant, { name, snapshotId }, legacySnapshotId(tenant));
+    const items = await addSnapshotTemplate(tenant, { name, snapshotId }, await legacySnapshotId(tenant));
     return NextResponse.json({ items });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 400 });

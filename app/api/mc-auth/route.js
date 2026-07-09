@@ -9,7 +9,7 @@ const MIN_LENGTH = 8;
 // decide whether to show "create a password" or "enter password".
 export async function GET(req) {
   const tenant = req.nextUrl.searchParams.get("tenant");
-  if (!tenant || !getTenant(tenant)) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+  if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
   try {
     const configured = await isPasswordConfigured(tenant);
     return NextResponse.json({ configured });
@@ -24,7 +24,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     const { tenant, password } = await req.json();
-    if (!tenant || !getTenant(tenant)) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+    if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     if (!password || password.length < MIN_LENGTH) {
       return NextResponse.json({ error: `Password must be at least ${MIN_LENGTH} characters` }, { status: 400 });
     }

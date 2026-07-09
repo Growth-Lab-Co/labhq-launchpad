@@ -54,7 +54,7 @@ export async function POST(req) {
     // no/invalid JSON body - use default tenant
   }
 
-  const tenant = getTenant(tenantSlug);
+  const tenant = await getTenant(tenantSlug);
   if (!tenant) {
     return NextResponse.json({ error: `Unknown tenant: ${tenantSlug}` }, { status: 404 });
   }

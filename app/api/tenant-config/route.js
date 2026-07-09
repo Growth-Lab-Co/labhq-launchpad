@@ -9,7 +9,7 @@ export async function GET(req) {
   const key = req.headers.get("x-mc-key");
   if (!(await verifyPassword(tenant, key))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const t = getTenant(tenant);
+  const t = await getTenant(tenant);
   if (!t) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
   const creds = ghlCredsFor(t);

@@ -14,7 +14,7 @@ export async function GET(req) {
   if (app !== "agency" && app !== "location") {
     return NextResponse.json({ error: "app must be 'agency' or 'location'" }, { status: 400 });
   }
-  if (!tenant || !getTenant(tenant)) {
+  if (!tenant || !(await getTenant(tenant))) {
     return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
   }
   if (!appConfigured(app)) {

@@ -4,7 +4,7 @@ import { getBranding } from "@/lib/branding";
 import Chat from "@/components/Chat";
 
 export default async function TenantPage({ params }) {
-  const tenant = getTenant(params.tenant);
+  const tenant = await getTenant(params.tenant);
   if (!tenant) notFound();
 
   let logoUrl = tenant.logoUrl;

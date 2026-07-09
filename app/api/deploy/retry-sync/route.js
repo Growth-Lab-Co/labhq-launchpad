@@ -17,7 +17,7 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const tenant = getTenant(slug);
+    const tenant = await getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 

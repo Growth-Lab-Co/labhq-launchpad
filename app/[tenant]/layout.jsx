@@ -5,7 +5,7 @@ import { getBranding } from "@/lib/branding";
 // Next.js merges segment-level metadata over the root layout's, rather than
 // rendering both, so there's never a duplicate/conflicting <link rel="icon">.
 export async function generateMetadata({ params }) {
-  const tenant = getTenant(params.tenant);
+  const tenant = await getTenant(params.tenant);
   if (!tenant) return {};
 
   try {
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }) {
 // var(--accent) / var(--accent-soft) resolve to this tenant's brand colours
 // everywhere. A saved Branding-page accent overrides the hardcoded default.
 export default async function TenantLayout({ children, params }) {
-  const tenant = getTenant(params.tenant);
+  const tenant = await getTenant(params.tenant);
   if (!tenant) return children;
 
   let accent = tenant.accent;

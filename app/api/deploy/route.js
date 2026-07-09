@@ -44,7 +44,7 @@ function claimDeployLock(sessionId) {
 export async function POST(req) {
   try {
     const { tenant: slug, answers = {}, customValues, action, sessionId } = await req.json();
-    const tenant = getTenant(slug);
+    const tenant = await getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
     if (action === "generate") {
