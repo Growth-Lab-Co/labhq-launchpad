@@ -112,6 +112,9 @@
 
 .disclosure { border-top: 1px solid var(--line); padding-top: var(--space-3); }
 .disclosure summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   cursor: pointer;
   font-size: var(--text-xs);
   font-weight: 600;
@@ -119,6 +122,16 @@
   list-style: none;
 }
 .disclosure summary::-webkit-details-marker { display: none; }
+.disclosure summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(-45deg);
+  transition: transform var(--duration) var(--ease);
+}
+.disclosure[open] summary::before { transform: rotate(45deg); }
 .disclosure[open] summary { margin-bottom: var(--space-3); }
 
 .tabs { margin-bottom: var(--space-3); }
