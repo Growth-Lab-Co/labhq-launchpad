@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { listDeployments, updateDeploymentStatus, DEPLOYMENT_STATUSES } from "@/lib/deployments";
 import { verifyPassword } from "@/lib/mcAuth";
+import { logActivity } from "@/lib/activity";
+
+const STATUS_LABELS = {
+  deployed: "Deployed",
+  calendar_connected: "Calendar connected",
+  phone_live: "Phone live",
+  qa_passed: "QA passed",
+  live: "Live",
+};
 
 async function authorized(req, tenant) {
   const key = req.headers.get("x-mc-key");
@@ -29,6 +38,15 @@ export async function PATCH(req) {
     }
     const record = await updateDeploymentStatus(id, status, tenant);
     if (!record) return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
+
+    await logActivity({
+      tenant,
+      deploymentId: id,
+      businessName: record.businessName,
+      type: status === "live" ? "go-live" : "setup",
+      text: status === "live" ? "Marked as live" : `Status set to ${STATUS_LABELS[status] || status}`,
+    });
+
     return NextResponse.json({ deployment: record });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });

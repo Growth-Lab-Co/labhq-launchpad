@@ -11,6 +11,7 @@ import {
   resolveLocationDataAuth,
 } from "@/lib/ghl";
 import { recordDeployment } from "@/lib/deployments";
+import { logActivity } from "@/lib/activity";
 
 export const maxDuration = 120;
 
@@ -114,14 +115,22 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           await new Promise((r) => setTimeout(r, 4000));
           if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
           const demoLocationId = "demo-" + Math.random().toString(36).slice(2, 8);
-          await recordDeployment({
+          const demoBusinessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
+          const demoRecord = await recordDeployment({
             tenant: slug,
-            businessName: customValues.business_name || answers.business_name || "New Lab HQ Client",
+            businessName: demoBusinessName,
             contactName: answers.contact_name || "",
             locationId: demoLocationId,
             demo: true,
             answers,
             customValues,
+          });
+          await logActivity({
+            tenant: slug,
+            deploymentId: demoRecord?.id,
+            businessName: demoBusinessName,
+            type: "deployment",
+            text: "System deployed",
           });
           return NextResponse.json({
             ok: true,
@@ -213,7 +222,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
 
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
 
-        await recordDeployment({
+        const deployRecord = await recordDeployment({
           tenant: slug,
           businessName,
           contactName: answers.contact_name || "",
@@ -224,6 +233,23 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           locationAuthNeeded,
           contactCreated,
         });
+
+        await logActivity({
+          tenant: slug,
+          deploymentId: deployRecord?.id,
+          businessName,
+          type: "deployment",
+          text: "System deployed",
+        });
+        if (locationAuthNeeded) {
+          await logActivity({
+            tenant: slug,
+            deploymentId: deployRecord?.id,
+            businessName,
+            type: "attention",
+            text: "Data sync needs authorisation",
+          });
+        }
 
         return NextResponse.json({
           ok: true,

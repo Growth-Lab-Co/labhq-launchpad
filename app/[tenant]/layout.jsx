@@ -19,10 +19,18 @@ export async function generateMetadata({ params }) {
 
 // Wraps every page under /[tenant] (intake chat + Mission Control) so
 // var(--accent) / var(--accent-soft) resolve to this tenant's brand colours
-// everywhere.
-export default function TenantLayout({ children, params }) {
+// everywhere. A saved Branding-page accent overrides the hardcoded default.
+export default async function TenantLayout({ children, params }) {
   const tenant = getTenant(params.tenant);
   if (!tenant) return children;
 
-  return <div style={{ "--accent": tenant.accent, "--accent-soft": tenant.accentSoft }}>{children}</div>;
+  let accent = tenant.accent;
+  try {
+    const branding = await getBranding(tenant.slug);
+    if (branding.accent) accent = branding.accent;
+  } catch {
+    // Branding is a nicety - never block the page on a Blobs hiccup.
+  }
+
+  return <div style={{ "--accent": accent, "--accent-soft": tenant.accentSoft }}>{children}</div>;
 }

@@ -3,6 +3,7 @@ import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { getDeployment, markLocationSynced } from "@/lib/deployments";
 import { resolveLocationDataAuth, pushAllCustomValues, createContact, getForms } from "@/lib/ghl";
 import { verifyPassword } from "@/lib/mcAuth";
+import { logActivity } from "@/lib/activity";
 
 // POST /api/deploy/retry-sync - re-attempts the location-app data push for a
 // deployment that came back with locationAuthNeeded (see app/api/deploy).
@@ -95,6 +96,14 @@ export async function POST(req) {
     const updated = await markLocationSynced(id, slug, {
       locationAuthNeeded: false,
       contactCreated,
+    });
+
+    await logActivity({
+      tenant: slug,
+      deploymentId: id,
+      businessName: record.businessName,
+      type: "setup",
+      text: "Custom values synced",
     });
 
     return NextResponse.json({
