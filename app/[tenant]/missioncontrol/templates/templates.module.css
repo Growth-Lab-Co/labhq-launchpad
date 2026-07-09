@@ -1,0 +1,111 @@
+.pageHeader { margin-bottom: 32px; }
+.title { font-size: 20px; font-weight: 600; color: #111827; line-height: 1.2; margin: 0; }
+.subtitle { font-size: 13px; color: #6b6980; margin: 4px 0 0; }
+.muted { color: #6b6980; font-size: 13px; }
+
+.section { margin-bottom: 48px; }
+.sectionHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.sectionHeaderStatic { margin-bottom: 16px; }
+.sectionTitle { font-size: 15px; font-weight: 600; color: #111827; margin: 0; }
+.sectionSubtitle { font-size: 13px; color: #6b6980; margin: 2px 0 0; }
+
+.checklistCard { border: 1px solid #e8e8ef; border-radius: 8px; overflow: hidden; }
+.groupHeader { padding: 8px 16px; background: #f9fafb; border-bottom: 1px solid #e8e8ef; }
+.groupHeaderLabel { font-size: 12px; font-weight: 500; color: #9ca3af; }
+
+.itemRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  height: 44px;
+  border-bottom: 1px solid #e8e8ef;
+  background: #fff;
+  transition: background-color var(--duration) var(--ease);
+}
+.itemRow:last-child { border-bottom: none; }
+.itemRow:hover { background: #fafafa; }
+.itemRowDragOver { background: #f1edfb; }
+
+.dragHandle { color: #d1d5db; cursor: grab; flex-shrink: 0; }
+.itemRow:hover .dragHandle { color: #9ca3af; }
+
+.itemTextWrap { flex: 1; min-width: 0; }
+.itemText { font-size: 13px; color: #111827; cursor: text; user-select: none; }
+.itemInput {
+  width: 100%;
+  font-size: 13px;
+  color: #111827;
+  background: transparent;
+  outline: none;
+  border: none;
+  border-bottom: 1px solid #7c4dff;
+}
+
+.ownerTag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color var(--duration) var(--ease);
+}
+.ownerYou { background: #ede9fe; color: #7c4dff; }
+.ownerYou:hover { background: #ddd6fe; }
+.ownerClient { background: #fef3c7; color: #b45309; }
+.ownerClient:hover { background: #fde68a; }
+
+.deleteButton {
+  color: #d1d5db;
+  background: none;
+  border: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: color var(--duration) var(--ease), opacity var(--duration) var(--ease);
+  display: flex;
+  flex-shrink: 0;
+}
+.itemRow:hover .deleteButton { opacity: 1; }
+.deleteButton:hover { color: #ef4444; }
+
+.checklistFooter { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
+.footerButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #6b6980;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease);
+}
+.footerButton:hover { color: #111827; }
+
+/* Snapshot templates */
+.snapshotGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.snapshotCard { border: 1px solid #e8e8ef; border-radius: 8px; padding: 16px; background: #fff; }
+.snapshotCardTop { margin-bottom: 12px; }
+.snapshotCardTitleRow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.snapshotName { font-size: 14px; font-weight: 600; color: #111827; text-transform: capitalize; }
+.activePill { font-size: 11px; font-weight: 500; color: #16a34a; background: #f0fdf4; padding: 2px 6px; border-radius: 4px; }
+.snapshotMeta { display: flex; align-items: center; gap: 12px; font-size: 12px; color: #9ca3af; flex-wrap: wrap; }
+.snapshotVersion { background: #f4f4f8; padding: 2px 6px; border-radius: 3px; font-family: var(--font-mono); }
+
+.addTemplateCard {
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #d1d5db;
+  background: none;
+  min-height: 96px;
+  cursor: not-allowed;
+}
+.addTemplateCard span { font-size: 13px; font-weight: 500; }
