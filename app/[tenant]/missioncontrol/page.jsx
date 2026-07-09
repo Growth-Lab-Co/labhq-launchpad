@@ -321,7 +321,7 @@ function MissionControl({ params }) {
   if (!tenant) {
     return (
       <main className={s.shell}>
-        <p className={s.errorText}>We don't recognise this workspace.</p>
+        <p className={s.errorText}>We don't recognise this workspace. Check the URL and try again.</p>
       </main>
     );
   }
@@ -523,7 +523,7 @@ function MissionControl({ params }) {
                                 <div className={s.detailLabel} style={{ marginBottom: 8 }}>
                                   Status
                                 </div>
-                                <div className={s.stepper} role="group" aria-label="Deployment status">
+                                <div className={s.stepper} role="group" aria-label="Client status">
                                   {STATUS_STEPS.map((step, i) => (
                                     <button
                                       key={step.key}
