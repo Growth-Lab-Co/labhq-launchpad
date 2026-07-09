@@ -31,6 +31,6 @@
 .entryContent { flex: 1; min-width: 0; }
 .entryLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
 .entryClient { font-size: 13px; font-weight: 500; color: #111827; text-decoration: none; transition: color var(--duration) var(--ease); }
-.entryClient:hover { color: #7c4dff; }
+.entryClient:hover { color: var(--mc-accent, #7c4dff); }
 .entryText { font-size: 13px; color: #374151; }
 .entryTime { font-size: 12px; color: #9ca3af; }

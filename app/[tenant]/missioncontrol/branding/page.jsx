@@ -71,8 +71,7 @@ function AssetUploadRow({ label, help, type, previewSize, value, tenant, mcKey, 
 }
 
 export default function BrandingPage() {
-  const { slug, mcKey, toast } = useMissionControl();
-  const [branding, setBrandingState] = useState(null);
+  const { slug, mcKey, toast, branding, refetchBranding } = useMissionControl();
   const [accent, setAccent] = useState(DEFAULT_ACCENT);
   const [hexInput, setHexInput] = useState(DEFAULT_ACCENT);
   const [hexError, setHexError] = useState(false);
@@ -80,18 +79,15 @@ export default function BrandingPage() {
   const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/branding?tenant=${encodeURIComponent(slug)}`)
-      .then((r) => r.json())
-      .then((data) => {
-        setBrandingState(data);
-        setAccent(data.accent || DEFAULT_ACCENT);
-        setHexInput(data.accent || DEFAULT_ACCENT);
-        setWelcome(data.welcomeMessage || "");
-      })
-      .catch(() => setBrandingState({}));
-  }, [slug]);
+    if (!branding || hydrated) return;
+    setAccent(branding.accent || DEFAULT_ACCENT);
+    setHexInput(branding.accent || DEFAULT_ACCENT);
+    setWelcome(branding.welcomeMessage || "");
+    setHydrated(true);
+  }, [branding, hydrated]);
 
   const markDirty = () => {
     setDirty(true);
@@ -128,6 +124,7 @@ export default function BrandingPage() {
       });
       setDirty(false);
       setSaved(true);
+      refetchBranding();
       setTimeout(() => setSaved(false), 2000);
     } catch (e) {
       toast.push(e.message, "error");
@@ -136,7 +133,7 @@ export default function BrandingPage() {
     }
   };
 
-  if (branding === null) return <p className={s.muted}>Loading…</p>;
+  if (!branding) return <p className={s.muted}>Loading…</p>;
 
   return (
     <>
@@ -155,7 +152,7 @@ export default function BrandingPage() {
           tenant={slug}
           mcKey={mcKey}
           toast={toast}
-          onUploaded={(data) => setBrandingState((b) => ({ ...b, ...data }))}
+          onUploaded={refetchBranding}
         />
 
         <AssetUploadRow
@@ -167,7 +164,7 @@ export default function BrandingPage() {
           tenant={slug}
           mcKey={mcKey}
           toast={toast}
-          onUploaded={(data) => setBrandingState((b) => ({ ...b, ...data }))}
+          onUploaded={refetchBranding}
         />
 
         <div className={s.row}>

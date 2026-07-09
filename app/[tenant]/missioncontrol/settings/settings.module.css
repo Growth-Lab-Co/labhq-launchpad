@@ -16,7 +16,7 @@
 }
 .tab:hover { color: #374151; }
 .tabActive, .tabActive:hover { color: #111827; }
-.tabIndicator { position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #7c4dff; }
+.tabIndicator { position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--mc-accent, #7c4dff); }
 
 .row { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 0; border-bottom: 1px solid #e8e8ef; gap: 24px; }
 .rowLabelWrap { width: 260px; flex-shrink: 0; }
@@ -56,7 +56,7 @@
   flex-shrink: 0;
   transition: background-color var(--duration) var(--ease);
 }
-.toggleOn { background: #7c4dff; }
+.toggleOn { background: var(--mc-accent, #7c4dff); }
 .toggleKnob {
   position: absolute;
   top: 2px;
@@ -88,11 +88,220 @@
   font-size: 13px;
   font-weight: 500;
   color: #fff;
-  background: #7c4dff;
+  background: var(--mc-accent, #7c4dff);
   border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: background-color var(--duration) var(--ease);
 }
-.saveButton:hover { background: #6b42e0; }
+.saveButton:hover { background: color-mix(in srgb, var(--mc-accent, #7c4dff) 85%, black); }
 .saveButton:disabled { opacity: 0.7; cursor: not-allowed; }
+
+/* Team */
+.teamHeader { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.inviteButton {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+  border: 1px solid #e8e8ef;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease);
+}
+.inviteButton:hover { background: #fafafa; }
+
+.teamList { border: 1px solid #e8e8ef; border-radius: 8px; }
+.teamRow:first-child { border-radius: 8px 8px 0 0; }
+.teamRow:last-child { border-radius: 0 0 8px 8px; }
+.teamRow { display: flex; align-items: center; padding: 0 16px; height: 56px; gap: 12px; }
+.teamRowBordered { border-bottom: 1px solid #e8e8ef; }
+.teamAvatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f0f7;
+  color: #6b6980;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.teamInfo { flex: 1; min-width: 0; }
+.teamInfo p { margin: 0; }
+
+.roleBadge { font-size: 11px; font-weight: 500; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
+.roleOwner { background: color-mix(in srgb, var(--mc-accent, #7c4dff) 14%, white); color: var(--mc-accent, #7c4dff); }
+.roleAdmin { background: #dbeafe; color: #1d4ed8; }
+.roleMember { background: #f4f4f8; color: #6b6980; }
+
+.teamMenuWrap { position: relative; flex-shrink: 0; }
+.teamMenuButton {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9e9cb0;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease), background-color var(--duration) var(--ease);
+}
+.teamMenuButton:hover { color: #374151; background: #f4f4f8; }
+.teamMenuDropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 4px;
+  width: 160px;
+  background: #fff;
+  border: 1px solid #e8e8ef;
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  padding: 6px 0;
+  z-index: 20;
+}
+.teamMenuLabel { font-size: 11px; font-weight: 500; color: #9ca3af; text-transform: uppercase; padding: 2px 12px 6px; margin: 0; }
+.teamMenuItem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #374151;
+  background: none;
+  border: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.teamMenuItem:hover { background: #f4f4f8; }
+.teamMenuItemDanger { color: #dc2626; }
+.teamMenuDivider { height: 1px; background: #e8e8ef; margin: 6px 0; }
+
+/* Shared modal (Invite member) */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(1px);
+}
+.modal {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  border: 1px solid #e8e8ef;
+  overflow: hidden;
+}
+.modalHeader { padding: 16px 20px; border-bottom: 1px solid #e8e8ef; }
+.modalTitle { font-size: 14px; font-weight: 600; color: #111827; margin: 0; }
+.modalBody { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.fieldLabel { font-size: 12px; font-weight: 500; color: #374151; }
+.fieldInput, .fieldSelect {
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 13px;
+  border: 1px solid #e8e8ef;
+  border-radius: 6px;
+  outline: none;
+  box-sizing: border-box;
+  background: #fff;
+  transition: border-color var(--duration) var(--ease);
+}
+.fieldInput:focus, .fieldSelect:focus { border-color: var(--mc-accent, #7c4dff); box-shadow: 0 0 0 1px var(--mc-accent, #7c4dff); }
+.modalFooter {
+  padding: 14px 20px;
+  background: #fafafa;
+  border-top: 1px solid #e8e8ef;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.modalCancelButton {
+  padding: 0 12px;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  border: 1px solid #e8e8ef;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+.modalCancelButton:hover { background: #fafafa; }
+.modalSubmitButton {
+  padding: 0 12px;
+  height: 30px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  background: var(--mc-accent, #7c4dff);
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease);
+}
+.modalSubmitButton:hover { background: color-mix(in srgb, var(--mc-accent, #7c4dff) 85%, black); }
+.modalSubmitButton:disabled { background: #d1d5db; cursor: not-allowed; }
+
+/* Billing */
+.planCard { border: 1px solid #e8e8ef; border-radius: 12px; padding: 28px; max-width: 560px; background: linear-gradient(180deg, #fff 0%, #fafafa 100%); }
+.planCardTop { margin-bottom: 20px; }
+.planNameRow { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.planName { font-size: 16px; font-weight: 600; color: #111827; }
+.planActivePill { font-size: 11px; font-weight: 500; color: #16a34a; background: #f0fdf4; padding: 3px 8px; border-radius: 999px; }
+.planPriceRow { display: flex; align-items: baseline; gap: 6px; }
+.planPrice { font-size: 36px; font-weight: 700; color: #111827; letter-spacing: -0.02em; }
+.planPricePeriod { font-size: 14px; color: #6b6980; }
+
+.planFeatureList { margin: 0 0 24px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.planFeatureList li {
+  font-size: 13px;
+  color: #374151;
+  padding-left: 22px;
+  position: relative;
+}
+.planFeatureList li::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: var(--mc-accent, #7c4dff);
+  font-weight: 700;
+}
+
+.planFooter { border-top: 1px solid #e8e8ef; padding-top: 20px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.planCancelLink { color: var(--mc-accent, #7c4dff); text-decoration: none; }
+.planCancelLink:hover { text-decoration: underline; }
+.planCancelButton {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  border: 1px solid #e8e8ef;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background-color var(--duration) var(--ease);
+}
+.planCancelButton:hover { background: #fafafa; }

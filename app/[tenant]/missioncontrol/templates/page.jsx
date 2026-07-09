@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Plus, RotateCcw, GripVertical, Trash2 } from "lucide-react";
+import { Plus, RotateCcw, GripVertical, Trash2, MoreVertical } from "lucide-react";
 import { useMissionControl } from "@/components/missioncontrol/MissionControlContext";
 import { mcFetch } from "@/components/missioncontrol/api";
 import s from "./templates.module.css";
@@ -12,16 +12,75 @@ export default function TemplatesPage() {
   const [editingText, setEditingText] = useState("");
   const [dragId, setDragId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
-  const [config, setConfig] = useState(null);
+  const [snapshots, setSnapshots] = useState(null);
+  const [snapshotMenuId, setSnapshotMenuId] = useState(null);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renamingText, setRenamingText] = useState("");
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addName, setAddName] = useState("");
+  const [addSnapshotId, setAddSnapshotId] = useState("");
+  const [adding, setAdding] = useState(false);
 
   useEffect(() => {
     mcFetch(`/api/checklist-template?tenant=${encodeURIComponent(slug)}`, { mcKey })
       .then((data) => setItems(data.items || []))
       .catch(() => setItems([]));
-    mcFetch(`/api/tenant-config?tenant=${encodeURIComponent(slug)}`, { mcKey })
-      .then(setConfig)
-      .catch(() => setConfig(null));
+    mcFetch(`/api/snapshot-templates?tenant=${encodeURIComponent(slug)}`, { mcKey })
+      .then((data) => setSnapshots(data.items || []))
+      .catch(() => setSnapshots([]));
   }, [slug, mcKey]);
+
+  const renameSnapshot = async (id, name) => {
+    try {
+      const data = await mcFetch("/api/snapshot-templates", { mcKey, method: "PATCH", body: { tenant: slug, id, name } });
+      setSnapshots(data.items);
+    } catch (e) {
+      toast.push(e.message || "Couldn't rename the snapshot template.", "error");
+    }
+  };
+
+  const setActiveSnapshot = async (id) => {
+    try {
+      const data = await mcFetch("/api/snapshot-templates", { mcKey, method: "PATCH", body: { tenant: slug, id, setActive: true } });
+      setSnapshots(data.items);
+    } catch (e) {
+      toast.push(e.message || "Couldn't set that snapshot active.", "error");
+    } finally {
+      setSnapshotMenuId(null);
+    }
+  };
+
+  const deleteSnapshot = async (id) => {
+    try {
+      const data = await mcFetch("/api/snapshot-templates", { mcKey, method: "DELETE", body: { tenant: slug, id } });
+      setSnapshots(data.items);
+    } catch (e) {
+      toast.push(e.message || "Couldn't remove that snapshot template.", "error");
+    } finally {
+      setSnapshotMenuId(null);
+    }
+  };
+
+  const submitAddSnapshot = async (e) => {
+    e.preventDefault();
+    if (adding) return;
+    setAdding(true);
+    try {
+      const data = await mcFetch("/api/snapshot-templates", {
+        mcKey,
+        method: "POST",
+        body: { tenant: slug, name: addName, snapshotId: addSnapshotId },
+      });
+      setSnapshots(data.items);
+      setAddModalOpen(false);
+      setAddName("");
+      setAddSnapshotId("");
+    } catch (e) {
+      toast.push(e.message || "Couldn't add the snapshot template.", "error");
+    } finally {
+      setAdding(false);
+    }
+  };
 
   async function persist(nextItems) {
     setItems(nextItems);
@@ -183,33 +242,129 @@ export default function TemplatesPage() {
       <div>
         <div className={s.sectionHeaderStatic}>
           <h2 className={s.sectionTitle}>Snapshot templates</h2>
-          <p className={s.sectionSubtitle}>The GoHighLevel snapshot imported for new clients.</p>
+          <p className={s.sectionSubtitle}>GoHighLevel snapshots imported for new clients.</p>
         </div>
 
-        <div className={s.snapshotGrid}>
-          {config?.snapshotConfigured ? (
-            <div className={s.snapshotCard}>
-              <div className={s.snapshotCardTop}>
-                <div className={s.snapshotCardTitleRow}>
-                  <span className={s.snapshotName}>{slug}</span>
-                  <span className={s.activePill}>Active</span>
+        {snapshots === null ? (
+          <p className={s.muted}>Loading…</p>
+        ) : (
+          <div className={s.snapshotGrid}>
+            {snapshots.map((sn) => (
+              <div key={sn.id} className={s.snapshotCard}>
+                <div className={s.snapshotCardTop}>
+                  <div className={s.snapshotCardTitleRow}>
+                    {renamingId === sn.id ? (
+                      <input
+                        autoFocus
+                        value={renamingText}
+                        onChange={(e) => setRenamingText(e.target.value)}
+                        onBlur={() => {
+                          renameSnapshot(sn.id, renamingText.trim() || sn.name);
+                          setRenamingId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            renameSnapshot(sn.id, renamingText.trim() || sn.name);
+                            setRenamingId(null);
+                          }
+                        }}
+                        className={s.snapshotNameInput}
+                      />
+                    ) : (
+                      <span className={s.snapshotName}>{sn.name}</span>
+                    )}
+                    {sn.active && <span className={s.activePill}>Active</span>}
+                  </div>
+                  <div className={s.snapshotMenuWrap}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSnapshotMenuId(snapshotMenuId === sn.id ? null : sn.id);
+                      }}
+                      className={s.snapshotMenuButton}
+                    >
+                      <MoreVertical size={14} />
+                    </button>
+                    {snapshotMenuId === sn.id && (
+                      <div className={s.snapshotMenuDropdown}>
+                        <button
+                          onClick={() => {
+                            setRenamingText(sn.name);
+                            setRenamingId(sn.id);
+                            setSnapshotMenuId(null);
+                          }}
+                          className={s.snapshotMenuItem}
+                        >
+                          Rename
+                        </button>
+                        {!sn.active && (
+                          <button onClick={() => setActiveSnapshot(sn.id)} className={s.snapshotMenuItem}>
+                            Set active
+                          </button>
+                        )}
+                        {snapshots.length > 1 && (
+                          <button onClick={() => deleteSnapshot(sn.id)} className={`${s.snapshotMenuItem} ${s.snapshotMenuItemDanger}`}>
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className={s.snapshotMeta}>
+                  <span className={s.snapshotVersion}>{sn.snapshotId}</span>
                 </div>
               </div>
-              <div className={s.snapshotMeta}>
-                <span className={s.snapshotVersion}>{config.snapshotId}</span>
-                <span>Configured via environment</span>
-              </div>
-            </div>
-          ) : (
-            <p className={s.muted}>No snapshot configured for this tenant yet.</p>
-          )}
+            ))}
 
-          <button disabled title="Coming soon" className={s.addTemplateCard}>
-            <Plus size={18} />
-            <span>Add template</span>
-          </button>
-        </div>
+            <button onClick={() => setAddModalOpen(true)} className={s.addTemplateCard}>
+              <Plus size={18} />
+              <span>Add template</span>
+            </button>
+          </div>
+        )}
       </div>
+
+      {addModalOpen && (
+        <div className={s.modalOverlay} onClick={() => setAddModalOpen(false)}>
+          <div className={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={s.modalHeader}>
+              <h2 className={s.modalTitle}>Add snapshot template</h2>
+            </div>
+            <form onSubmit={submitAddSnapshot}>
+              <div className={s.modalBody}>
+                <div className={s.field}>
+                  <label className={s.fieldLabel}>Template name</label>
+                  <input
+                    autoFocus
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    placeholder="e.g. Lab HQ v2"
+                    className={s.fieldInput}
+                  />
+                </div>
+                <div className={s.field}>
+                  <label className={s.fieldLabel}>GHL snapshot ID</label>
+                  <input
+                    value={addSnapshotId}
+                    onChange={(e) => setAddSnapshotId(e.target.value)}
+                    placeholder="e.g. AbCd1234EfGh5678"
+                    className={s.fieldInput}
+                  />
+                </div>
+              </div>
+              <div className={s.modalFooter}>
+                <button type="button" onClick={() => setAddModalOpen(false)} className={s.modalCancelButton}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={adding || !addName.trim() || !addSnapshotId.trim()} className={s.modalSubmitButton}>
+                  {adding ? "Adding…" : "Add template"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }

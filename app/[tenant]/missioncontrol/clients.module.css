@@ -3,7 +3,7 @@
 .subtitle { font-size: 13px; color: #6b6980; margin: 4px 0 0; }
 
 .newClientButton {
-  background: #7c4dff;
+  background: var(--mc-accent, #7c4dff);
   color: #fff;
   font-size: 13px;
   font-weight: 500;
@@ -17,7 +17,7 @@
   text-decoration: none;
   transition: background-color var(--duration) var(--ease);
 }
-.newClientButton:hover { background: #6b42e0; }
+.newClientButton:hover { background: color-mix(in srgb, var(--mc-accent, #7c4dff) 85%, black); }
 
 .statsRow { display: flex; align-items: center; margin-bottom: 24px; }
 .statBlock { display: flex; flex-direction: column; }

@@ -22,13 +22,24 @@ function isItemActive(pathname, item, base) {
   return pathname.startsWith(item.path);
 }
 
-function SidebarContents({ base, pathname, tenant, onNavigate }) {
+function BrandMark({ logoUrl, tenant }) {
+  if (logoUrl) {
+    return <img src={logoUrl} alt={tenant?.name || "Logo"} className={s.brandLogo} />;
+  }
+  return (
+    <>
+      <div className={s.brandMark} />
+      <span className={s.brandName}>Lab HQ</span>
+    </>
+  );
+}
+
+function SidebarContents({ base, pathname, tenant, logoUrl, onNavigate }) {
   const initials = (tenant?.name || "?").trim().charAt(0).toUpperCase();
   return (
     <>
       <div className={s.brandRow}>
-        <div className={s.brandMark} />
-        <span className={s.brandName}>Lab HQ</span>
+        <BrandMark logoUrl={logoUrl} tenant={tenant} />
       </div>
 
       <nav className={s.nav}>
@@ -64,18 +75,19 @@ export function AppShell({ base, tenant, children }) {
   const pathname = usePathname();
   const router = useRouter();
   const { searchQuery, setSearchQuery } = useSearch();
-  const { unreadCount } = useMissionControl();
+  const { unreadCount, branding } = useMissionControl();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const initials = (tenant?.name || "?")
     .split(/\s+/)
     .slice(0, 2)
     .map((w) => w.charAt(0).toUpperCase())
     .join("");
+  const accentStyle = branding?.accent ? { "--mc-accent": branding.accent } : undefined;
 
   return (
-    <div className={s.shell}>
+    <div className={s.shell} style={accentStyle}>
       <aside className={s.sidebarDesktop}>
-        <SidebarContents base={base} pathname={pathname} tenant={tenant} />
+        <SidebarContents base={base} pathname={pathname} tenant={tenant} logoUrl={branding?.logoUrl} />
       </aside>
 
       {mobileNavOpen && (
@@ -84,14 +96,19 @@ export function AppShell({ base, tenant, children }) {
           <aside className={s.mobileSidebar}>
             <div className={s.mobileSidebarHeader}>
               <div className={s.brandRow} style={{ padding: 0 }}>
-                <div className={s.brandMark} />
-                <span className={s.brandName}>Lab HQ</span>
+                <BrandMark logoUrl={branding?.logoUrl} tenant={tenant} />
               </div>
               <button onClick={() => setMobileNavOpen(false)} aria-label="Close navigation" className={s.iconButton}>
                 <X size={16} />
               </button>
             </div>
-            <SidebarContents base={base} pathname={pathname} tenant={tenant} onNavigate={() => setMobileNavOpen(false)} />
+            <SidebarContents
+              base={base}
+              pathname={pathname}
+              tenant={tenant}
+              logoUrl={branding?.logoUrl}
+              onNavigate={() => setMobileNavOpen(false)}
+            />
           </aside>
         </div>
       )}

@@ -11,10 +11,25 @@ function lastSeenKey(slug) {
 export function MissionControlProvider({ slug, tenant, mcKey, toast, children }) {
   const [activity, setActivity] = useState(null);
   const [lastSeenAt, setLastSeenAt] = useState(null);
+  const [branding, setBranding] = useState(null);
 
   useEffect(() => {
     setLastSeenAt(window.localStorage.getItem(lastSeenKey(slug)) || null);
   }, [slug]);
+
+  const refetchBranding = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/branding?tenant=${encodeURIComponent(slug)}`);
+      const data = await res.json();
+      setBranding(data);
+    } catch {
+      // Branding is a nicety - a failed fetch just leaves the shell on defaults.
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    refetchBranding();
+  }, [refetchBranding]);
 
   const refetchActivity = useCallback(async () => {
     if (!mcKey) return;
@@ -80,8 +95,22 @@ export function MissionControlProvider({ slug, tenant, mcKey, toast, children })
       unreadCount,
       markActivitySeen,
       copyToClipboard,
+      branding,
+      refetchBranding,
     }),
-    [slug, tenant, mcKey, toast, activity, refetchActivity, unreadCount, markActivitySeen, copyToClipboard]
+    [
+      slug,
+      tenant,
+      mcKey,
+      toast,
+      activity,
+      refetchActivity,
+      unreadCount,
+      markActivitySeen,
+      copyToClipboard,
+      branding,
+      refetchBranding,
+    ]
   );
 
   return <MissionControlContext.Provider value={value}>{children}</MissionControlContext.Provider>;

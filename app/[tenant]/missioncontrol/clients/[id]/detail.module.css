@@ -46,7 +46,7 @@
 }
 .tab:hover { color: #374151; }
 .tabActive, .tabActive:hover { color: #111827; }
-.tabIndicator { position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: #7c4dff; border-radius: 1px 1px 0 0; }
+.tabIndicator { position: absolute; bottom: -1px; left: 0; right: 0; height: 2px; background: var(--mc-accent, #7c4dff); border-radius: 1px 1px 0 0; }
 
 .tabContent { padding-bottom: 48px; }
 
@@ -86,7 +86,7 @@
 .stepRow:disabled { cursor: default; opacity: 0.7; }
 .stepDot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; background: #d1d5db; box-shadow: 0 0 0 3px #fff; }
 .stepDotPast { background: #22c55e; }
-.stepDotCurrent { background: #7c4dff; }
+.stepDotCurrent { background: var(--mc-accent, #7c4dff); }
 .stepLabel { font-size: 13px; color: #6b6980; transition: color var(--duration) var(--ease); }
 .stepRow:hover .stepLabel { color: #111827; }
 .stepLabelCurrent { font-weight: 600; color: #111827; }
@@ -138,7 +138,7 @@
 /* Checklist */
 .checklist { max-width: 700px; }
 .checklistProgressTrack { height: 3px; width: 100%; background: #f3f4f6; border-radius: 999px; margin-bottom: 32px; overflow: hidden; }
-.checklistProgressFill { height: 100%; background: #7c4dff; border-radius: 999px; transition: width 300ms var(--ease); }
+.checklistProgressFill { height: 100%; background: var(--mc-accent, #7c4dff); border-radius: 999px; transition: width 300ms var(--ease); }
 .checklistGroup { margin-bottom: 32px; }
 .checklistGroupLabel { font-size: 11px; font-weight: 500; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 8px; }
 .checklistGroupBody { border-top: 1px solid #e8e8ef; }
@@ -168,12 +168,12 @@
   transition: background-color var(--duration) var(--ease), border-color var(--duration) var(--ease);
 }
 .checklistRow:hover .checkbox:not(.checkboxOn) { border-color: #9ca3af; }
-.checkboxOn { background: #7c4dff; border-color: #7c4dff; }
+.checkboxOn { background: var(--mc-accent, #7c4dff); border-color: var(--mc-accent, #7c4dff); }
 .checkboxIcon { color: #fff; }
 .checklistText { font-size: 13px; color: #111827; user-select: none; }
 .checklistTextDone { color: #9ca3af; text-decoration: line-through; }
 .ownerTag { font-size: 11px; padding: 2px 6px; border-radius: 3px; font-weight: 500; flex-shrink: 0; }
-.ownerYou { background: #ede9fe; color: #7c4dff; }
+.ownerYou { background: color-mix(in srgb, var(--mc-accent, #7c4dff) 14%, white); color: var(--mc-accent, #7c4dff); }
 .ownerClient { background: #fef3c7; color: #b45309; }
 
 /* Activity */
@@ -181,7 +181,7 @@
 .activityLine { position: absolute; left: 19px; top: 0; bottom: 0; width: 1px; background: #e8e8ef; }
 .activityRow { position: relative; display: flex; align-items: center; height: 40px; }
 .activityDot { position: absolute; left: -16px; width: 7px; height: 7px; border-radius: 50%; background: #d1d5db; box-shadow: 0 0 0 3px #fff; z-index: 1; }
-.activityDotRecent { background: #7c4dff; }
+.activityDotRecent { background: var(--mc-accent, #7c4dff); }
 .activityContent { padding-left: 24px; display: flex; align-items: center; }
 .activityText { font-size: 13px; color: #374151; }
 .activityMeta { font-size: 12px; color: #9ca3af; margin-left: 8px; }

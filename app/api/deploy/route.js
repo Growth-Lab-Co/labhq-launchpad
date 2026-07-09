@@ -12,6 +12,7 @@ import {
 } from "@/lib/ghl";
 import { recordDeployment } from "@/lib/deployments";
 import { logActivity } from "@/lib/activity";
+import { getActiveSnapshotId } from "@/lib/snapshotTemplates";
 
 export const maxDuration = 120;
 
@@ -108,7 +109,8 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       try {
         const legacyCreds = ghlCredsFor(tenant);
         const agencyAuth = await resolveSubAccountAuth(slug, legacyCreds);
-        const configured = Boolean(legacyCreds.snapshotId && agencyAuth.token && agencyAuth.companyId);
+        const activeSnapshotId = await getActiveSnapshotId(slug, legacyCreds.snapshotId);
+        const configured = Boolean(activeSnapshotId && agencyAuth.token && agencyAuth.companyId);
 
         // Demo mode: no usable GHL auth for this tenant -> simulate success.
         if (!configured) {
@@ -144,7 +146,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         const { id: locationId } = await createSubAccount({
           token: agencyAuth.token,
           companyId: agencyAuth.companyId,
-          snapshotId: legacyCreds.snapshotId,
+          snapshotId: activeSnapshotId,
           businessName,
           contact: { website: customValues.website_url },
         });

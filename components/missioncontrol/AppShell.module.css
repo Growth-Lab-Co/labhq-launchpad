@@ -21,9 +21,10 @@
   .sidebarDesktop { display: flex; }
 }
 
-.brandRow { display: flex; align-items: center; gap: 10px; padding: 16px; flex-shrink: 0; }
-.brandMark { width: 18px; height: 18px; border-radius: 4px; background: #7c4dff; }
+.brandRow { display: flex; align-items: center; gap: 10px; padding: 16px; flex-shrink: 0; height: 50px; box-sizing: border-box; }
+.brandMark { width: 18px; height: 18px; border-radius: 4px; background: var(--mc-accent, #7c4dff); }
 .brandName { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+.brandLogo { max-height: 28px; max-width: 168px; object-fit: contain; display: block; }
 
 .nav { flex: 1; padding: 8px 12px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; }
 .navItem {
@@ -40,9 +41,12 @@
   font-weight: 500;
 }
 .navItem:hover { background: #f4f4f8; color: #374151; }
-.navItemActive, .navItemActive:hover { background: #f1edfb; color: #7c4dff; }
+.navItemActive, .navItemActive:hover {
+  background: color-mix(in srgb, var(--mc-accent, #7c4dff) 12%, white);
+  color: var(--mc-accent, #7c4dff);
+}
 .navIcon { color: #9e9cb0; flex-shrink: 0; }
-.navItemActive .navIcon { color: #7c4dff; }
+.navItemActive .navIcon { color: var(--mc-accent, #7c4dff); }
 
 .tenantSwitcher {
   display: flex;
@@ -188,8 +192,8 @@
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: #f1edfb;
-  color: #7c4dff;
+  background: color-mix(in srgb, var(--mc-accent, #7c4dff) 12%, white);
+  color: var(--mc-accent, #7c4dff);
   display: flex;
   align-items: center;
   justify-content: center;
