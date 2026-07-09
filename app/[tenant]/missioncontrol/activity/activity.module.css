@@ -1,0 +1,36 @@
+.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+.title { font-size: 20px; font-weight: 600; color: #111827; line-height: 1.2; margin: 0; }
+.subtitle { font-size: 13px; color: #6b6980; margin: 4px 0 0; }
+
+.filters { display: flex; gap: 8px; margin-bottom: 32px; flex-wrap: wrap; }
+.filterPill {
+  height: 26px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  background: #f4f4f8;
+  color: #6b6980;
+  border: none;
+  cursor: pointer;
+  transition: background-color var(--duration) var(--ease), color var(--duration) var(--ease);
+}
+.filterPill:hover { background: #eeeef3; }
+.filterPillActive, .filterPillActive:hover { background: #111827; color: #fff; }
+
+.muted { color: #6b6980; font-size: 13px; }
+.feed { max-width: 680px; }
+.emptyState { padding: 80px 0; text-align: center; }
+
+.dateGroup { margin-bottom: 32px; }
+.dateGroupLabel { font-size: 11px; font-weight: 500; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 12px; }
+.dateGroupBody { border-top: 1px solid #e8e8ef; }
+
+.entryRow { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #e8e8ef; }
+.entryDot { width: 7px; height: 7px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+.entryContent { flex: 1; min-width: 0; }
+.entryLine { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; }
+.entryClient { font-size: 13px; font-weight: 500; color: #111827; text-decoration: none; transition: color var(--duration) var(--ease); }
+.entryClient:hover { color: #7c4dff; }
+.entryText { font-size: 13px; color: #374151; }
+.entryTime { font-size: 12px; color: #9ca3af; }
