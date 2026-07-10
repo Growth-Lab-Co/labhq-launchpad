@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { redeemResetToken } from "@/lib/passwordResets";
 import { setAccountPassword, getAccountById, publicAccount } from "@/lib/accounts";
-import { createSession, setSessionCookie, destroyAllSessions } from "@/lib/portalSession";
+import { createSession, setSessionCookie, destroyAllSessions, cookieDomainForRequest } from "@/lib/portalSession";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -39,7 +39,7 @@ export async function POST(req) {
       tenantSlug: account.slug,
     });
     const res = NextResponse.json({ account: publicAccount(account) });
-    return setSessionCookie(res, sessionToken, expiresAt);
+    return setSessionCookie(res, sessionToken, expiresAt, cookieDomainForRequest(req));
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }

@@ -29,12 +29,25 @@ function MissionControlGate({ slug, children }) {
   const [confirmInput, setConfirmInput] = useState("");
   const [authError, setAuthError] = useState(null);
   const [checking, setChecking] = useState(false);
+  // undefined = still checking, null = no portal session, string = its tenant slug
+  const [portalSessionSlug, setPortalSessionSlug] = useState(undefined);
+  const portalAuthed = portalSessionSlug === slug;
 
   useEffect(() => {
     fetch(`/api/tenant-public?slug=${encodeURIComponent(slug)}`)
       .then((r) => (r.ok ? r.json() : null))
       .then(setTenant)
       .catch(() => setTenant(null));
+  }, [slug]);
+
+  // A signed-in portal account whose own tenant matches this one is treated
+  // as authenticated with no separate Mission Control password needed - see
+  // lib/mcBridge.js, which every mc-key-gated API route now also checks.
+  useEffect(() => {
+    fetch("/api/portal/session")
+      .then((r) => r.json())
+      .then((d) => setPortalSessionSlug(d.account?.slug || null))
+      .catch(() => setPortalSessionSlug(null));
   }, [slug]);
 
   useEffect(() => {
@@ -139,7 +152,7 @@ function MissionControlGate({ slug, children }) {
     );
   }
 
-  if (tenant === undefined || (!mcKey && configured === null)) {
+  if (tenant === undefined || portalSessionSlug === undefined || (!mcKey && !portalAuthed && configured === null)) {
     return (
       <main className={s.shell}>
         <p className={s.muted}>Loading…</p>
@@ -147,7 +160,7 @@ function MissionControlGate({ slug, children }) {
     );
   }
 
-  if (!mcKey && configured === false) {
+  if (!mcKey && !portalAuthed && configured === false) {
     return (
       <main className={s.shell}>
         <section className={s.gate}>
@@ -184,7 +197,7 @@ function MissionControlGate({ slug, children }) {
     );
   }
 
-  if (!mcKey && configured === true) {
+  if (!mcKey && !portalAuthed && configured === true) {
     return (
       <main className={s.shell}>
         <section className={s.gate}>

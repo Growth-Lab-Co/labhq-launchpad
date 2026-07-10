@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { listDeployments, updateDeploymentStatus, DEPLOYMENT_STATUSES } from "@/lib/deployments";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 import { logActivity } from "@/lib/activity";
 
 const STATUS_LABELS = {
@@ -11,9 +11,8 @@ const STATUS_LABELS = {
   live: "Live",
 };
 
-async function authorized(req, tenant) {
-  const key = req.headers.get("x-mc-key");
-  return verifyPassword(tenant, key);
+function authorized(req, tenant) {
+  return resolveMcAuth(req, tenant);
 }
 
 export async function GET(req) {

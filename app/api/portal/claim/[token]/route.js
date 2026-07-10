@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getClaimLink, redeemClaimLink } from "@/lib/claimLinks";
 import { createAccountForExistingTenant, updateOnboarding, maybeCompleteOnboarding, publicAccount } from "@/lib/accounts";
-import { createSession, setSessionCookie } from "@/lib/portalSession";
+import { createSession, setSessionCookie, cookieDomainForRequest } from "@/lib/portalSession";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { connectionKeyFor, getConnection } from "@/lib/ghlOAuth";
 import { getActiveSnapshotId } from "@/lib/snapshotTemplates";
@@ -63,7 +63,7 @@ export async function POST(req, { params }) {
 
     const { token: sessionToken, expiresAt } = await createSession({ accountId: account.id, tenantSlug: account.slug });
     const res = NextResponse.json({ account: publicAccount(completedAccount) });
-    return setSessionCookie(res, sessionToken, expiresAt);
+    return setSessionCookie(res, sessionToken, expiresAt, cookieDomainForRequest(req));
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }

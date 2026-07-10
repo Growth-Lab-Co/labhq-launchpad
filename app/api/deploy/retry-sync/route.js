@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { getDeployment, markLocationSynced } from "@/lib/deployments";
 import { resolveLocationDataAuth, pushAllCustomValues, createContact, getForms } from "@/lib/ghl";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 import { logActivity } from "@/lib/activity";
 
 // POST /api/deploy/retry-sync - re-attempts the location-app data push for a
@@ -12,8 +12,7 @@ import { logActivity } from "@/lib/activity";
 export async function POST(req) {
   try {
     const { id, tenant: slug } = await req.json();
-    const key = req.headers.get("x-mc-key");
-    if (!(await verifyPassword(slug, key))) {
+    if (!(await resolveMcAuth(req, slug))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

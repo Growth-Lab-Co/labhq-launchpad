@@ -1,14 +1,13 @@
 import { NextResponse } from "next/server";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 import {
   getChecklistTemplate,
   saveChecklistTemplate,
   restoreDefaultChecklistTemplate,
 } from "@/lib/checklistTemplate";
 
-async function authorized(req, tenant) {
-  const key = req.headers.get("x-mc-key");
-  return verifyPassword(tenant, key);
+function authorized(req, tenant) {
+  return resolveMcAuth(req, tenant);
 }
 
 export async function GET(req) {

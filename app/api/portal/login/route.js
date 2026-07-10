@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyAccountPassword, publicAccount } from "@/lib/accounts";
-import { createSession, setSessionCookie } from "@/lib/portalSession";
+import { createSession, setSessionCookie, cookieDomainForRequest } from "@/lib/portalSession";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 
 const WINDOW_MS = 15 * 60 * 1000;
@@ -30,7 +30,7 @@ export async function POST(req) {
 
     const { token, expiresAt } = await createSession({ accountId: account.id, tenantSlug: account.slug });
     const res = NextResponse.json({ account: publicAccount(account) });
-    return setSessionCookie(res, token, expiresAt);
+    return setSessionCookie(res, token, expiresAt, cookieDomainForRequest(req));
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 400 });
   }

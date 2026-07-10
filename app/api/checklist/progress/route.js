@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 import { getChecklistProgressBulk } from "@/lib/checklist";
 
 // GET /api/checklist/progress?tenant=&ids=a,b,c - batch progress lookup for
@@ -7,8 +7,7 @@ import { getChecklistProgressBulk } from "@/lib/checklist";
 export async function GET(req) {
   const tenant = req.nextUrl.searchParams.get("tenant");
   const idsParam = req.nextUrl.searchParams.get("ids") || "";
-  const key = req.headers.get("x-mc-key");
-  if (!(await verifyPassword(tenant, key))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await resolveMcAuth(req, tenant))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const ids = idsParam.split(",").filter(Boolean);
   try {

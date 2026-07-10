@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import {
   listSnapshotTemplates,
@@ -9,9 +9,8 @@ import {
   deleteSnapshotTemplate,
 } from "@/lib/snapshotTemplates";
 
-async function authorized(req, tenant) {
-  const key = req.headers.get("x-mc-key");
-  return verifyPassword(tenant, key);
+function authorized(req, tenant) {
+  return resolveMcAuth(req, tenant);
 }
 
 async function legacySnapshotId(slug) {
