@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Table, Badge, Button, useToast } from "@/components/ui";
+import { Table, Badge, Button, Modal, Input, useToast } from "@/components/ui";
 import { adminFetch } from "@/components/admin/adminKey";
 import s from "./admin.module.css";
 
@@ -8,6 +8,9 @@ export default function AdminTenantsPage() {
   const toast = useToast();
   const [tenants, setTenants] = useState(null);
   const [retrying, setRetrying] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     adminFetch("/api/admin/tenants")
@@ -30,6 +33,24 @@ export default function AdminTenantsPage() {
       .finally(() => setRetrying(null));
   }
 
+  function closeRemoveModal() {
+    setRemoveTarget(null);
+    setConfirmText("");
+  }
+
+  function confirmRemove() {
+    const slug = removeTarget.slug;
+    setRemoving(true);
+    adminFetch(`/api/admin/tenants/${slug}`, { method: "DELETE", body: { confirmSlug: confirmText } })
+      .then(() => {
+        setTenants((prev) => prev.filter((t) => t.slug !== slug));
+        toast.push(`${slug}.labhq.co removed`, "success");
+        closeRemoveModal();
+      })
+      .catch((e) => toast.push(e.message, "error"))
+      .finally(() => setRemoving(false));
+  }
+
   return (
     <>
       <div className={s.pageHeader}>
@@ -45,6 +66,7 @@ export default function AdminTenantsPage() {
             <th>Portal account</th>
             <th>Onboarding</th>
             <th>Domain</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -99,17 +121,57 @@ export default function AdminTenantsPage() {
                   <span style={{ color: "var(--muted-2)", fontSize: 13 }}>—</span>
                 )}
               </td>
+              <td>
+                {!t.isSeed && (
+                  <Button variant="destructive" size="sm" onClick={() => setRemoveTarget(t)}>
+                    Remove
+                  </Button>
+                )}
+              </td>
             </Table.Row>
           ))}
           {tenants && tenants.length === 0 && (
             <tr>
-              <td colSpan={5} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
+              <td colSpan={6} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
                 No tenants yet.
               </td>
             </tr>
           )}
         </tbody>
       </Table>
+
+      <Modal
+        open={Boolean(removeTarget)}
+        onClose={removing ? undefined : closeRemoveModal}
+        title={removeTarget ? `Remove ${removeTarget.slug}.labhq.co` : ""}
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeRemoveModal} disabled={removing}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={removing || confirmText !== removeTarget?.slug}
+              onClick={confirmRemove}
+            >
+              {removing ? "Removing…" : "Remove permanently"}
+            </Button>
+          </>
+        }
+      >
+        <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 var(--space-4)" }}>
+          This permanently deletes the tenant record, its portal account, and every piece of its stored data
+          (branding, checklists, activity, deployments, GHL connections) - and de-registers{" "}
+          <strong>{removeTarget?.slug}.labhq.co</strong> from Netlify. This can't be undone.
+        </p>
+        <Input
+          label={`Type "${removeTarget?.slug}" to confirm`}
+          value={confirmText}
+          onChange={(e) => setConfirmText(e.target.value)}
+          autoFocus
+          disabled={removing}
+        />
+      </Modal>
     </>
   );
 }
