@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Table, Badge, useToast } from "@/components/ui";
+import { Table, Badge, Button, useToast } from "@/components/ui";
 import { adminFetch } from "@/components/admin/adminKey";
 import s from "./admin.module.css";
 
 export default function AdminTenantsPage() {
   const toast = useToast();
   const [tenants, setTenants] = useState(null);
+  const [retrying, setRetrying] = useState(null);
 
   useEffect(() => {
     adminFetch("/api/admin/tenants")
@@ -14,6 +15,20 @@ export default function AdminTenantsPage() {
       .catch((e) => toast.push(e.message, "error"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  function retryDomainAlias(slug) {
+    setRetrying(slug);
+    adminFetch(`/api/admin/tenants/${slug}/retry-domain-alias`, { method: "POST" })
+      .then(({ account }) => {
+        setTenants((prev) => prev.map((t) => (t.slug === slug ? { ...t, account } : t)));
+        toast.push(
+          account.domainAlias?.status === "ok" ? `${slug}.labhq.co registered` : "Still failing - see server logs",
+          account.domainAlias?.status === "ok" ? "success" : "error"
+        );
+      })
+      .catch((e) => toast.push(e.message, "error"))
+      .finally(() => setRetrying(null));
+  }
 
   return (
     <>
@@ -29,6 +44,7 @@ export default function AdminTenantsPage() {
             <th>Type</th>
             <th>Portal account</th>
             <th>Onboarding</th>
+            <th>Domain</th>
           </tr>
         </thead>
         <tbody>
@@ -62,11 +78,32 @@ export default function AdminTenantsPage() {
                   <span style={{ color: "var(--muted-2)", fontSize: 13 }}>—</span>
                 )}
               </td>
+              <td>
+                {t.isSeed ? (
+                  <span style={{ color: "var(--muted-2)", fontSize: 13 }}>—</span>
+                ) : t.account?.domainAlias?.status === "ok" ? (
+                  <Badge tone="success">Registered</Badge>
+                ) : t.account?.domainAlias?.status === "failed" ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Badge tone="danger">Alias failed</Badge>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={retrying === t.slug}
+                      onClick={() => retryDomainAlias(t.slug)}
+                    >
+                      {retrying === t.slug ? "Retrying…" : "Retry"}
+                    </Button>
+                  </div>
+                ) : (
+                  <span style={{ color: "var(--muted-2)", fontSize: 13 }}>—</span>
+                )}
+              </td>
             </Table.Row>
           ))}
           {tenants && tenants.length === 0 && (
             <tr>
-              <td colSpan={4} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
+              <td colSpan={5} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
                 No tenants yet.
               </td>
             </tr>

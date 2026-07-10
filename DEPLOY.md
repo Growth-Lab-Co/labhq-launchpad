@@ -41,6 +41,26 @@ Wildcard subdomains require Vercel nameservers:
 
 Test: `demo.labhq.co` should load the demo intake. `labhq.co` redirects to your marketing page.
 
+> **Update 2026-07-10 — the project actually runs on Netlify now, not Vercel** (the
+> Vercel steps above are historical). DNS for `labhq.co` is Netlify DNS, and a
+> `*.labhq.co` DNS record + wildcard SSL cert are both in place. **But Netlify's
+> site-routing layer doesn't accept a wildcard in `domain_aliases`** ("has invalid
+> characters") — every tenant subdomain still needs an individual domain alias
+> registered on the site before it resolves, DNS/SSL notwithstanding. Two
+> consequences:
+> - This is now automatic: `lib/accounts.js:registerTenantDomain` calls the
+>   Netlify API to register `{slug}.labhq.co` the moment a tenant's onboarding
+>   completes (needs `NETLIFY_API_TOKEN` set — see `.env.example`). If it fails,
+>   the tenant still works at `labhq.co/{slug}` immediately, and the failure
+>   shows up in `/admin` with a one-click retry.
+> - **The site is capped at 100 domain aliases** on the current plan
+>   (`nf_team_pro`) — this approach doesn't scale past that. The real fix is
+>   asking Netlify support to enable true wildcard domain routing for site
+>   `bdca9a4d-161c-4aac-b823-a0539c4be6a6` (`labhq.co`) — per Netlify's own
+>   support forums this requires a support ticket even on Pro, it's not
+>   self-serve via the API or dashboard. Worth filing once tenant count starts
+>   approaching the cap.
+
 ## 4. Snapshot prep in GHL (your biggest job — 1–2 hrs)
 
 Launchpad personalises clients by writing **custom values**; the snapshot must *read* them.
@@ -101,7 +121,9 @@ The GHL API v2 payload occasionally differs by account age/plan. If `test:ghl` f
 
 1. `lib/tenants.js` → copy the obm block, change slug/name/branding.
 2. Add `{PREFIX}_GHL_*` env vars in Vercel.
-3. Their subdomain works instantly (wildcard already covers it).
+3. Their subdomain gets auto-registered as a Netlify domain alias on
+   onboarding completion (see the update note in step 3 above) — usually live
+   within seconds, `labhq.co/{slug}` works immediately either way.
 
 ## OAuth apps
 

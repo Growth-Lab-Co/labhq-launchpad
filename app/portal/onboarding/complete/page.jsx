@@ -7,11 +7,13 @@ export default function CompletePage() {
   const { account } = useOnboarding();
   const subdomainUrl = account ? `https://${account.slug}.labhq.co` : null;
   // Same-origin path route to the tenant's door - middleware rewrites
-  // {slug}.labhq.co/* to this same route, so it renders identically. Used as
-  // a fallback (and for "Deploy your first client") because it doesn't
-  // depend on the subdomain having DNS/a domain alias provisioned yet, which
-  // for brand-new tenants can lag behind account creation.
+  // {slug}.labhq.co/* to this same route, so it renders identically. Used
+  // for "Deploy your first client" always, and as the LEAD link (instead of
+  // the subdomain) whenever domain-alias registration hasn't succeeded -
+  // see lib/accounts.js:registerTenantDomain - because in that case the
+  // subdomain genuinely won't resolve yet.
   const pathUrl = account ? `/${account.slug}` : null;
+  const aliasOk = account?.domainAlias?.status === "ok";
 
   return (
     <Card className={s.card}>
@@ -25,16 +27,33 @@ export default function CompletePage() {
         <p className={s.subtitle}>{account?.agencyName}'s door is open.</p>
 
         <div className={s.completeLinks}>
-          <Button as="a" href={subdomainUrl} target="_blank" rel="noopener noreferrer" style={{ width: "100%" }}>
-            Open your subdomain — {account?.slug}.labhq.co
-          </Button>
-          <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", margin: "-8px 0 0" }}>
-            Subdomain not loading yet?{" "}
-            <a href={pathUrl} target="_blank" rel="noopener noreferrer">
-              Try labhq.co{pathUrl}
-            </a>{" "}
-            instead.
-          </p>
+          {aliasOk ? (
+            <>
+              <Button as="a" href={subdomainUrl} target="_blank" rel="noopener noreferrer" style={{ width: "100%" }}>
+                Open your subdomain — {account?.slug}.labhq.co
+              </Button>
+              <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", margin: "-8px 0 0" }}>
+                Subdomain not loading yet?{" "}
+                <a href={pathUrl} target="_blank" rel="noopener noreferrer">
+                  Try labhq.co{pathUrl}
+                </a>{" "}
+                instead.
+              </p>
+            </>
+          ) : (
+            <>
+              <Button as="a" href={pathUrl} target="_blank" rel="noopener noreferrer" style={{ width: "100%" }}>
+                Open your door — labhq.co{pathUrl}
+              </Button>
+              <p style={{ fontSize: 12, color: "var(--muted)", textAlign: "center", margin: "-8px 0 0" }}>
+                Your subdomain ({account?.slug}.labhq.co) is still being set up - we'll let you know when it's ready.{" "}
+                <a href={subdomainUrl} target="_blank" rel="noopener noreferrer">
+                  Try it anyway
+                </a>
+                .
+              </p>
+            </>
+          )}
           <Button as="a" href="/portal/dashboard" variant="secondary" style={{ width: "100%" }}>
             Go to your dashboard
           </Button>
