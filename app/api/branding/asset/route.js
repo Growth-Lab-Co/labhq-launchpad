@@ -7,7 +7,7 @@ import {
   getBrandingAsset,
   setBrandingAsset,
 } from "@/lib/branding";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 
 // Serves an uploaded favicon/logo directly - public and unauthenticated,
 // same as any other static brand asset would be.
@@ -41,8 +41,7 @@ export async function POST(req) {
     if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
     if (!ASSET_TYPES.includes(type)) return NextResponse.json({ error: "Unknown asset type" }, { status: 400 });
 
-    const key = req.headers.get("x-mc-key");
-    if (!(await verifyPassword(tenant, key))) {
+    if (!(await resolveMcAuth(req, tenant))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

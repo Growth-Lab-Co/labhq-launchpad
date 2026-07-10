@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getTenant } from "@/lib/tenants";
 import { getBranding, setBrandingFields } from "@/lib/branding";
-import { verifyPassword } from "@/lib/mcAuth";
+import { resolveMcAuth } from "@/lib/mcBridge";
 
 // Unauthenticated on purpose - branding URLs aren't sensitive, and every
 // page under a tenant needs to read them (including the public intake page).
@@ -22,8 +22,7 @@ export async function PATCH(req) {
   try {
     const { tenant, accent, welcomeMessage } = await req.json();
     if (!tenant || !(await getTenant(tenant))) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
-    const key = req.headers.get("x-mc-key");
-    if (!(await verifyPassword(tenant, key))) {
+    if (!(await resolveMcAuth(req, tenant))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     const branding = await setBrandingFields(tenant, { accent, welcomeMessage });
