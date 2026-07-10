@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyAdminKey } from "@/lib/adminAuth";
+import { verifyAdminRequest } from "@/lib/adminAuth";
 import { getAccountByEmail } from "@/lib/accounts";
 import { createResetToken } from "@/lib/passwordResets";
 
@@ -8,7 +8,16 @@ import { createResetToken } from "@/lib/passwordResets";
 // can't email a link. The operator hands the resulting /portal/reset-
 // password?token= link to the agency directly (phone, chat, whatever).
 export async function POST(req) {
-  if (!verifyAdminKey(req.headers.get("x-mc-key"))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authorized) {
+    if (auth.rateLimited) {
+      return NextResponse.json(
+        { error: "Too many attempts. Try again shortly." },
+        { status: 429, headers: { "retry-after": String(auth.retryAfterSeconds) } }
+      );
+    }
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { email } = await req.json().catch(() => ({}));
   const account = await getAccountByEmail(email);

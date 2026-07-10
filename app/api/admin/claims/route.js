@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
-import { verifyAdminKey } from "@/lib/adminAuth";
+import { verifyAdminRequest } from "@/lib/adminAuth";
 import { createOrReuseClaimLink, listClaimLinks } from "@/lib/claimLinks";
 import { getTenant } from "@/lib/tenants";
 
-function authorized(req) {
-  return verifyAdminKey(req.headers.get("x-mc-key"));
+function denyResponse({ rateLimited, retryAfterSeconds }) {
+  if (rateLimited) {
+    return NextResponse.json(
+      { error: "Too many attempts. Try again shortly." },
+      { status: 429, headers: { "retry-after": String(retryAfterSeconds) } }
+    );
+  }
+  return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 }
 
 export async function GET(req) {
-  if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authorized) return denyResponse(auth);
   const links = await listClaimLinks();
   return NextResponse.json({ links });
 }
 
 export async function POST(req) {
-  if (!authorized(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authorized) return denyResponse(auth);
   const { tenantSlug, planLabel } = await req.json().catch(() => ({}));
 
   const slug = String(tenantSlug || "").trim().toLowerCase();

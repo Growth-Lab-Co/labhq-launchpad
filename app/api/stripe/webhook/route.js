@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { getStore } from "@netlify/blobs";
+import { blobStore } from "@/lib/blobsFetch";
 import { verifyWebhookSignature } from "@/lib/stripe";
 import { updateOnboarding, maybeCompleteOnboarding } from "@/lib/accounts";
 import { setJSONAtomic } from "@/lib/blobsAtomic";
 
 function eventsStore() {
-  return getStore({ name: "stripe-events", consistency: "strong" });
+  return blobStore({ name: "stripe-events", consistency: "strong" });
 }
 
 // Inert until STRIPE_WEBHOOK_SECRET is set - never processes an unverified

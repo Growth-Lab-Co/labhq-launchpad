@@ -1,12 +1,21 @@
 import { NextResponse } from "next/server";
-import { verifyAdminKey } from "@/lib/adminAuth";
+import { verifyAdminRequest } from "@/lib/adminAuth";
 import { listTenants, SEED_TENANTS } from "@/lib/tenants";
 import { listAccounts, publicAccount } from "@/lib/accounts";
 
 // Lists every tenant (seed + dynamic) alongside the portal account bound to
 // it, if any - the operator's one view of "who's on the platform".
 export async function GET(req) {
-  if (!verifyAdminKey(req.headers.get("x-mc-key"))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await verifyAdminRequest(req);
+  if (!auth.authorized) {
+    if (auth.rateLimited) {
+      return NextResponse.json(
+        { error: "Too many attempts. Try again shortly." },
+        { status: 429, headers: { "retry-after": String(auth.retryAfterSeconds) } }
+      );
+    }
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const [tenants, accounts] = await Promise.all([listTenants(), listAccounts()]);
   const accountsBySlug = Object.fromEntries(accounts.map((a) => [a.slug, a]));
