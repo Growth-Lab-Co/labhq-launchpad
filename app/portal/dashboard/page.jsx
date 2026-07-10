@@ -6,7 +6,9 @@ import s from "../portal.module.css";
 // "/portal IS their Mission Control" (spec item 5) - rather than duplicating
 // the entire, already-built Mission Control UI (clients, activity,
 // templates, branding, settings) under a second route tree, this hands off
-// to the tenant's own subdomain, where that UI already lives. The portal
+// to the tenant's own /{slug}/missioncontrol path, where that UI already
+// lives. A same-origin path (not the tenant's subdomain) so this never
+// depends on that subdomain having DNS/SSL provisioned yet. The portal
 // session cookie is domain-wide (see lib/portalSession.js
 // cookieDomainForRequest) so the agency lands there already signed in - no
 // separate Mission Control password to enter (app/[tenant]/missioncontrol/
@@ -29,7 +31,7 @@ export default function PortalDashboardPage() {
           router.replace("/portal/onboarding");
           return;
         }
-        window.location.href = `https://${data.account.slug}.labhq.co/missioncontrol`;
+        window.location.href = `/${data.account.slug}/missioncontrol`;
       })
       .catch(() => setError("Couldn't load your dashboard. Try again."));
   }, [router]);
