@@ -10,7 +10,7 @@ const WELCOME_MAX = 280;
 
 export default function BrandPage() {
   const router = useRouter();
-  const { account, refetchAccount } = useOnboarding();
+  const { account, refetchAccount, finishingRef } = useOnboarding();
   const [logoUrl, setLogoUrl] = useState(null);
   const [accent, setAccent] = useState(DEFAULT_ACCENT);
   const [welcome, setWelcome] = useState("");
@@ -69,8 +69,13 @@ export default function BrandPage() {
       const doneData = await doneRes.json();
       if (!doneRes.ok) throw new Error(doneData.error || "Couldn't finish onboarding. Try again.");
 
-      await refetchAccount();
+      // finishingRef tells the shared gate to sit out its own "already
+      // fully done -> dashboard" redirect for this transition - see
+      // OnboardingContext.jsx for why that's needed rather than just
+      // ordering these two calls.
+      finishingRef.current = true;
       router.replace("/portal/onboarding/complete");
+      await refetchAccount();
     } catch (err) {
       setError(err.message);
     } finally {

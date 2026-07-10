@@ -22,13 +22,12 @@ export default function OnboardingLayout({ children }) {
 }
 
 function OnboardingGate({ children }) {
-  const { account } = useOnboarding();
+  const { account, finishingRef } = useOnboarding();
   const pathname = usePathname();
   const router = useRouter();
   const currentKey = pathname.split("/").pop();
 
   const firstIncompleteIndex = account && account !== null ? STEPS.findIndex((step) => !step.done(account.onboarding)) : -1;
-  const allDone = account && firstIncompleteIndex === -1;
 
   useEffect(() => {
     if (account === undefined) return; // still loading
@@ -36,21 +35,36 @@ function OnboardingGate({ children }) {
       router.replace("/portal");
       return;
     }
-    if (account.onboarding.completedAt) {
+    const complete = Boolean(account.onboarding.completedAt);
+
+    if (pathname === "/portal/onboarding") {
+      router.replace(complete ? "/portal/dashboard" : `/portal/onboarding/${STEPS[firstIncompleteIndex].key}`);
+      return;
+    }
+    // /complete is exactly where a freshly-completed account should land -
+    // never bounce away from it just because completedAt is now true. Only
+    // send someone away from it if they deep-linked here before actually
+    // finishing.
+    if (currentKey === "complete") {
+      finishingRef.current = false; // the transition it was guarding against has landed
+      if (!complete) router.replace(`/portal/onboarding/${STEPS[firstIncompleteIndex].key}`);
+      return;
+    }
+    // Any other step page with an already-fully-done account normally means
+    // someone returning to the wizard later - except right after finishing
+    // the last step, where the account can flip to complete while
+    // usePathname() still briefly reports the step page itself (router.
+    // replace's URL update isn't synchronous with the state update that
+    // caused it). finishingRef distinguishes the two so this doesn't race
+    // that step's own navigation to /complete.
+    if (complete && !finishingRef.current) {
       router.replace("/portal/dashboard");
       return;
     }
-    if (pathname === "/portal/onboarding") {
-      router.replace(`/portal/onboarding/${STEPS[firstIncompleteIndex]?.key || "complete"}`);
-      return;
-    }
-    if (currentKey === "complete") {
-      if (!allDone) router.replace(`/portal/onboarding/${STEPS[firstIncompleteIndex]?.key}`);
-      return;
-    }
+    if (complete) return; // finishing in progress - the step page's own navigation will land
     const requestedIndex = STEPS.findIndex((step) => step.key === currentKey);
     if (requestedIndex > firstIncompleteIndex) {
-      router.replace(`/portal/onboarding/${STEPS[firstIncompleteIndex]?.key}`);
+      router.replace(`/portal/onboarding/${STEPS[firstIncompleteIndex].key}`);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [account, pathname]);
