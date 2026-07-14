@@ -11,6 +11,7 @@ const NAV = [
   { label: "Invite codes", path: "/admin/invites" },
   { label: "Claim links", path: "/admin/claims" },
   { label: "Password resets", path: "/admin/resets" },
+  { label: "Backups", path: "/admin/backups" },
   { label: "Activity", path: "/admin/activity" },
 ];
 

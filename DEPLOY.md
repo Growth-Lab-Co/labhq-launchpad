@@ -254,6 +254,73 @@ without digging through GHL.
   the same flow a client would use themselves, for when an operator wants
   to drive it directly.
 
+## Disaster recovery
+
+Every durable Netlify Blobs store (the full list is `lib/backupStores.js` -
+tenants, accounts, deployments, GHL connections, checklists, checklist
+templates, branding + assets, activity logs, Mission Control passwords,
+team, notifications, claim links, invite codes, snapshot templates) is
+snapshotted daily and kept for 30 days. Four stores are intentionally
+excluded because they're short-lived and self-regenerating: `portal-sessions`,
+`account-sessions`, `password-resets`, `rate-limits` - losing them just means
+someone logs in again, there's nothing to restore.
+
+- **Schedule** - `netlify/functions/backup-blobs.mjs`, a Netlify Scheduled
+  Function, cron `0 17 * * *` (17:00 UTC = 03:00 AEST next day; Queensland
+  doesn't observe daylight saving, so this stays fixed at UTC+10 year-round -
+  if that ever changes, update the cron expression).
+- **Where it goes** - Netlify Blobs, store `backups`, key
+  `backup/YYYY-MM-DD.json.gz` (gzip-compressed JSON). Encrypted values
+  (`ghl-connections`, `accounts`) are captured as raw bytes and never
+  decrypted - they stay encrypted at rest in the snapshot exactly as they
+  were live.
+- **Retention** - 30 daily snapshots; older ones are pruned automatically at
+  the end of every backup run (`pruneSnapshots` in `lib/backup.js`).
+- **Manual backup** - `/admin` -> Backups -> "Back up now" runs the same
+  export immediately (`POST /api/admin/backups`). Both scheduled and manual
+  runs log an entry to `/admin/activity`.
+- **Viewing snapshots** - `/admin` -> Backups lists every snapshot with its
+  date, trigger, key count, and size. `netlify blobs:list backups` works too
+  for a raw look.
+
+### Restoring
+
+Restores are CLI-only by design - there is no restore button in the admin
+console, so a wrong click there can never overwrite live data.
+
+```bash
+# See what's available
+node scripts/restore-backup.mjs --list
+
+# See what would change, without writing anything
+node scripts/restore-backup.mjs --date 2026-07-14 --dry-run
+node scripts/restore-backup.mjs --date 2026-07-14 --store tenants --dry-run
+
+# Restore for real (prints the same diff, then asks you to type "yes")
+node scripts/restore-backup.mjs --date 2026-07-14
+node scripts/restore-backup.mjs --date 2026-07-14 --store tenants
+
+# Skip the confirmation prompt (e.g. scripted recovery)
+node scripts/restore-backup.mjs --date 2026-07-14 --yes
+```
+
+By default, restoring only **adds and overwrites** keys from the snapshot -
+it never deletes anything, even if the snapshot is missing a key that
+exists live now. That's the right default for the normal disaster-recovery
+case (data went missing or got corrupted; anything created since the
+snapshot should survive). If you actually need an exact point-in-time
+rollback - live data matches the snapshot exactly, including deleting
+anything created after it - add `--delete-extraneous`; the dry run will
+show you exactly what that would delete before you commit to it.
+
+Needs `NETLIFY_API_TOKEN` (a personal access token from
+`app.netlify.com/user/applications`) in `.env.local` or the shell
+environment - the script talks to the Blobs API directly with an explicit
+site ID + token rather than relying on Netlify's ambient function context,
+since it runs as a plain `node` process. The site ID comes from
+`NETLIFY_SITE_ID` if set, otherwise from the linked `.netlify/state.json`
+(same file the Netlify CLI itself uses for this project).
+
 ## Launch-day runbook (Sunday)
 
 1. `npm run test:ghl` ✅

@@ -7,6 +7,7 @@ import s from "../admin.module.css";
 const ACTION_LABELS = {
   tenant_removed: "Tenant removed",
   client_removed: "Client removed",
+  backup_completed: "Backup completed",
 };
 
 export default function AdminActivityPage() {
@@ -59,6 +60,15 @@ export default function AdminActivityPage() {
                       <strong>{e.detail?.businessName}</strong>
                     </div>
                     <div style={{ color: "var(--muted)" }}>{e.detail?.tenant}.labhq.co</div>
+                  </>
+                ) : e.action === "backup_completed" ? (
+                  <>
+                    <div>
+                      <strong>{e.detail?.key}</strong>
+                    </div>
+                    <div style={{ color: "var(--muted)" }}>
+                      {e.detail?.totalKeys} keys · {Math.round((e.detail?.sizeBytes || 0) / 1024)} KB · {e.detail?.trigger}
+                    </div>
                   </>
                 ) : (
                   <span style={{ color: "var(--muted)" }}>{JSON.stringify(e.detail)}</span>

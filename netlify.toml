@@ -1,0 +1,8 @@
+# Deliberately no [build] block here - this site's build/publish settings
+# are configured on the Netlify dashboard (deploys ship via `netlify deploy`,
+# not git-triggered CI), and this file should not override that. This only
+# declares the custom functions directory so the scheduled backup function
+# (netlify/functions/backup-blobs.mjs) gets picked up; it's independent of
+# the Next.js runtime's own internal functions.
+[functions]
+  directory = "netlify/functions"
