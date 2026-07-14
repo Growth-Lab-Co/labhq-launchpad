@@ -338,7 +338,7 @@ export default function Chat({ tenant }) {
 
       {phase === "done" && deployResult && (
         <section className="success">
-          <h2>Your system is deployed 🎉</h2>
+          <h2>Your system is deployed.</h2>
           <p>
             {answers.business_name || "Your business"} now has its onboarding engine built —
             CRM, pipelines, follow-up sequences and {tenant.assistantName}, your AI receptionist.
@@ -351,9 +351,11 @@ export default function Chat({ tenant }) {
           {deployResult.demo && (
             <div className="badge-demo">Demo mode — no live system was created</div>
           )}
-          {deployResult.contactWarning && (
-            <div className="error-note" style={{ textAlign: "left" }}>
-              Manual step needed: {deployResult.contactWarning}
+          {deployResult.locationAuthNeeded && (
+            <div className="warning-note" style={{ textAlign: "left" }}>
+              One step remaining: your agency will authorise data sync for this account — your
+              setup details and go-live workflow complete automatically after that. Nothing is
+              needed from you.
             </div>
           )}
           {config?.privacy_policy_snippet && (

@@ -93,6 +93,7 @@ export async function POST(req) {
     }
 
     const synced = failures.length === 0;
+    const completed = synced && contactCreated;
     const updated = await markLocationSynced(id, slug, {
       locationAuthNeeded: false,
       contactCreated,
@@ -101,12 +102,19 @@ export async function POST(req) {
       locationSyncedAt: synced ? new Date().toISOString() : record.locationSyncedAt || null,
     });
 
+    // "Setup completed" only once both halves of the go-live promise made on
+    // the client's deploy screen (see components/Chat.jsx's amber banner)
+    // are actually true - values synced AND the onboarding contact created.
     await logActivity({
       tenant: slug,
       deploymentId: id,
       businessName: record.businessName,
       type: "setup",
-      text: synced ? "Custom values synced" : `Data sync retried - ${failures.length} value(s) still failing`,
+      text: completed
+        ? `Setup completed for ${record.businessName || "this client"}`
+        : synced
+        ? "Custom values synced"
+        : `Data sync retried - ${failures.length} value(s) still failing`,
     });
 
     return NextResponse.json({

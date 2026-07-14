@@ -192,7 +192,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
               e.body ?? e.message
             );
             contactWarning =
-              "We couldn't automatically create the onboarding contact — our team has been notified and will add it manually so your Go-Live workflow fires.";
+              "We couldn't automatically create the onboarding contact — add it manually in GHL so the Go-Live workflow fires.";
           }
         } else {
           contactWarning =
