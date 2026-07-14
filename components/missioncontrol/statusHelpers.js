@@ -12,8 +12,17 @@ export const STATUS_STEPS = [
   { key: "live", label: "Live" },
 ];
 
+// True when a deployment needs an operator to authorise or retry its GHL
+// data sync - either the location app was never authorised, or it was but
+// some custom values still failed to push. `syncFailures` only exists on
+// records written after this tracking was added, so older already-synced
+// deployments (undefined syncFailures) don't get retroactively flagged.
+export function needsDataSync(deployment) {
+  return Boolean(deployment.locationAuthNeeded) || Boolean(deployment.syncFailures?.length);
+}
+
 export function displayStatus(deployment) {
-  if (deployment.locationAuthNeeded) return "Attention";
+  if (needsDataSync(deployment)) return "Attention";
   if (deployment.status === "live") return "Live";
   if (deployment.status === "qa_passed") return "QA";
   return "Setting up";

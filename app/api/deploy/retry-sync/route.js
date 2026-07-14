@@ -92,9 +92,13 @@ export async function POST(req) {
       );
     }
 
+    const synced = failures.length === 0;
     const updated = await markLocationSynced(id, slug, {
       locationAuthNeeded: false,
       contactCreated,
+      customValuesSynced: synced,
+      syncFailures: failures.map((f) => f.name),
+      locationSyncedAt: synced ? new Date().toISOString() : record.locationSyncedAt || null,
     });
 
     await logActivity({
@@ -102,7 +106,7 @@ export async function POST(req) {
       deploymentId: id,
       businessName: record.businessName,
       type: "setup",
-      text: "Custom values synced",
+      text: synced ? "Custom values synced" : `Data sync retried - ${failures.length} value(s) still failing`,
     });
 
     return NextResponse.json({

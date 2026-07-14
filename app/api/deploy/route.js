@@ -234,6 +234,8 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           customValues,
           locationAuthNeeded,
           contactCreated,
+          customValuesSynced: !locationAuthNeeded && failures.length === 0,
+          syncFailures: failures.map((f) => f.name),
         });
 
         await logActivity({

@@ -95,6 +95,15 @@
 .syncActions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
 .helpText { font-size: 12px; color: #9ca3af; }
 
+.syncResultBox { margin-top: 12px; padding: 12px; background: #f9fafb; border: 1px solid #e8e8ef; border-radius: 6px; }
+.syncResultList { list-style: none; margin: 0 0 4px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.syncResultList li { display: flex; align-items: center; gap: 6px; font-size: 12px; text-transform: capitalize; }
+.syncResultOk { color: #16a34a; }
+.syncResultFail { color: #dc2626; }
+
+.syncedState { display: flex; align-items: center; gap: 8px; }
+.syncedState .helpText { margin-left: 4px; }
+
 /* Setup answers */
 .setup { max-width: 600px; }
 .setupToolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }

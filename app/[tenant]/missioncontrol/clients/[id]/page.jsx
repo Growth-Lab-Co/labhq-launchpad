@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Copy, Check, Download } from "lucide-react";
+import { ChevronLeft, Copy, Check, X, Download } from "lucide-react";
 import { useMissionControl } from "@/components/missioncontrol/MissionControlContext";
 import { BreadcrumbPortal } from "@/components/missioncontrol/BreadcrumbPortal";
 import { StatusBadge } from "@/components/missioncontrol/StatusBadge";
@@ -9,6 +9,7 @@ import { mcFetch } from "@/components/missioncontrol/api";
 import {
   STATUS_STEPS,
   displayStatus,
+  needsDataSync,
   formatDate,
   relativeTime,
   ghlLocationUrl,
@@ -134,7 +135,9 @@ function OverviewTab({ deployment, slug, mcKey, toast, onChanged }) {
   const [copiedId, setCopiedId] = useState(false);
   const [settingStatus, setSettingStatus] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [syncResult, setSyncResult] = useState(null);
   const currentIndex = Math.max(stepIndexOf(deployment.status), 0);
+  const needsSync = needsDataSync(deployment);
 
   const copyId = () => {
     navigator.clipboard?.writeText(deployment.locationId);
@@ -161,6 +164,7 @@ function OverviewTab({ deployment, slug, mcKey, toast, onChanged }) {
 
   async function retrySync() {
     setRetrying(true);
+    setSyncResult(null);
     try {
       const data = await mcFetch("/api/deploy/retry-sync", {
         mcKey,
@@ -168,9 +172,16 @@ function OverviewTab({ deployment, slug, mcKey, toast, onChanged }) {
         body: { id: deployment.id, tenant: slug },
       });
       onChanged(data.deployment);
-      toast.push("Data sync retried.", "success");
-    } catch {
-      toast.push("Still not authorised. Connect the location app for this sub-account, then retry.", "error");
+      setSyncResult({ pushed: data.pushed, warning: data.warning, contactWarning: data.contactWarning });
+      toast.push(data.deployment?.customValuesSynced ? "Data sync complete." : "Retried - some values are still unsynced.", data.deployment?.customValuesSynced ? "success" : "error");
+    } catch (e) {
+      setSyncResult(null);
+      toast.push(
+        e.status === 409
+          ? "Still not authorised. Connect the location app for this sub-account, then retry."
+          : e.message || "Couldn't retry the sync. Try again.",
+        "error"
+      );
     } finally {
       setRetrying(false);
     }
@@ -255,33 +266,60 @@ function OverviewTab({ deployment, slug, mcKey, toast, onChanged }) {
               >
                 <span className={`${s.stepDot} ${isPast ? s.stepDotPast : isCurrent ? s.stepDotCurrent : ""}`} />
                 <span className={`${s.stepLabel} ${isCurrent ? s.stepLabelCurrent : ""}`}>{step.label}</span>
-                {isCurrent && deployment.locationAuthNeeded && <span className={s.attentionPill}>Attention</span>}
+                {isCurrent && needsSync && <span className={s.attentionPill}>Attention</span>}
               </button>
             );
           })}
         </div>
       </div>
 
-      {deployment.locationAuthNeeded && (
+      {!deployment.demo && (
         <div>
           <h3 className={s.sectionLabel}>Data sync</h3>
-          <div className={s.syncActions}>
-            <a
-              href={`/api/oauth/start?app=location&tenant=${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={s.secondaryButton}
-            >
-              Authorise data sync
-            </a>
-            <button onClick={retrySync} disabled={retrying} className={s.secondaryButton}>
-              {retrying ? "Retrying…" : "Retry data sync"}
-            </button>
-          </div>
-          <p className={s.helpText}>
-            GHL doesn't let us preselect the location. When the picker opens, choose{" "}
-            <strong>{deployment.businessName || "this business"}</strong>, then select Retry data sync.
-          </p>
+          {needsSync ? (
+            <>
+              <div className={s.syncActions}>
+                <a
+                  href={`/api/oauth/start?app=location&tenant=${slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={s.secondaryButton}
+                >
+                  Authorise data sync
+                </a>
+                <button onClick={retrySync} disabled={retrying} className={s.secondaryButton}>
+                  {retrying ? "Retrying…" : "Retry data sync"}
+                </button>
+              </div>
+              <p className={s.helpText}>
+                GHL doesn't let us preselect the location. When the picker opens, choose{" "}
+                <strong>{deployment.businessName || "this business"}</strong>, then select Retry data sync.
+              </p>
+              {syncResult && (
+                <div className={s.syncResultBox}>
+                  {syncResult.pushed && (
+                    <ul className={s.syncResultList}>
+                      {syncResult.pushed.map((p) => (
+                        <li key={p.name} className={p.ok ? s.syncResultOk : s.syncResultFail}>
+                          {p.ok ? <Check size={11} /> : <X size={11} />} {p.name.replaceAll("_", " ")}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {syncResult.warning && <p className={s.helpText}>{syncResult.warning}</p>}
+                  {syncResult.contactWarning && <p className={s.helpText}>{syncResult.contactWarning}</p>}
+                </div>
+              )}
+            </>
+          ) : (
+            <div className={s.syncedState}>
+              <span className={`${s.dot} ${s.dotOn}`} />
+              <span className={s.rowValue}>Values synced</span>
+              <span className={s.helpText}>
+                {deployment.locationSyncedAt ? formatDate(deployment.locationSyncedAt) : formatDate(deployment.createdAt)}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

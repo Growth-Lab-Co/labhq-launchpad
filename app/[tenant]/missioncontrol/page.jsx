@@ -223,7 +223,7 @@ export default function ClientsPage() {
                     <div className={s.clientText}>
                       <span className={s.clientName}>{d.businessName || "Unnamed business"}</span>
                       {status === "Attention" ? (
-                        <span className={s.attentionReason}>Data sync needs authorisation</span>
+                        <span className={s.needsAuthBadge}>Needs authorisation</span>
                       ) : (
                         <span className={s.clientSubline}>{d.contactName || "—"}</span>
                       )}
