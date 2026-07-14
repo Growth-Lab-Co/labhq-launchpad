@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
-import { listDeployments, updateDeploymentStatus, DEPLOYMENT_STATUSES } from "@/lib/deployments";
+import { listDeployments, updateDeploymentStatus, getDeployment, deleteDeployment, DEPLOYMENT_STATUSES } from "@/lib/deployments";
 import { resolveMcAuth } from "@/lib/mcBridge";
-import { logActivity } from "@/lib/activity";
+import { logActivity, deleteActivityForDeployment } from "@/lib/activity";
+import { deleteChecklist } from "@/lib/checklist";
+import { logAdminActivity } from "@/lib/adminActivity";
 
 const STATUS_LABELS = {
   deployed: "Deployed",
@@ -47,6 +49,47 @@ export async function PATCH(req) {
     });
 
     return NextResponse.json({ deployment: record });
+  } catch (e) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
+  }
+}
+
+// Removes a deployment record from Mission Control - the dashboard entry,
+// its checklist state, and its activity entries for this tenant only.
+// Never touches the underlying GHL sub-account; that stays a manual step
+// (see the confirmation modal copy in the client detail page).
+export async function DELETE(req) {
+  try {
+    const { id, tenant: slug, confirmName } = await req.json();
+    if (!(await authorized(req, slug))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
+
+    const record = await getDeployment(id, slug);
+    if (!record) return NextResponse.json({ error: "Deployment not found" }, { status: 404 });
+
+    const expectedName = record.businessName || "Unnamed business";
+    if ((confirmName || "").trim() !== expectedName) {
+      return NextResponse.json({ error: "Confirmation text doesn't match the client name" }, { status: 400 });
+    }
+
+    await deleteDeployment(id, slug);
+    await deleteChecklist(slug, id);
+    await deleteActivityForDeployment(slug, id);
+
+    await logActivity({
+      tenant: slug,
+      deploymentId: null,
+      businessName: expectedName,
+      type: "general",
+      text: `Removed client "${expectedName}" from the dashboard`,
+    });
+
+    await logAdminActivity({
+      action: "client_removed",
+      detail: { tenant: slug, deploymentId: id, businessName: expectedName, locationId: record.locationId || null },
+    });
+
+    return NextResponse.json({ ok: true });
   } catch (e) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

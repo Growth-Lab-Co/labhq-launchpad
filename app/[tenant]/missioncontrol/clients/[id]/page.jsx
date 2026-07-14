@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ChevronLeft, Copy, Check, X, Download } from "lucide-react";
+import { Modal, Button, Input } from "@/components/ui";
 import { useMissionControl } from "@/components/missioncontrol/MissionControlContext";
 import { BreadcrumbPortal } from "@/components/missioncontrol/BreadcrumbPortal";
 import { StatusBadge } from "@/components/missioncontrol/StatusBadge";
@@ -31,10 +33,12 @@ function stepIndexOf(key) {
 export default function ClientDetailPage({ params }) {
   const { tenant: slug, id } = params;
   const { mcKey, toast, refetchActivity } = useMissionControl();
+  const router = useRouter();
   const base = `/${slug}/missioncontrol`;
   const [activeTab, setActiveTab] = useState("overview");
   const [deployment, setDeployment] = useState(null);
   const [error, setError] = useState(null);
+  const [removeModalOpen, setRemoveModalOpen] = useState(false);
 
   const load = () => {
     mcFetch(`/api/deployments?tenant=${encodeURIComponent(slug)}`, { mcKey })
@@ -117,6 +121,7 @@ export default function ClientDetailPage({ params }) {
               setDeployment(next);
               refetchActivity();
             }}
+            onRequestRemove={() => setRemoveModalOpen(true)}
           />
         )}
         {activeTab === "setup" && <SetupTab deployment={deployment} />}
@@ -125,13 +130,84 @@ export default function ClientDetailPage({ params }) {
         )}
         {activeTab === "activity" && <ActivityTab deploymentId={id} />}
       </div>
+
+      <RemoveClientModal
+        open={removeModalOpen}
+        deployment={deployment}
+        slug={slug}
+        mcKey={mcKey}
+        toast={toast}
+        onClose={() => setRemoveModalOpen(false)}
+        onRemoved={() => {
+          refetchActivity();
+          router.push(base);
+        }}
+      />
     </>
+  );
+}
+
+// ─── Remove client ────────────────────────────────────────────────────────────
+
+function RemoveClientModal({ open, deployment, slug, mcKey, toast, onClose, onRemoved }) {
+  const [confirmText, setConfirmText] = useState("");
+  const [removing, setRemoving] = useState(false);
+  const expectedName = deployment?.businessName || "Unnamed business";
+
+  useEffect(() => {
+    if (open) setConfirmText("");
+  }, [open]);
+
+  async function confirmRemove() {
+    setRemoving(true);
+    try {
+      await mcFetch("/api/deployments", {
+        mcKey,
+        method: "DELETE",
+        body: { id: deployment.id, tenant: slug, confirmName: confirmText },
+      });
+      toast.push(`${expectedName} removed`, "success");
+      onRemoved();
+    } catch (e) {
+      toast.push(e.message || "Couldn't remove this client. Try again.", "error");
+    } finally {
+      setRemoving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={removing ? undefined : onClose}
+      title={`Remove ${expectedName}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={removing}>
+            Cancel
+          </Button>
+          <Button variant="destructive" disabled={removing || confirmText !== expectedName} onClick={confirmRemove}>
+            {removing ? "Removing…" : "Remove client"}
+          </Button>
+        </>
+      }
+    >
+      <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 16px" }}>
+        This removes the record from your dashboard. Delete the GoHighLevel sub-account separately if needed.
+      </p>
+      <Input
+        label={`Type "${expectedName}" to confirm`}
+        value={confirmText}
+        onChange={(e) => setConfirmText(e.target.value)}
+        autoFocus
+        disabled={removing}
+      />
+    </Modal>
   );
 }
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
-function OverviewTab({ deployment, slug, mcKey, toast, onChanged }) {
+function OverviewTab({ deployment, slug, mcKey, toast, onChanged, onRequestRemove }) {
   const [copiedId, setCopiedId] = useState(false);
   const [settingStatus, setSettingStatus] = useState(false);
   const [retrying, setRetrying] = useState(false);
@@ -322,6 +398,12 @@ function OverviewTab({ deployment, slug, mcKey, toast, onChanged }) {
           )}
         </div>
       )}
+
+      <div className={s.dangerZone}>
+        <button onClick={onRequestRemove} className={s.dangerLink}>
+          Remove client
+        </button>
+      </div>
     </div>
   );
 }

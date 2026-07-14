@@ -6,6 +6,7 @@ import s from "../admin.module.css";
 
 const ACTION_LABELS = {
   tenant_removed: "Tenant removed",
+  client_removed: "Client removed",
 };
 
 export default function AdminActivityPage() {
@@ -51,6 +52,13 @@ export default function AdminActivityPage() {
                       {e.detail?.contactEmail || "no account"}
                       {e.detail?.domainDeregistered ? " · domain alias removed" : ""}
                     </div>
+                  </>
+                ) : e.action === "client_removed" ? (
+                  <>
+                    <div>
+                      <strong>{e.detail?.businessName}</strong>
+                    </div>
+                    <div style={{ color: "var(--muted)" }}>{e.detail?.tenant}.labhq.co</div>
                   </>
                 ) : (
                   <span style={{ color: "var(--muted)" }}>{JSON.stringify(e.detail)}</span>

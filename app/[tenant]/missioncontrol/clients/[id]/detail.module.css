@@ -104,6 +104,18 @@
 .syncedState { display: flex; align-items: center; gap: 8px; }
 .syncedState .helpText { margin-left: 4px; }
 
+.dangerZone { padding-top: 8px; border-top: 1px solid #e8e8ef; }
+.dangerLink {
+  font-size: 12px;
+  color: #9ca3af;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color var(--duration) var(--ease);
+}
+.dangerLink:hover { color: #dc2626; }
+
 /* Setup answers */
 .setup { max-width: 600px; }
 .setupToolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
