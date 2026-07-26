@@ -254,6 +254,56 @@ without digging through GHL.
   the same flow a client would use themselves, for when an operator wants
   to drive it directly.
 
+## Channel wiring
+
+Every channel the AI conversation bot can answer on (website chat, Facebook
+and Instagram, SMS) still needs its normal GHL connection made first -
+Launchpad doesn't wire any of them for you. The "Connect the channels"
+guidance shown on the deploy success screen, the client detail Setup tab,
+and the AI Replies tab's channel status all come from one shared list,
+`lib/channelWiring.js`.
+
+- **What's detected vs. instructional** - none of the three are live-detected
+  right now. The GHL endpoints that would tell us are all gated behind
+  scopes the location app doesn't request: `chat-widget.readonly` (chat
+  widget config), `adPublishing.readonly` (Facebook/Instagram integration
+  status), and `phonenumbers.read` (phone number / A2P bundle status). Every
+  entry in `lib/channelWiring.js` is verified current GHL menu-path
+  guidance, not an API call - the AI Replies tab is honest about this
+  ("Check in GHL") rather than guessing or faking a connected state.
+- **Website chat** - `Sites -> Chat Widgets -> open (or create) the widget ->
+  Get Code`. This is a real, working GHL endpoint (`GET /chat-widget/list`,
+  `GET /chat-widget/data/{locationId}/{id}`) - a future pass could fetch the
+  actual embed snippet by adding `chat-widget.readonly` to
+  `lib/ghlOAuth.js` `APPS.location.scopes` (same re-authorise-existing-
+  clients caveat as the conversations scopes below applies).
+  Until then, the deploy success screen and Setup tab both show the menu
+  path with a copy button (whatever we can provide without the snippet
+  itself).
+- **Facebook and Instagram** - `Settings -> Integrations -> Connect under
+  Facebook and Instagram`. The client clicks approve with their page admin
+  login. No stable deep-link URL into a specific sub-account's integrations
+  page was confirmed, so this stays a click path rather than a link -
+  `adPublishing.readonly` would unlock `GET /ad-publishing/facebook/
+  integration` for a real status.
+- **SMS** - `Settings -> Phone Numbers -> Trust Center`, the same A2P 10DLC
+  registration every GHL client needs. `phonenumbers.read` would unlock
+  `GET /phone-system/numbers/location/{locationId}` for a real status (not
+  A2P/bundle status specifically - that lives under GHL's Trust Center API,
+  not surfaced in the current scope research).
+- **Where it shows up** - the deploy success screen (`components/Chat.jsx`,
+  right after the website form embed box), the client detail Setup tab
+  (`app/[tenant]/missioncontrol/clients/[id]/page.jsx`, `SetupTab`), and a
+  compact per-channel status line under the AI Replies tab's channel toggles
+  (links back to the Setup tab's full block).
+- **Go-live checklist** - `lib/checklistTemplate.js`'s
+  `DEFAULT_CHECKLIST_TEMPLATE` has a new "AI replies" group (chat widget
+  embedded, Facebook/Instagram connected, test chat passed, AI replies
+  enabled, quiet hours set) - only affects tenants who haven't customised
+  their checklist template yet, same as any other template edit (see
+  `lib/checklist.js`: a client's checklist materialises from the template
+  once, on first read, then never re-syncs against template changes).
+
 ## Conversation bot
 
 An AI reply bot that answers inbound SMS/Facebook/Instagram/web chat

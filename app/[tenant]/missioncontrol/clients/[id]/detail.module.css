@@ -156,6 +156,13 @@
 .setupValue { font-size: 13px; color: #111827; flex: 1; display: flex; align-items: flex-start; gap: 8px; }
 .setupValueText { flex: 1; white-space: pre-wrap; word-break: break-word; }
 
+.channelsSection { margin-top: 40px; padding-top: 24px; border-top: 1px solid #e8e8ef; }
+.channelItem { padding: 12px 0; border-bottom: 1px solid #e8e8ef; }
+.channelItem:last-child { border-bottom: none; }
+.channelItemLabel { font-size: 13px; font-weight: 600; color: #111827; margin-bottom: 2px; }
+.channelItemDetail { font-size: 13px; color: #6b6980; line-height: 1.5; margin-bottom: 4px; }
+.channelItemPath { font-family: var(--font-mono); font-size: 12px; color: #9ca3af; }
+
 /* Checklist */
 .checklist { max-width: 700px; }
 .checklistProgressTrack { height: 3px; width: 100%; background: #f3f4f6; border-radius: 999px; margin-bottom: 32px; overflow: hidden; }
@@ -255,6 +262,21 @@
   border-radius: 999px;
   background: #fff;
   cursor: pointer;
+}
+
+.channelStatusList { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+.channelStatusRow { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.channelStatusLabel { width: 110px; flex-shrink: 0; color: #9ca3af; }
+.channelStatusValue { color: #6b6980; font-family: var(--font-mono); }
+.inlineLink {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--mc-accent, #7c4dff);
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-decoration: underline;
 }
 
 .quietHoursRow { display: flex; align-items: center; gap: 8px; }

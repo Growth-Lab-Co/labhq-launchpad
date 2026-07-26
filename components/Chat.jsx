@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { CHANNEL_WIRING } from "@/lib/channelWiring";
 
 const LAUNCH_STEPS = [
   "Generating your configuration",
@@ -434,6 +435,48 @@ export default function Chat({ tenant }) {
               </button>
             </div>
           )}
+          <div
+            style={{
+              marginTop: 16,
+              textAlign: "left",
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
+              borderRadius: 12,
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: "var(--accent)",
+                marginBottom: 8,
+              }}
+            >
+              Connect the channels
+            </div>
+            <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 14 }}>
+              Each channel needs its normal GHL connection before {tenant.assistantName} can answer on it.
+            </p>
+            {CHANNEL_WIRING.map((c) => (
+              <div key={c.id} style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{c.label}</div>
+                <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4, lineHeight: 1.5 }}>
+                  {c.detail}
+                </div>
+                <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--muted)" }}>{c.path}</div>
+              </div>
+            ))}
+            <button
+              className="btn ghost"
+              onClick={() =>
+                copyText(CHANNEL_WIRING.map((c) => `${c.label}: ${c.path}`).join("\n"), "channels")
+              }
+            >
+              {copiedKey === "channels" ? "Copied ✓" : "Copy connection steps"}
+            </button>
+          </div>
           <details className="checklist">
             <summary>Go-live checklist</summary>
             <ol>

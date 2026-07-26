@@ -17,6 +17,7 @@ import {
   ghlLocationUrl,
 } from "@/components/missioncontrol/statusHelpers";
 import { INTERVIEW_FIELDS, CUSTOM_VALUE_KEYS } from "@/lib/questions";
+import { CHANNEL_WIRING, wiringForChannel } from "@/lib/channelWiring";
 import s from "./detail.module.css";
 
 const TABS = [
@@ -127,7 +128,13 @@ export default function ClientDetailPage({ params }) {
         )}
         {activeTab === "setup" && <SetupTab deployment={deployment} />}
         {activeTab === "ai-replies" && (
-          <AiRepliesTab deployment={deployment} slug={slug} mcKey={mcKey} toast={toast} />
+          <AiRepliesTab
+            deployment={deployment}
+            slug={slug}
+            mcKey={mcKey}
+            toast={toast}
+            onGoToSetup={() => setActiveTab("setup")}
+          />
         )}
         {activeTab === "checklist" && (
           <ChecklistTab slug={slug} mcKey={mcKey} deploymentId={id} onTicked={refetchActivity} />
@@ -504,6 +511,21 @@ function SetupTab({ deployment }) {
           </div>
         ))
       )}
+
+      <div className={s.channelsSection}>
+        <h3 className={s.sectionLabel}>Connect the channels</h3>
+        <p className={s.helpText} style={{ marginBottom: 16 }}>
+          Each channel needs its normal GHL connection before AI Replies can answer on it. None of these are
+          detectable from here yet - see AI Replies for per-channel status.
+        </p>
+        {CHANNEL_WIRING.map((c) => (
+          <div key={c.id} className={s.channelItem}>
+            <div className={s.channelItemLabel}>{c.label}</div>
+            <div className={s.channelItemDetail}>{c.detail}</div>
+            <div className={s.channelItemPath}>{c.path}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -517,7 +539,7 @@ const BOT_CHANNELS = [
   { id: "webchat", label: "Web chat" },
 ];
 
-function AiRepliesTab({ deployment, slug, mcKey, toast }) {
+function AiRepliesTab({ deployment, slug, mcKey, toast, onGoToSetup }) {
   const { activity } = useMissionControl();
   const locationId = deployment.locationId || deployment.id;
   const [settings, setSettings] = useState(null);
@@ -625,6 +647,27 @@ function AiRepliesTab({ deployment, slug, mcKey, toast }) {
                 </label>
               ))}
             </div>
+            <div className={s.channelStatusList}>
+              {BOT_CHANNELS.map((c) => {
+                const wiring = wiringForChannel(c.id);
+                return (
+                  <div key={c.id} className={s.channelStatusRow}>
+                    <span className={s.channelStatusLabel}>{c.label}</span>
+                    <span className={s.channelStatusValue}>Check in GHL · {wiring?.path}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <p className={s.helpText} style={{ marginTop: 8 }}>
+              Connection state isn't detectable from here yet - none of these GHL scopes are requested.{" "}
+              {onGoToSetup ? (
+                <button type="button" onClick={onGoToSetup} className={s.inlineLink}>
+                  See connect-the-channels steps
+                </button>
+              ) : (
+                "See the Setup tab for the connect-the-channels steps."
+              )}
+            </p>
           </div>
 
           <div className={s.aiSection}>
