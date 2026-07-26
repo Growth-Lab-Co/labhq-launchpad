@@ -1,11 +1,8 @@
 import { Check } from "lucide-react";
-import { Button, Card } from "@/components/ui";
+import { Header } from "./Header";
 import { Reveal } from "./Reveal";
+import { VIDEO_URL, STRIPE_LINK } from "./constants";
 import styles from "./landing.module.css";
-
-// Set these two before launch - nothing else in this file needs editing.
-export const VIDEO_URL = "#";
-export const STRIPE_LINK = "#";
 
 const STATS = [
   { number: "10 minutes", label: "from intake chat to deployed account" },
@@ -28,6 +25,15 @@ const HOW_IT_WORKS = [
   },
 ];
 
+// Same exchange, two framings: the hero phone (SMS) and section 4's smaller
+// web-chat proof. Word-for-word identical copy in both places.
+const EXCHANGE = {
+  customer: "hi, got water coming through the ceiling near a light, can anyone come today? we're in Stafford Heights. how much roughly?",
+  customerTime: "2:14 pm",
+  business: "That needs someone today. We can have a plumber out this afternoon, emergency call out is $250 for the first hour and we service Stafford Heights. Want me to lock in a time between 2 and 4pm?",
+  businessTime: "2:15 pm",
+};
+
 const CHANNEL_ROWS = [
   {
     label: "Website chat",
@@ -41,6 +47,15 @@ const CHANNEL_ROWS = [
     label: "SMS",
     body: "The same number registration you already complete for every GHL client. The AI takes over the moment it clears.",
   },
+];
+
+// Illustrative only - generic trade-business names for the composed
+// dashboard mockup, not tied to any real client. Status labels and colours
+// match the real product's vocabulary (components/missioncontrol/statusHelpers.js).
+const MOCK_CLIENTS = [
+  { name: "Bayside Plumbing", status: "Live" },
+  { name: "Northside Dental", status: "QA" },
+  { name: "Coastal Electrical", status: "Setting up" },
 ];
 
 const OFFER_ITEMS = [
@@ -82,55 +97,110 @@ const FAQ_ITEMS = [
   },
 ];
 
-function Header() {
+function ExchangeThread() {
   return (
-    <header className={styles.header}>
+    <div className={styles.mockThread}>
+      <div className={styles.mockGroup}>
+        <div className={`${styles.mockBubble} ${styles.mockBubbleIn}`}>{EXCHANGE.customer}</div>
+        <div className={styles.mockMeta}>{EXCHANGE.customerTime}</div>
+      </div>
+      <div className={`${styles.mockGroup} ${styles.mockGroupOut}`}>
+        <div className={`${styles.mockBubble} ${styles.mockBubbleOut}`}>{EXCHANGE.business}</div>
+        <div className={styles.mockMeta}>
+          {EXCHANGE.businessTime} <Check size={12} strokeWidth={2.5} /> Delivered
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PhoneMock() {
+  return (
+    <div className={styles.phoneCard}>
+      <div className={styles.phoneCardLabel}>SMS</div>
+      <ExchangeThread />
+    </div>
+  );
+}
+
+function ChatWidgetMock() {
+  return (
+    <div className={styles.widgetCard}>
+      <div className={styles.widgetCardBar}>
+        <span className={styles.widgetCardDot} />
+        <span className={styles.widgetCardTitle}>Website chat</span>
+      </div>
+      <div className={styles.widgetCardBody}>
+        <ExchangeThread />
+      </div>
+      <p className={styles.mockCaptionLight}>Reply generated from the client's own intake answers.</p>
+    </div>
+  );
+}
+
+function DashboardMock() {
+  return (
+    <div className={styles.dashMock} aria-hidden="true">
+      <div className={styles.dashMockTop}>
+        <span className={styles.dashMockDot} />
+        <span className={styles.dashMockDot} />
+        <span className={styles.dashMockDot} />
+      </div>
+      <div className={styles.dashMockBody}>
+        <div className={styles.dashMockNav}>
+          <span className={`${styles.dashMockNavItem} ${styles.dashMockNavItemActive}`}>Clients</span>
+          <span className={styles.dashMockNavItem}>Activity</span>
+          <span className={styles.dashMockNavItem}>Templates</span>
+          <span className={styles.dashMockNavItem}>Branding</span>
+          <span className={styles.dashMockNavItem}>Settings</span>
+        </div>
+        <div className={styles.dashMockContent}>
+          <div className={styles.dashMockTableHead}>
+            <span>Client</span>
+            <span>Status</span>
+          </div>
+          {MOCK_CLIENTS.map((c) => (
+            <div key={c.name} className={styles.dashMockRow}>
+              <span className={styles.dashMockClientName}>{c.name}</span>
+              <span className={`${styles.dashMockPill} ${styles[`pill${c.status.replace(/\s/g, "")}`]}`}>
+                {c.status}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HeroBand() {
+  return (
+    <section className={styles.heroBand}>
       <div className={styles.container}>
-        <div className={styles.headerInner}>
-          <span className={styles.logo}>LabHQ</span>
-          <div className={styles.headerRight}>
-            <a href="/demo" className={styles.headerLink}>
-              Live demo
-            </a>
-            <Button href={VIDEO_URL} target="_blank" rel="noopener noreferrer" size="sm" className={styles.headerCta}>
-              Watch the 90 second demo
-            </Button>
+        <div className={styles.heroGrid}>
+          <div className={styles.heroCopy}>
+            <h1 className={styles.h1}>Client onboarding that does itself</h1>
+            <p className={`${styles.body} ${styles.heroSub} ${styles.onDark}`}>
+              Your client has a 10 minute AI chat. LabHQ deploys their entire GHL account from your snapshot, then
+              answers their leads with AI in their own voice on every connected channel. All white labelled under
+              your brand.
+            </p>
+            <div className={styles.heroActions}>
+              <a href={VIDEO_URL} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnPrimary}`}>
+                Watch the 90 second demo
+              </a>
+              <a href="/demo" className={`${styles.btn} ${styles.btnOutline}`}>
+                Try the live demo
+              </a>
+            </div>
+            <p className={styles.heroFootnote}>Built in Australia by Growth Lab Co</p>
+          </div>
+          <div className={styles.heroPhoneWrap}>
+            <PhoneMock />
           </div>
         </div>
-      </div>
-    </header>
-  );
-}
 
-function Hero() {
-  return (
-    <section className={styles.hero}>
-      <div className={styles.container}>
-        <h1 className={styles.h1}>Client onboarding that does itself</h1>
-        <p className={`${styles.body} ${styles.heroSub}`}>
-          Your client has a 10 minute AI chat. LabHQ deploys their entire GHL account from your snapshot, then
-          answers their leads with AI in their own voice on every connected channel. All white labelled under your
-          brand.
-        </p>
-        <div className={styles.heroActions}>
-          <Button href={VIDEO_URL} target="_blank" rel="noopener noreferrer" size="lg">
-            Watch the 90 second demo
-          </Button>
-          <Button href="/demo" variant="secondary" size="lg">
-            Try the live demo
-          </Button>
-        </div>
-        <p className={styles.heroFootnote}>Built in Australia by Growth Lab Co</p>
-      </div>
-    </section>
-  );
-}
-
-function Stats() {
-  return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
-      <div className={styles.container}>
-        <div className={styles.statsGrid}>
+        <div className={styles.statsRow}>
           {STATS.map((stat) => (
             <div key={stat.label} className={styles.stat}>
               <div className={styles.statNumber}>{stat.number}</div>
@@ -145,17 +215,17 @@ function Stats() {
 
 function HowItWorks() {
   return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
+    <section className={`${styles.section} ${styles.sectionLight}`}>
       <div className={styles.container}>
         <div className={styles.sectionHead}>
           <h2 className={styles.h2}>How it works</h2>
         </div>
         <div className={styles.tileGrid}>
           {HOW_IT_WORKS.map((tile) => (
-            <Card key={tile.heading} className={styles.tile}>
+            <div key={tile.heading} className={styles.tile}>
               <div className={styles.tileHeading}>{tile.heading}</div>
               <div className={styles.tileBody}>{tile.body}</div>
-            </Card>
+            </div>
           ))}
         </div>
       </div>
@@ -165,39 +235,18 @@ function HowItWorks() {
 
 function AiSection() {
   return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
+    <section className={`${styles.section} ${styles.sectionLight} ${styles.hairline}`}>
       <div className={styles.container}>
-        <div className={styles.aiSectionGrid}>
-          <div className={styles.aiSectionCopy}>
-            <h2 className={styles.h2}>The AI already knows the business</h2>
-            <p className={styles.body}>
-              Nobody configures a bot. The onboarding interview is the configuration. Plug in a channel and the AI
-              answers with the client's real services, prices and booking rules, and hands over to a human the
-              moment it should.
-            </p>
-          </div>
-          <div className={styles.phoneMock}>
-            <div className={styles.phoneMockLabel}>SMS</div>
-            <div className={styles.mockThread}>
-              <div className={styles.mockGroup}>
-                <div className={`${styles.mockBubble} ${styles.mockBubbleIn}`}>
-                  hi, got water coming through the ceiling near a light, can anyone come today? we're in Stafford
-                  Heights. how much roughly?
-                </div>
-                <div className={styles.mockMeta}>2:14 pm</div>
-              </div>
-              <div className={`${styles.mockGroup} ${styles.mockGroupOut}`}>
-                <div className={`${styles.mockBubble} ${styles.mockBubbleOut}`}>
-                  That needs someone today. We can have a plumber out this afternoon, emergency call out is $250 for
-                  the first hour and we service Stafford Heights. Want me to lock in a time between 2 and 4pm?
-                </div>
-                <div className={styles.mockMeta}>
-                  2:15 pm <Check size={12} strokeWidth={2.5} /> Delivered
-                </div>
-              </div>
-            </div>
-            <p className={styles.mockCaption}>Reply generated from the client's own intake answers.</p>
-          </div>
+        <div className={styles.sectionHead}>
+          <h2 className={styles.h2}>The AI already knows the business</h2>
+          <p className={styles.body}>
+            Nobody configures a bot. The onboarding interview is the configuration. Plug in a channel and the AI
+            answers with the client's real services, prices and booking rules, and hands over to a human the moment
+            it should.
+          </p>
+        </div>
+        <div className={styles.widgetCardWrap}>
+          <ChatWidgetMock />
         </div>
       </div>
     </section>
@@ -206,16 +255,16 @@ function AiSection() {
 
 function ChannelsSection() {
   return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
+    <section className={`${styles.section} ${styles.sectionDark}`}>
       <div className={styles.container}>
         <div className={styles.sectionHead}>
-          <h2 className={styles.h2}>Three channels, three small connections</h2>
+          <h2 className={styles.h2Dark}>Three channels, three small connections</h2>
         </div>
-        <div className={styles.channelRows}>
+        <div className={styles.channelCards}>
           {CHANNEL_ROWS.map((row) => (
-            <div key={row.label} className={styles.channelRow}>
-              <div className={styles.channelRowLabel}>{row.label}</div>
-              <div className={styles.channelRowBody}>{row.body}</div>
+            <div key={row.label} className={styles.channelCard}>
+              <div className={styles.channelCardLabel}>{row.label}</div>
+              <div className={styles.channelCardBody}>{row.body}</div>
             </div>
           ))}
         </div>
@@ -230,7 +279,7 @@ function ChannelsSection() {
 
 function WhiteLabelSection() {
   return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
+    <section className={`${styles.section} ${styles.sectionLight}`}>
       <div className={styles.container}>
         <div className={styles.whiteLabelGrid}>
           <div>
@@ -241,33 +290,7 @@ function WhiteLabelSection() {
               clients can see.
             </p>
           </div>
-          <div className={styles.dashMock} aria-hidden="true">
-            <div className={styles.dashMockTop}>
-              <span className={styles.dashMockDot} />
-              <span className={styles.dashMockDot} />
-              <span className={styles.dashMockDot} />
-            </div>
-            <div className={styles.dashMockBody}>
-              <div className={styles.dashMockNav}>
-                <span className={`${styles.dashMockNavItem} ${styles.dashMockNavItemActive}`}>Clients</span>
-                <span className={styles.dashMockNavItem}>Activity</span>
-                <span className={styles.dashMockNavItem}>Templates</span>
-                <span className={styles.dashMockNavItem}>Branding</span>
-                <span className={styles.dashMockNavItem}>Settings</span>
-              </div>
-              <div className={styles.dashMockContent}>
-                <div className={styles.dashMockBar} style={{ width: "60%" }} />
-                <div className={styles.dashMockCard}>
-                  <div className={styles.dashMockBar} style={{ width: "40%" }} />
-                  <div className={styles.dashMockBar} style={{ width: "70%" }} />
-                </div>
-                <div className={styles.dashMockCard}>
-                  <div className={styles.dashMockBar} style={{ width: "50%" }} />
-                  <div className={styles.dashMockBar} style={{ width: "30%" }} />
-                </div>
-              </div>
-            </div>
-          </div>
+          <DashboardMock />
         </div>
       </div>
     </section>
@@ -276,10 +299,10 @@ function WhiteLabelSection() {
 
 function FoundingOffer() {
   return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
+    <section className={`${styles.section} ${styles.sectionDark}`}>
       <div className={styles.container}>
-        <Card className={styles.offerCard}>
-          <p className={`${styles.eyebrow} ${styles.offerEyebrow}`}>Founding partner offer. Five agencies only.</p>
+        <div className={styles.offerCard}>
+          <p className={styles.offerEyebrow}>Founding partner offer. Five agencies only.</p>
           <div className={styles.offerPrice}>$997 setup, then $297 per month</div>
           <p className={styles.offerAnchor}>Standard pricing will be $497 per month</p>
           <ul className={styles.offerList}>
@@ -290,11 +313,16 @@ function FoundingOffer() {
               </li>
             ))}
           </ul>
-          <Button href={STRIPE_LINK} target="_blank" rel="noopener noreferrer" size="lg">
+          <a
+            href={STRIPE_LINK}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${styles.btn} ${styles.btnPrimary} ${styles.offerButton}`}
+          >
             Claim a founding spot
-          </Button>
+          </a>
           <p className={styles.offerFinePrint}>Five founding spots, then standard pricing applies.</p>
-        </Card>
+        </div>
       </div>
     </section>
   );
@@ -302,15 +330,15 @@ function FoundingOffer() {
 
 function Faq() {
   return (
-    <section className={`${styles.section} ${styles.sectionBorder}`}>
+    <section className={`${styles.section} ${styles.sectionLight}`}>
       <div className={styles.container}>
         <div className={styles.sectionHead}>
           <h2 className={styles.h2}>Frequently asked questions</h2>
         </div>
         <div className={styles.faqList}>
           {FAQ_ITEMS.map((item) => (
-            <details key={item.q} className={styles.faqItem}>
-              <summary>
+            <details key={item.q} className={styles.faqCard}>
+              <summary className={styles.faqSummary}>
                 <span className={styles.faqMarker} aria-hidden="true">
                   ▸
                 </span>
@@ -327,16 +355,18 @@ function Faq() {
 
 function FinalCta() {
   return (
-    <section className={styles.ctaBand}>
+    <section className={`${styles.section} ${styles.sectionDark}`}>
       <div className={styles.container}>
-        <h2 className={styles.h2}>The next client you sign could be live before your coffee goes cold</h2>
+        <h2 className={styles.h2Dark}>
+          The next client you sign could be live <span className={styles.violetText}>before your coffee goes cold</span>
+        </h2>
         <div className={styles.ctaActions}>
-          <Button href={VIDEO_URL} target="_blank" rel="noopener noreferrer" size="lg">
+          <a href={VIDEO_URL} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnPrimary}`}>
             Watch the 90 second demo
-          </Button>
-          <Button href={STRIPE_LINK} target="_blank" rel="noopener noreferrer" variant="secondary" size="lg">
+          </a>
+          <a href={STRIPE_LINK} target="_blank" rel="noopener noreferrer" className={`${styles.btn} ${styles.btnOutline}`}>
             Claim a founding spot
-          </Button>
+          </a>
         </div>
       </div>
     </section>
@@ -367,10 +397,7 @@ export default function LandingPage() {
   return (
     <div className={styles.page}>
       <Header />
-      <Hero />
-      <Reveal>
-        <Stats />
-      </Reveal>
+      <HeroBand />
       <Reveal>
         <HowItWorks />
       </Reveal>
