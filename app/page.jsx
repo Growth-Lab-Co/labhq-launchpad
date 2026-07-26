@@ -1,16 +1,41 @@
-import Link from "next/link";
+import LandingPage from "@/components/marketing/LandingPage";
+
+const SITE_URL = "https://labhq.co";
+const DESCRIPTION =
+  "Your client has a 10 minute AI chat. LabHQ deploys their entire GHL account from your snapshot, then answers their leads with AI in their own voice on every connected channel. All white labelled under your brand.";
+
+export const metadata = {
+  metadataBase: new URL(SITE_URL),
+  title: "LabHQ | Client onboarding that does itself",
+  description: DESCRIPTION,
+  openGraph: {
+    title: "LabHQ | Client onboarding that does itself",
+    description: DESCRIPTION,
+    url: SITE_URL,
+    siteName: "LabHQ",
+    type: "website",
+  },
+};
+
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "LabHQ",
+  description: DESCRIPTION,
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  offers: {
+    "@type": "Offer",
+    price: "297",
+    priceCurrency: "AUD",
+  },
+};
 
 export default function Home() {
   return (
-    <main className="shell" style={{ justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-      <div className="brand font-display" style={{ fontSize: 24, marginBottom: 16 }}>Lab HQ</div>
-      <p style={{ color: "var(--muted)", fontSize: 16, lineHeight: 1.5, maxWidth: 420, marginBottom: 32 }}>
-        The automated onboarding system, deployed through a conversation.
-      </p>
-      <Link href="/demo" className="btn">Try the demo</Link>
-      <footer style={{ marginTop: "auto", paddingTop: 48, fontSize: 13 }}>
-        <a href="https://growthlabco.com.au">A Growth Lab Co. product</a>
-      </footer>
-    </main>
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <LandingPage />
+    </>
   );
 }
