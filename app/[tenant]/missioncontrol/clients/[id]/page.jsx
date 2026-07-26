@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Copy, Check, X, Download } from "lucide-react";
@@ -22,6 +22,7 @@ import s from "./detail.module.css";
 const TABS = [
   { id: "overview", label: "Overview" },
   { id: "setup", label: "Setup answers" },
+  { id: "ai-replies", label: "AI Replies" },
   { id: "checklist", label: "Checklist" },
   { id: "activity", label: "Activity" },
 ];
@@ -125,6 +126,9 @@ export default function ClientDetailPage({ params }) {
           />
         )}
         {activeTab === "setup" && <SetupTab deployment={deployment} />}
+        {activeTab === "ai-replies" && (
+          <AiRepliesTab deployment={deployment} slug={slug} mcKey={mcKey} toast={toast} />
+        )}
         {activeTab === "checklist" && (
           <ChecklistTab slug={slug} mcKey={mcKey} deploymentId={id} onTicked={refetchActivity} />
         )}
@@ -500,6 +504,300 @@ function SetupTab({ deployment }) {
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+// ─── AI Replies ───────────────────────────────────────────────────────────────
+
+const BOT_CHANNELS = [
+  { id: "sms", label: "SMS" },
+  { id: "fb", label: "Facebook" },
+  { id: "ig", label: "Instagram" },
+  { id: "webchat", label: "Web chat" },
+];
+
+function AiRepliesTab({ deployment, slug, mcKey, toast }) {
+  const { activity } = useMissionControl();
+  const locationId = deployment.locationId || deployment.id;
+  const [settings, setSettings] = useState(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    mcFetch(`/api/bot-settings?tenant=${encodeURIComponent(slug)}&locationId=${encodeURIComponent(locationId)}`, {
+      mcKey,
+    })
+      .then((data) => setSettings(data.settings))
+      .catch(() => setSettings(null));
+  }, [slug, mcKey, locationId]);
+
+  const update = (patch) => {
+    setSettings((prev) => ({ ...prev, ...patch }));
+    setDirty(true);
+    setSaved(false);
+  };
+  const updateChannel = (id, value) => {
+    setSettings((prev) => ({ ...prev, channels: { ...prev.channels, [id]: value } }));
+    setDirty(true);
+    setSaved(false);
+  };
+  const updateQuietHours = (key, value) => {
+    setSettings((prev) => ({ ...prev, quietHours: { ...prev.quietHours, [key]: value } }));
+    setDirty(true);
+    setSaved(false);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const data = await mcFetch("/api/bot-settings", {
+        mcKey,
+        method: "PATCH",
+        body: { tenant: slug, locationId, settings },
+      });
+      setSettings(data.settings);
+      setDirty(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch {
+      toast.push("Couldn't save AI Replies settings. Try again.", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const needsAuth = !deployment.demo && Boolean(deployment.locationAuthNeeded);
+  const botActivity = (activity || []).filter(
+    (e) => e.deploymentId === deployment.id && e.type === "bot_message"
+  );
+
+  return (
+    <div className={s.aiReplies}>
+      {needsAuth ? (
+        <div>
+          <h3 className={s.sectionLabel}>Turn on AI Replies</h3>
+          <p className={s.helpText} style={{ marginBottom: 12 }}>
+            This client's data sync needs to be authorised before the bot can read or send messages.
+          </p>
+          <div className={s.syncActions}>
+            <a
+              href={`/api/oauth/start?app=location&tenant=${slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={s.secondaryButton}
+            >
+              Authorise data sync
+            </a>
+          </div>
+        </div>
+      ) : settings === null ? (
+        <p className={s.muted}>Loading…</p>
+      ) : (
+        <>
+          <div className={`${s.aiRow} ${s.aiRowBordered}`}>
+            <div>
+              <p className={s.aiRowLabel}>AI Replies</p>
+              <p className={s.aiRowHelp}>Automatically reply to inbound messages in this client's voice</p>
+            </div>
+            <button
+              onClick={() => update({ enabled: !settings.enabled })}
+              role="switch"
+              aria-checked={Boolean(settings.enabled)}
+              className={`${s.toggle} ${settings.enabled ? s.toggleOn : ""}`}
+            >
+              <div className={s.toggleKnob} />
+            </button>
+          </div>
+
+          <div className={s.aiSection}>
+            <h3 className={s.sectionLabel}>Channels</h3>
+            <div className={s.channelGrid}>
+              {BOT_CHANNELS.map((c) => (
+                <label key={c.id} className={s.channelPill}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(settings.channels?.[c.id])}
+                    onChange={(e) => updateChannel(c.id, e.target.checked)}
+                  />
+                  {c.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className={s.aiSection}>
+            <h3 className={s.sectionLabel}>Quiet hours</h3>
+            <div className={s.quietHoursRow}>
+              <input
+                type="time"
+                value={settings.quietHours?.start || ""}
+                onChange={(e) => updateQuietHours("start", e.target.value)}
+                className={s.timeInput}
+              />
+              <span className={s.helpText}>to</span>
+              <input
+                type="time"
+                value={settings.quietHours?.end || ""}
+                onChange={(e) => updateQuietHours("end", e.target.value)}
+                className={s.timeInput}
+              />
+              <input
+                type="text"
+                value={settings.quietHours?.tz || ""}
+                onChange={(e) => updateQuietHours("tz", e.target.value)}
+                className={s.tzInput}
+                placeholder="Australia/Brisbane"
+              />
+            </div>
+          </div>
+
+          <div className={s.aiSection}>
+            <h3 className={s.sectionLabel}>Handoff &amp; limits</h3>
+            <div className={s.detailRow}>
+              <span className={s.detailLabel}>Handoff keyword</span>
+              <input
+                type="text"
+                value={settings.handoffKeyword || ""}
+                onChange={(e) => update({ handoffKeyword: e.target.value })}
+                className={s.smallInput}
+              />
+            </div>
+            <div className={s.detailRow}>
+              <span className={s.detailLabel}>Max replies / conversation / hour</span>
+              <input
+                type="number"
+                min="1"
+                value={settings.maxRepliesPerConversationPerHour ?? ""}
+                onChange={(e) => update({ maxRepliesPerConversationPerHour: Number(e.target.value) || 1 })}
+                className={s.smallInput}
+              />
+            </div>
+          </div>
+
+          {dirty && (
+            <div className={s.saveBar}>
+              <div className={s.saveBarInner}>
+                <span className={s.saveBarText}>Unsaved changes</span>
+                <button onClick={save} disabled={saving} className={s.saveButton}>
+                  {saving ? "Saving…" : saved ? "✓ Saved" : "Save changes"}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      <div className={s.aiSection}>
+        <h3 className={s.sectionLabel}>Test chat</h3>
+        <p className={s.helpText} style={{ marginBottom: 12 }}>
+          Preview the bot's replies using this client's real business context. Nothing here touches GHL.
+        </p>
+        <TestChat slug={slug} mcKey={mcKey} deploymentId={deployment.id} />
+      </div>
+
+      <div className={s.aiSection}>
+        <h3 className={s.sectionLabel}>Recent bot activity</h3>
+        {botActivity.length === 0 ? (
+          <p className={s.muted}>No AI replies yet.</p>
+        ) : (
+          <div className={s.aiActivityTimeline}>
+            <div className={s.activityLine} />
+            {botActivity.slice(0, 20).map((entry, idx) => (
+              <div key={entry.id} className={s.aiActivityRow}>
+                <div className={`${s.activityDot} ${idx < 3 ? s.activityDotRecent : ""}`} />
+                <div className={s.activityContent}>
+                  <span className={s.activityText}>{entry.text}</span>
+                  <span className={s.activityMeta}>· {relativeTime(entry.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TestChat({ slug, mcKey, deploymentId }) {
+  const [messages, setMessages] = useState([]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, busy]);
+
+  async function send(text) {
+    const historyForRequest = messages.map((m) => ({
+      direction: m.role === "user" ? "inbound" : "outbound",
+      body: m.content,
+    }));
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setInput("");
+    setBusy(true);
+    setError(null);
+    try {
+      const data = await mcFetch("/api/bot/test", {
+        mcKey,
+        method: "POST",
+        body: { tenant: slug, deploymentId, messages: historyForRequest, inboundText: text },
+      });
+      let reply;
+      if (data.category === "handoff") {
+        reply = "[Would hand off to a human — handoff keyword or urgent request detected]";
+      } else if (data.category === "spam") {
+        reply = "[Would be ignored as spam]";
+      } else {
+        reply = data.reply || "…";
+      }
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch (e) {
+      setError(e.message || "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className={s.testChat}>
+      <div className={s.chatLog}>
+        {messages.length === 0 && (
+          <p className={s.muted}>Send a message as a customer to preview the bot's reply.</p>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={`${s.chatBubble} ${m.role === "user" ? s.chatBubbleUser : s.chatBubbleAssistant}`}>
+            {m.content}
+          </div>
+        ))}
+        {busy && <div className={`${s.chatBubble} ${s.chatBubbleAssistant}`}>Thinking…</div>}
+        <div ref={bottomRef} />
+      </div>
+      {error && (
+        <p className={s.helpText} style={{ color: "#dc2626" }}>
+          {error}
+        </p>
+      )}
+      <form
+        className={s.chatComposer}
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (input.trim() && !busy) send(input.trim());
+        }}
+      >
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Type a message as the customer…"
+          className={s.chatInput}
+        />
+        <button type="submit" disabled={busy || !input.trim()} className={s.smallButton}>
+          Send
+        </button>
+      </form>
     </div>
   );
 }
