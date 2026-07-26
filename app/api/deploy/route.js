@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
 import { getTenant, ghlCredsFor } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
+import { buildHardGuardrails } from "@/lib/guardrails";
 import {
   createSubAccount,
   pushAllCustomValues,
@@ -89,13 +90,9 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       complete.greeting_line = `Hi, you've called ${businessName}. I'm ${tenant.assistantName}, an AI assistant — this call may be recorded. How can I help?`;
 
       const escalationName = complete.escalation_name || "a human team member";
-      const hardGuardrails = [
-        "If asked whether you are AI, a robot, or a real person, answer truthfully and plainly, always.",
-        "Never claim to be human or imply it.",
-        `Offer transfer to ${escalationName} whenever the caller asks for a human or seems uncomfortable talking to an AI.`,
-        "Never collect health, financial account, or other sensitive details beyond what booking requires.",
-      ].join(" ");
-      complete.mia_guardrails = [complete.mia_guardrails, hardGuardrails].filter(Boolean).join("\n\n");
+      complete.mia_guardrails = [complete.mia_guardrails, buildHardGuardrails({ escalationName })]
+        .filter(Boolean)
+        .join("\n\n");
 
       return NextResponse.json({ customValues: complete });
     }
