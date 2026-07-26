@@ -254,16 +254,79 @@ without digging through GHL.
   the same flow a client would use themselves, for when an operator wants
   to drive it directly.
 
+## Conversation bot
+
+An AI reply bot that answers inbound SMS/Facebook/Instagram/web chat
+messages in a client's voice, using the same business context (custom
+values + interview answers) their deployment record already holds. Off by
+default for every client - an operator turns it on per client in Mission
+Control.
+
+- **Scopes** - the Location app "Launchpad Sync" needs four additional
+  scopes added in the GHL Marketplace dev console:
+  `conversations.readonly`, `conversations.write`,
+  `conversations/message.readonly`, `conversations/message.write`.
+  `lib/ghlOAuth.js` already requests them, but **clients authorised before
+  this change need to re-authorise** ("Authorise data sync" on their client
+  detail page, or the AI Replies tab's own prompt if their sync isn't
+  authorised) before the bot can read or send anything for them - an
+  existing OAuth connection doesn't retroactively gain new scopes.
+- **Webhook URL** - `https://labhq.co/api/app-webhook`, already live (it
+  was a stub before this). Register it on the Launchpad Sync app's
+  Marketplace listing if it isn't already, subscribed to at least
+  `InboundMessage` events. Every other event type is acked and ignored.
+- **How it works** - `app/api/app-webhook/route.js` verifies GHL's
+  `X-GHL-Signature` header, resolves which tenant owns the webhook's
+  `locationId` (scans `deployments` the first time, then caches the
+  mapping in the `location-tenant-index` store), and hands off to the
+  Netlify Background Function `netlify/functions/bot-reply-background.mjs`
+  so it can ack GHL immediately. That function calls `lib/bot.js`, which
+  re-fetches the actual conversation/messages from GHL with our own token
+  before doing anything - the webhook payload's content is never trusted
+  directly, only used to look up context.
+- **Enabling per client** - client detail page → **AI Replies** tab: an
+  on/off toggle, per-channel toggles (SMS/Facebook/Instagram/web chat),
+  quiet hours (with timezone), a handoff keyword, and a max-replies-per-
+  conversation-per-hour cap. Settings are stored per location in the
+  `bot-settings` Blobs store (`lib/botSettings.js`), default `enabled:
+  false`. The same tab has a **test chat** that runs the bot's reply
+  generation against the client's real business context with no GHL calls
+  at all - works for demo-mode tenants with no GHL sub-account too.
+- **Classification** - every inbound message is classified as `handoff`,
+  `spam`, or `normal` before anything else happens (`lib/bot.js`,
+  `classifyInbound`). `handoff` fires when the sender asks for a human or
+  uses the configured handoff keyword; the bot tags the contact
+  `bot-handoff` in GHL, logs an activity entry, and stops replying to that
+  conversation. That pause is stored in the ephemeral `bot-counters` store
+  and **auto-expires after 24 hours** as a safety net (there's no way for
+  this app to detect a human removing the GHL tag, so it doesn't wait on
+  that indefinitely).
+- **Guardrails** - every reply is generated from a system prompt that
+  includes the same hard compliance guardrails the deploy review screen
+  enforces on the phone assistant (`lib/guardrails.js`, shared by both) -
+  never claim to be human, always offer a human handoff, never collect
+  sensitive details beyond what booking requires - plus a 120-word cap and
+  "always end with a clear next step."
+- **Activity log** - every inbound message received and every reply sent
+  is logged to the tenant's activity feed with `type: "bot_message"`
+  (`lib/activity.js`), visible on both the client's Activity tab and the
+  AI Replies tab's own "Recent bot activity" list.
+- **If a reply doesn't send** - check the function logs for
+  `[CONVO-BOT-FAIL]`. A 401 almost always means the location needs
+  re-authorising for the new scopes (see above).
+
 ## Disaster recovery
 
 Every durable Netlify Blobs store (the full list is `lib/backupStores.js` -
 tenants, accounts, deployments, GHL connections, checklists, checklist
 templates, branding + assets, activity logs, Mission Control passwords,
-team, notifications, claim links, invite codes, snapshot templates) is
-snapshotted daily and kept for 30 days. Four stores are intentionally
-excluded because they're short-lived and self-regenerating: `portal-sessions`,
-`account-sessions`, `password-resets`, `rate-limits` - losing them just means
-someone logs in again, there's nothing to restore.
+team, notifications, claim links, invite codes, snapshot templates, AI
+Replies settings, the location→tenant index) is snapshotted daily and kept
+for 30 days. Five stores are intentionally excluded because they're
+short-lived and self-regenerating: `portal-sessions`, `account-sessions`,
+`password-resets`, `rate-limits`, `bot-counters` - losing them just means
+someone logs in again (or the AI bot's rate limit/handoff pause resets),
+there's nothing to restore.
 
 - **Schedule** - `netlify/functions/backup-blobs.mjs`, a Netlify Scheduled
   Function, cron `0 17 * * *` (17:00 UTC = 03:00 AEST next day; Queensland
