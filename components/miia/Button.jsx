@@ -3,7 +3,7 @@ import styles from "./Button.module.css";
 
 // Single button primitive for the whole Miia site. variant: primary | outline | ghost | onDark
 export function Button({ href, variant = "primary", size, className = "", children, ...rest }) {
-  const cls = [styles.btn, styles[variant], size === "sm" ? styles.sm : "", className].filter(Boolean).join(" ");
+  const cls = [styles.btn, styles[variant], styles[size] || "", className].filter(Boolean).join(" ");
   if (href) {
     const isExternal = /^https?:\/\//.test(href) || href.startsWith("mailto:");
     if (isExternal) {

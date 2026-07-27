@@ -55,6 +55,7 @@
 .onDark:hover { background: #fff; }
 
 .sm { padding: 12px 22px; font-size: 14px; }
+.lg { padding: 22px 40px; font-size: 18px; }
 
 @media (max-width: 480px) {
   .btn { width: 100%; }

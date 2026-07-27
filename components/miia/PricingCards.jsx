@@ -81,7 +81,7 @@ function PriceTag({ plan, yearly }) {
   );
 }
 
-export function PricingCards({ selectedId, onSelect }) {
+export function PricingCards({ selectedId, onSelect, showCta = true }) {
   const [yearly, setYearly] = useState(false);
 
   return (
@@ -121,7 +121,7 @@ export function PricingCards({ selectedId, onSelect }) {
                 ))}
               </ul>
 
-              {!selectable && (
+              {!selectable && showCta && (
                 <Button
                   href={`/get-started?plan=${plan.id}`}
                   variant={plan.popular ? "primary" : "outline"}

@@ -58,7 +58,7 @@
 
 .statNumber {
   font-family: var(--miia-font-display);
-  font-weight: 700;
+  font-weight: 600;
   font-size: clamp(36px, 4.4vw, 52px);
   color: var(--miia-ink);
   font-variant-numeric: tabular-nums;
@@ -103,44 +103,37 @@
 
 .foundingCard {
   text-align: center;
-  background: var(--miia-dark);
-  color: var(--miia-ink-inverse);
+  background: var(--miia-bg-alt);
+  border: 1px solid var(--miia-line);
   border-radius: var(--miia-radius-lg);
   padding: clamp(40px, 6vw, 64px) clamp(24px, 5vw, 56px);
 }
-.foundingCard .h2 { color: var(--miia-ink-inverse); }
-.foundingSub { color: rgba(250, 245, 236, 0.68); font-size: 16px; margin: 16px auto 40px; max-width: 480px; }
 
-.foundingStrip {
-  display: flex;
-  justify-content: center;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-bottom: 32px;
-}
-.foundingChip {
-  background: rgba(250, 245, 236, 0.08);
-  border: 1px solid rgba(250, 245, 236, 0.16);
-  border-radius: var(--miia-radius-md);
-  padding: 18px 26px;
-  min-width: 150px;
-}
-.foundingChipName { display: block; font-size: 13px; color: rgba(250, 245, 236, 0.6); margin-bottom: 8px; }
-.foundingChipPrice {
+.foundingBadge {
+  display: inline-block;
+  margin-top: 14px;
+  background: var(--miia-accent);
+  color: var(--miia-accent-ink);
   font-family: var(--miia-font-display);
-  font-weight: 700;
-  font-size: 26px;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  padding: 8px 20px;
+  border-radius: var(--miia-radius-pill);
 }
-.foundingChipPer { font-family: var(--miia-font-body); font-size: 13px; font-weight: 500; color: rgba(250, 245, 236, 0.6); }
+
+.foundingSub { color: var(--miia-ink-soft); font-size: 16px; margin: 20px auto 40px; max-width: 480px; }
+
+.foundingCards { margin-bottom: 32px; }
 
 .foundingLink {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-weight: 700;
-  color: var(--miia-accent-soft);
+  color: var(--miia-accent);
 }
-.foundingLink:hover { color: var(--miia-ink-inverse); }
+.foundingLink:hover { color: var(--miia-accent-hover); }
 
 .faqWrap { max-width: 720px; margin: 0 auto; }
 

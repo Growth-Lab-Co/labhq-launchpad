@@ -1,12 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
 import styles from "./Header.module.css";
 
 const NAV = [
   { href: "/features", label: "Features" },
+  { href: "/how-it-works", label: "How it works" },
   { href: "/pricing", label: "Pricing" },
 ];
 
@@ -31,8 +33,8 @@ export function Header() {
   return (
     <header className={[styles.header, scrolled ? styles.headerScrolled : ""].join(" ")}>
       <div className={styles.inner}>
-        <Link href="/" className={styles.logo}>
-          miia
+        <Link href="/" className={styles.logo} aria-label="Miia home">
+          <Image src="/miia-wordmark-ink.png" alt="Miia" width={856} height={496} priority className={styles.logoImg} />
         </Link>
 
         <nav className={styles.nav}>

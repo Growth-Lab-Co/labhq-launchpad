@@ -1,14 +1,15 @@
 "use client";
 import Link from "next/link";
-import { ShieldCheck, ArrowRight } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
-import { Reveal, RiseHeadline, useCountUp, useInView } from "./Reveal";
+import { Reveal, RiseHeadline, useInView } from "./Reveal";
+import { OdometerNumber } from "./OdometerNumber";
 import { ChatDemo } from "./ChatDemo";
 import { Marquee } from "./Marquee";
 import { NumberedSteps } from "./NumberedSteps";
 import { Calculator } from "./Calculator";
 import { FaqAccordion } from "./FaqAccordion";
-import { PLANS } from "./plans";
+import { PricingCards } from "./PricingCards";
 import { FAQ_ITEMS, HOME_FAQ_IDS, faqByIds } from "./faq";
 import styles from "./home.module.css";
 
@@ -52,11 +53,10 @@ const WHO_FOR = [
 
 function StatItem({ stat }) {
   const [ref, inView] = useInView(0.4);
-  const value = useCountUp(stat.value, { inView, duration: 1400 });
   return (
     <div className={styles.stat} ref={ref}>
       <div className={styles.statNumber}>
-        {value}
+        <OdometerNumber value={stat.value} inView={inView} />
         <span className={styles.statSuffix}>{stat.suffix}</span>
       </div>
       <div className={styles.statLabel}>{stat.label}</div>
@@ -164,23 +164,16 @@ export function HomePage() {
       <section className={styles.section}>
         <div className={styles.container}>
           <Reveal className={styles.foundingCard}>
-            <h2 className={styles.h2}>Be one of the first 20. 20% off forever.</h2>
+            <h2 className={styles.h2}>Be one of the first 20.</h2>
+            <span className={styles.foundingBadge}>20% off forever</span>
             <p className={styles.foundingSub}>
               Founding pricing locks in for as long as you stay a customer. No catch, no time limit.
             </p>
-            <div className={styles.foundingStrip}>
-              {PLANS.map((plan) => (
-                <div className={styles.foundingChip} key={plan.id}>
-                  <span className={styles.foundingChipName}>{plan.name}</span>
-                  <span className={styles.foundingChipPrice}>
-                    ${plan.foundingPrice}
-                    <span className={styles.foundingChipPer}>/mo</span>
-                  </span>
-                </div>
-              ))}
+            <div className={styles.foundingCards}>
+              <PricingCards showCta={false} />
             </div>
             <Link href="/pricing" className={styles.foundingLink}>
-              See full pricing <ArrowRight size={16} strokeWidth={2.5} />
+              See full pricing and start a plan
             </Link>
           </Reveal>
         </div>

@@ -9,7 +9,7 @@
     backdrop-filter var(--miia-duration-fast) var(--miia-ease);
 }
 .headerScrolled {
-  background: rgba(250, 245, 236, 0.86);
+  background: rgba(244, 239, 230, 0.86);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--miia-line);
 }
@@ -25,11 +25,12 @@
 }
 
 .logo {
-  font-family: var(--miia-font-display);
-  font-weight: 700;
-  font-size: 24px;
-  letter-spacing: -0.02em;
-  color: var(--miia-ink);
+  display: flex;
+  align-items: center;
+}
+.logoImg {
+  height: 26px;
+  width: auto;
 }
 
 .nav {

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { Check } from "lucide-react";
 import styles from "./ChatDemo.module.css";
 
@@ -100,7 +101,9 @@ export function ChatDemo() {
           <div className={[styles.group, styles.groupOut, styles.replyEnter].join(" ")}>
             <div className={styles.bubbleOut}>{REPLY.text}</div>
             <div className={styles.meta}>
-              {REPLY.time} <Check size={12} strokeWidth={2.5} /> Miia
+              {REPLY.time} <Check size={12} strokeWidth={2.5} />
+              <Image src="/miia-app-icon.png" alt="" width={14} height={14} className={styles.metaIcon} />
+              Miia
             </div>
           </div>
         )}

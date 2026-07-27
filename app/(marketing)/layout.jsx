@@ -1,27 +1,31 @@
-import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import { Header } from "@/components/miia/Header";
 import { Footer } from "@/components/miia/Footer";
+import { ScrollbarTheme } from "@/components/miia/ScrollbarTheme";
 import "@/components/miia/tokens.css";
 
-// Marketing-only font pair. Scoped to this route group via the .miia
-// wrapper below so the app shell (Mission Control, portal, admin) keeps
-// its own Inter/Space Grotesk pairing from the root layout untouched.
-const display = Bricolage_Grotesque({
+// Per Miia-Brand-Guidelines.pdf v1.0: Space Grotesk carries everything
+// (headlines, UI, body), Space Mono is accent-only. Scoped to this route
+// group via the .miia wrapper below so the app shell (Mission Control,
+// portal, admin) keeps its own Inter/Space Grotesk pairing from the root
+// layout untouched.
+const display = Space_Grotesk({
   subsets: ["latin"],
-  weight: ["700", "800"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-miia-display",
   display: "swap",
 });
-const body = Plus_Jakarta_Sans({
+const mono = Space_Mono({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-miia-body",
+  weight: ["400", "700"],
+  variable: "--font-miia-mono",
   display: "swap",
 });
 
 export default function MarketingLayout({ children }) {
   return (
-    <div className={`miia ${display.variable} ${body.variable}`}>
+    <div className={`miia ${display.variable} ${mono.variable}`}>
+      <ScrollbarTheme />
       <Header />
       {children}
       <Footer />
