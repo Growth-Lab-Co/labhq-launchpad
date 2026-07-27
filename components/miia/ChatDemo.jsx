@@ -13,7 +13,7 @@ const DEFAULT_REPLY = {
   time: "2:15 pm",
 };
 
-const TYPE_SPEED = 22; // ms per character
+const TYPE_SPEED = 35; // ms per character
 const PHASE = {
   TYPING_CUSTOMER: "typing-customer",
   PAUSE: "pause",
@@ -51,16 +51,16 @@ export function ChatDemo({ exchange, channelLabel = "Website chat" }) {
         if (customerChars < CUSTOMER.text.length) {
           timerRef.current = setTimeout(() => setCustomerChars((c) => c + 1), TYPE_SPEED);
         } else {
-          timerRef.current = setTimeout(() => setPhase(PHASE.PAUSE), 500);
+          timerRef.current = setTimeout(() => setPhase(PHASE.PAUSE), 0);
         }
       } else if (phase === PHASE.PAUSE) {
         timerRef.current = setTimeout(() => setPhase(PHASE.DOTS), 600);
       } else if (phase === PHASE.DOTS) {
-        timerRef.current = setTimeout(() => setPhase(PHASE.REPLY_IN), 1400);
+        timerRef.current = setTimeout(() => setPhase(PHASE.REPLY_IN), 900);
       } else if (phase === PHASE.REPLY_IN) {
         timerRef.current = setTimeout(() => setPhase(PHASE.HOLD), 500);
       } else if (phase === PHASE.HOLD) {
-        timerRef.current = setTimeout(() => setPhase(PHASE.RESET), 3800);
+        timerRef.current = setTimeout(() => setPhase(PHASE.RESET), 6000);
       } else if (phase === PHASE.RESET) {
         setCustomerChars(0);
         timerRef.current = setTimeout(() => setPhase(PHASE.TYPING_CUSTOMER), 700);
@@ -94,7 +94,6 @@ export function ChatDemo({ exchange, channelLabel = "Website chat" }) {
         {showDots && (
           <div className={[styles.group, styles.groupOut].join(" ")}>
             <div className={styles.dotsBubble}>
-              <span />
               <span />
               <span />
             </div>

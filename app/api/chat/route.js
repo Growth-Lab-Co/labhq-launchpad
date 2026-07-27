@@ -60,7 +60,7 @@ Rules:
 - If this is the very start (no messages yet), give a 2-sentence welcome explaining this takes about 10 minutes and their system will be built from their answers, then ask the first question.
 - When ALL fields are captured, set done=true and your reply should tell them you've got everything and their setup summary is coming up for review.
 
-Respond ONLY with a JSON object, no other text:
+Respond ONLY with a JSON object, no other text before or after it, no preamble, no markdown fences:
 {"reply": "<your conversational message>", "captured": {"field_name": "value", ...} or {}, "done": true|false}`;
 
     const claudeMessages =
@@ -68,13 +68,31 @@ Respond ONLY with a JSON object, no other text:
         ? messages.map((m) => ({ role: m.role, content: m.content }))
         : [{ role: "user", content: "(The visitor has just opened the page. Greet them and begin.)" }];
 
+    // Claude's Messages API expects the conversation to open with a user
+    // turn. Miia tenants have a scripted (non-AI-generated) opening assistant
+    // message, so prepend a synthetic user turn to keep that shape - cheap
+    // insurance against API-shape issues, without changing anything shown
+    // on screen.
+    if (claudeMessages[0]?.role === "assistant") {
+      claudeMessages.unshift({ role: "user", content: "(The visitor has just opened the page.)" });
+    }
+
     const raw = await askClaude({ system, messages: claudeMessages, maxTokens: 900 });
     let parsed;
     try {
       parsed = extractJson(raw);
     } catch {
-      // Model replied in plain text - degrade gracefully rather than erroring.
-      parsed = { reply: raw.trim(), captured: {}, done: false };
+      // Model replied in plain text instead of JSON. The interview still
+      // moved forward - the user just answered the next uncaptured field -
+      // so fall back to capturing their last message against it rather
+      // than silently dropping the answer.
+      const nextField = remaining[0];
+      const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
+      parsed = {
+        reply: raw.trim(),
+        captured: nextField && lastUserMessage ? { [nextField.field]: lastUserMessage } : {},
+        done: false,
+      };
     }
 
     const merged = { ...answers, ...(parsed.captured || {}) };
