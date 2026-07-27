@@ -119,6 +119,32 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
   const setYearly = onYearlyChange || setYearlyState;
   const foundingMode = useFoundingMode();
 
+  // Direct-checkout mode (showCta, not selectable - i.e. /pricing itself):
+  // clicking a plan's CTA highlights that card immediately (purple border,
+  // same treatment as the selectable/get-started mode below) and goes
+  // straight to Stripe, skipping /get-started entirely.
+  const [checkoutPlanId, setCheckoutPlanId] = useState(null);
+  const [checkoutError, setCheckoutError] = useState(null);
+
+  async function startCheckout(plan) {
+    if (checkoutPlanId) return;
+    setCheckoutPlanId(plan.id);
+    setCheckoutError(null);
+    try {
+      const res = await fetch("/api/miia/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan: plan.id, billingPeriod: yearly ? "yearly" : "monthly" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || "Couldn't start checkout.");
+      window.location.href = data.url;
+    } catch (e) {
+      setCheckoutError({ planId: plan.id, message: e.message });
+      setCheckoutPlanId(null);
+    }
+  }
+
   return (
     <div>
       <div className={styles.toggleRow}>
@@ -128,8 +154,9 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
       <div className={styles.grid}>
         {PLANS.map((plan) => {
           const selectable = typeof onSelect === "function";
-          const isSelected = selectedId === plan.id;
+          const isSelected = selectable ? selectedId === plan.id : checkoutPlanId === plan.id;
           const Wrapper = selectable ? "button" : "div";
+          const planError = checkoutError?.planId === plan.id ? checkoutError.message : null;
           return (
             <Wrapper
               key={plan.id}
@@ -157,13 +184,17 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
               </ul>
 
               {!selectable && showCta && (
-                <Button
-                  href={`/get-started?plan=${plan.id}${yearly ? "&billing=yearly" : ""}`}
-                  variant={plan.popular ? "primary" : "outline"}
-                  className={styles.cta}
-                >
-                  {PRIMARY_CTA_LABEL}
-                </Button>
+                <>
+                  <Button
+                    onClick={() => startCheckout(plan)}
+                    disabled={Boolean(checkoutPlanId)}
+                    variant={plan.popular ? "primary" : "outline"}
+                    className={styles.cta}
+                  >
+                    {checkoutPlanId === plan.id ? "Taking you to checkout…" : PRIMARY_CTA_LABEL}
+                  </Button>
+                  {planError && <p className={styles.ctaError}>{planError}</p>}
+                </>
               )}
             </Wrapper>
           );

@@ -71,7 +71,12 @@
   border-color: var(--miia-accent);
   box-shadow: var(--miia-shadow-lift);
 }
-.cardSelected { border-color: var(--miia-accent); box-shadow: var(--miia-shadow-lift); cursor: pointer; }
+.cardSelected {
+  border-color: var(--miia-accent);
+  background: var(--miia-accent-tint);
+  box-shadow: var(--miia-shadow-lift);
+  cursor: pointer;
+}
 
 .badge {
   position: absolute;
@@ -104,3 +109,4 @@
 .features li svg { color: var(--miia-accent); flex-shrink: 0; margin-top: 2px; }
 
 .cta { width: 100%; }
+.ctaError { margin-top: 10px; font-size: 13px; color: var(--danger, #b42318); text-align: center; }
