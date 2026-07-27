@@ -1,0 +1,29 @@
+.marquee {
+  overflow: hidden;
+  width: 100%;
+  border-top: 1px solid var(--miia-line);
+  border-bottom: 1px solid var(--miia-line);
+  padding: 22px 0;
+  background: var(--miia-bg-alt);
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: scroll 34s linear infinite;
+}
+
+.item {
+  font-family: var(--miia-font-display);
+  font-weight: 700;
+  font-size: clamp(20px, 3.2vw, 34px);
+  letter-spacing: -0.01em;
+  color: var(--miia-ink);
+  white-space: nowrap;
+  padding-right: 0;
+}
+
+@keyframes scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}

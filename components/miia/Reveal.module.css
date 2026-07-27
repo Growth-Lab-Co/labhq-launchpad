@@ -1,0 +1,27 @@
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 700ms var(--miia-ease), transform 700ms var(--miia-ease);
+}
+.revealVisible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.riseWordMask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+.riseWord {
+  display: inline-block;
+  transform: translateY(110%);
+  opacity: 0;
+  transition: transform 780ms var(--miia-ease), opacity 780ms var(--miia-ease);
+}
+.riseWordVisible {
+  transform: translateY(0);
+  opacity: 1;
+}

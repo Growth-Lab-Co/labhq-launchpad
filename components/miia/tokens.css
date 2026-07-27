@@ -1,0 +1,74 @@
+/* Miia marketing site — brand tokens, scoped to .miia so they never touch
+   the app's own design system (app/tokens.css / globals.css). Light,
+   warm, one violet accent. See commit message for the Topbox / Sophiie /
+   Chime Labs / LabHQ calculator research this is built from. */
+
+.miia {
+  --miia-bg: #FAF5EC;
+  --miia-bg-alt: #F2E9DA;
+  --miia-surface: #FFFFFF;
+  --miia-ink: #17121F;
+  --miia-ink-soft: rgba(23, 18, 31, 0.68);
+  --miia-ink-faint: rgba(23, 18, 31, 0.46);
+  --miia-line: rgba(23, 18, 31, 0.10);
+  --miia-line-strong: rgba(23, 18, 31, 0.16);
+
+  --miia-accent: #A070F8;
+  --miia-accent-ink: #FFFFFF;
+  --miia-accent-hover: #8F58F5;
+  --miia-accent-soft: #9878F0;
+  --miia-accent-tint: rgba(152, 120, 240, 0.14);
+  --miia-accent-tint-strong: rgba(152, 120, 240, 0.24);
+
+  --miia-ink-inverse: #FAF5EC;
+  --miia-dark: #17121F;
+  --miia-dark-soft: #241C33;
+
+  --miia-radius-lg: 24px;
+  --miia-radius-md: 16px;
+  --miia-radius-sm: 10px;
+  --miia-radius-pill: 999px;
+
+  --miia-shadow-card: 0 1px 2px rgba(23, 18, 31, 0.04), 0 16px 40px -16px rgba(23, 18, 31, 0.16);
+  --miia-shadow-lift: 0 1px 2px rgba(23, 18, 31, 0.05), 0 28px 56px -20px rgba(23, 18, 31, 0.24);
+
+  --miia-font-display: var(--font-miia-display), "Space Grotesk", sans-serif;
+  --miia-font-body: var(--font-miia-body), sans-serif;
+
+  --miia-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --miia-duration-fast: 200ms;
+  --miia-duration: 420ms;
+  --miia-duration-slow: 900ms;
+
+  background: var(--miia-bg);
+  color: var(--miia-ink);
+  font-family: var(--miia-font-body);
+}
+
+.miia * { box-sizing: border-box; }
+
+.miia h1, .miia h2, .miia h3, .miia h4 {
+  font-family: var(--miia-font-display);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.miia p { margin: 0; }
+.miia a { color: inherit; text-decoration: none; }
+.miia button { font-family: inherit; }
+
+.miia ::selection {
+  background: var(--miia-accent);
+  color: var(--miia-accent-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .miia *, .miia *::before, .miia *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

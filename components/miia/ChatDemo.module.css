@@ -1,0 +1,108 @@
+.card {
+  background: var(--miia-surface);
+  border-radius: var(--miia-radius-lg);
+  box-shadow: var(--miia-shadow-lift);
+  border: 1px solid var(--miia-line);
+  overflow: hidden;
+  width: 100%;
+  max-width: 440px;
+}
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--miia-line);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--miia-line-strong); }
+.barTitle {
+  margin-left: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--miia-ink-soft);
+}
+
+.body {
+  padding: 22px 20px 26px;
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  transition: opacity 400ms var(--miia-ease);
+}
+.bodyFading { opacity: 0; }
+
+.group { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 88%; }
+.groupOut { align-self: flex-end; align-items: flex-end; margin-left: auto; }
+
+.bubbleIn, .bubbleOut, .dotsBubble {
+  border-radius: 18px;
+  padding: 12px 16px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+
+.bubbleIn {
+  background: var(--miia-bg-alt);
+  color: var(--miia-ink);
+  border-bottom-left-radius: 6px;
+  min-height: 1.5em;
+}
+
+.bubbleOut {
+  background: var(--miia-accent);
+  color: var(--miia-accent-ink);
+  border-bottom-right-radius: 6px;
+  animation: slideIn 480ms var(--miia-ease) both;
+}
+
+.replyEnter { animation: none; }
+
+.dotsBubble {
+  background: var(--miia-accent-tint-strong);
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  padding: 14px 16px;
+}
+.dotsBubble span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--miia-accent);
+  animation: bounce 1.1s var(--miia-ease) infinite;
+}
+.dotsBubble span:nth-child(2) { animation-delay: 0.15s; }
+.dotsBubble span:nth-child(3) { animation-delay: 0.3s; }
+
+.meta {
+  font-size: 11.5px;
+  color: var(--miia-ink-faint);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--miia-ink-soft);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: blink 0.9s steps(1) infinite;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+@keyframes blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}

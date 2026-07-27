@@ -1,0 +1,160 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { Minus, Plus } from "lucide-react";
+import { Button, PRIMARY_CTA_LABEL } from "./Button";
+import styles from "./Calculator.module.css";
+
+const CONVERSION_RATE = 0.3;
+
+function formatCurrency(n) {
+  if (n >= 1_000_000) return "$" + (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+  if (n >= 1000) return "$" + (n / 1000).toFixed(1).replace(/\.0$/, "") + "k";
+  return "$" + Math.round(n).toLocaleString("en-AU");
+}
+
+function useReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }, []);
+  return reduced;
+}
+
+// Animates a number rolling from its previous value to the next whenever
+// `value` changes, not just on scroll-into-view (the calculator recomputes
+// on every input tweak).
+function useRollingNumber(value) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const rafRef = useRef(null);
+  const reduced = useReducedMotion();
+
+  useEffect(() => {
+    if (reduced) {
+      setDisplay(value);
+      fromRef.current = value;
+      return;
+    }
+    const from = fromRef.current;
+    const start = performance.now();
+    const duration = 500;
+    cancelAnimationFrame(rafRef.current);
+
+    function tick(now) {
+      const t = Math.min(1, (now - start) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setDisplay(from + (value - from) * eased);
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+      else {
+        setDisplay(value);
+        fromRef.current = value;
+      }
+    }
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return display;
+}
+
+export function Calculator() {
+  const [missed, setMissed] = useState(5);
+  const [value, setValue] = useState(2500);
+
+  const monthly = Math.round(missed * value * CONVERSION_RATE * 30);
+  const yearly = monthly * 12;
+  const monthlyDisplay = useRollingNumber(monthly);
+  const yearlyDisplay = useRollingNumber(yearly);
+
+  function stepMissed(delta) {
+    setMissed((m) => Math.min(200, Math.max(1, m + delta)));
+  }
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.fields}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="miia-calc-missed">
+            Missed or unanswered enquiries per day
+          </label>
+          <div className={styles.stepper}>
+            <button
+              type="button"
+              className={styles.stepperBtn}
+              onClick={() => stepMissed(-1)}
+              aria-label="Decrease"
+            >
+              <Minus size={16} strokeWidth={2.5} />
+            </button>
+            <input
+              id="miia-calc-missed"
+              className={styles.stepperValue}
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={200}
+              value={missed}
+              onChange={(e) => {
+                const n = parseInt(e.target.value, 10);
+                setMissed(Number.isFinite(n) ? Math.min(200, Math.max(1, n)) : 1);
+              }}
+            />
+            <button
+              type="button"
+              className={styles.stepperBtn}
+              onClick={() => stepMissed(1)}
+              aria-label="Increase"
+            >
+              <Plus size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+
+        <div className={styles.field}>
+          <div className={styles.labelRow}>
+            <label className={styles.label} htmlFor="miia-calc-slider">
+              Average value of a new customer
+            </label>
+            <span className={styles.sliderValue}>{formatCurrency(value)}</span>
+          </div>
+          <input
+            id="miia-calc-slider"
+            className={styles.slider}
+            type="range"
+            min={100}
+            max={20000}
+            step={100}
+            value={value}
+            onChange={(e) => setValue(parseInt(e.target.value, 10))}
+            style={{ "--_fill": `${((value - 100) / (20000 - 100)) * 100}%` }}
+          />
+          <div className={styles.sliderScale}>
+            <span>$100</span>
+            <span>$20,000+</span>
+          </div>
+        </div>
+      </div>
+
+      <div className={styles.results}>
+        <div className={styles.resultBox}>
+          <div className={styles.resultPeriod}>Recovered per month</div>
+          <div className={styles.resultAmount}>{formatCurrency(monthlyDisplay)}</div>
+        </div>
+        <div className={styles.resultBox}>
+          <div className={styles.resultPeriod}>Recovered per year</div>
+          <div className={styles.resultAmount}>{formatCurrency(yearlyDisplay)}</div>
+        </div>
+      </div>
+
+      <p className={styles.footnote}>
+        Based on a 30% conversion rate on recovered enquiries, a conservative industry average. Miia responds in
+        under a minute, 24/7.
+      </p>
+
+      <Button href="/get-started" className={styles.cta}>
+        {PRIMARY_CTA_LABEL}
+      </Button>
+    </div>
+  );
+}

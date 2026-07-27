@@ -1,0 +1,61 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--miia-font-display);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+  padding: 18px 30px;
+  border-radius: var(--miia-radius-pill);
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform var(--miia-duration-fast) var(--miia-ease),
+    background-color var(--miia-duration-fast) var(--miia-ease),
+    border-color var(--miia-duration-fast) var(--miia-ease),
+    box-shadow var(--miia-duration-fast) var(--miia-ease);
+}
+
+.btn:active { transform: scale(0.97); }
+
+.primary {
+  background: var(--miia-accent);
+  color: var(--miia-accent-ink);
+  box-shadow: 0 10px 24px -10px rgba(160, 112, 248, 0.55);
+}
+.primary:hover {
+  background: var(--miia-accent-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 30px -10px rgba(160, 112, 248, 0.6);
+}
+
+.outline {
+  background: transparent;
+  color: var(--miia-ink);
+  border-color: var(--miia-line-strong);
+}
+.outline:hover {
+  border-color: var(--miia-ink);
+  transform: translateY(-2px);
+}
+
+.ghost {
+  background: var(--miia-surface);
+  color: var(--miia-ink);
+  border-color: var(--miia-line);
+}
+.ghost:hover { border-color: var(--miia-line-strong); transform: translateY(-2px); }
+
+.onDark {
+  background: var(--miia-bg);
+  color: var(--miia-dark);
+}
+.onDark:hover { background: #fff; }
+
+.sm { padding: 12px 22px; font-size: 14px; }
+
+@media (max-width: 480px) {
+  .btn { width: 100%; }
+}
