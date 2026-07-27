@@ -14,6 +14,7 @@ export async function GET(req) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const signups = await listSignups();
+  const includeArchived = req.nextUrl.searchParams.get("includeArchived") === "true";
+  const signups = await listSignups({ includeArchived });
   return NextResponse.json({ signups });
 }

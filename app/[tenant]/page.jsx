@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { getTenant } from "@/lib/tenants";
+import { getPublicTenant } from "@/lib/tenants";
 import { getBranding } from "@/lib/branding";
 import Chat from "@/components/Chat";
 
 export default async function TenantPage({ params }) {
-  const tenant = await getTenant(params.tenant);
+  const tenant = await getPublicTenant(params.tenant);
   if (!tenant) notFound();
 
   let logoUrl = tenant.logoUrl;

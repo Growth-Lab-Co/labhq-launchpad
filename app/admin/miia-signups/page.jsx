@@ -48,14 +48,16 @@ export default function MiiaSignupsPage() {
   const toast = useToast();
   const [signups, setSignups] = useState(null);
   const [retrying, setRetrying] = useState(null);
+  const [archiving, setArchiving] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
 
-  function load() {
-    adminFetch("/api/admin/miia-signups")
+  function load(includeArchived = showArchived) {
+    adminFetch(`/api/admin/miia-signups${includeArchived ? "?includeArchived=true" : ""}`)
       .then((data) => setSignups(data.signups || []))
       .catch((e) => toast.push(e.message, "error"));
   }
 
-  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => load(showArchived), [showArchived]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleChecklist(id, item, value) {
     setSignups((prev) => prev.map((s) => (s.id === id ? { ...s, checklist: { ...s.checklist, [item]: value } } : s)));
@@ -79,12 +81,28 @@ export default function MiiaSignupsPage() {
       .finally(() => setRetrying(null));
   }
 
+  function archive(id, restore) {
+    setArchiving(id);
+    adminFetch(`/api/admin/miia-signups/${id}/archive`, { method: "POST", body: { restore } })
+      .then(() => {
+        toast.push(restore ? "Restored" : "Archived", "success");
+        load();
+      })
+      .catch((e) => toast.push(e.message, "error"))
+      .finally(() => setArchiving(null));
+  }
+
   return (
     <>
       <div className={s.pageHeader}>
         <h1 className={s.pageTitle}>Miia signups</h1>
         <p className={s.pageSubtitle}>Every paid Miia checkout, provisioning status, and the go-live checklist.</p>
       </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
+        <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
+        Show archived (test tenants)
+      </label>
 
       <Table>
         <thead>
@@ -103,7 +121,10 @@ export default function MiiaSignupsPage() {
           {(signups || []).map((sg) => (
             <Table.Row key={sg.id}>
               <td>
-                <div style={{ fontWeight: 600 }}>{sg.businessName || "—"}</div>
+                <div style={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+                  {sg.businessName || "—"}
+                  {sg.archived && <Badge tone="neutral">Archived</Badge>}
+                </div>
                 <div style={{ fontSize: 12, color: "var(--muted)" }}>
                   {sg.contactName ? `${sg.contactName} · ` : ""}
                   {sg.email}
@@ -138,11 +159,21 @@ export default function MiiaSignupsPage() {
                 </div>
               </td>
               <td>
-                {sg.tenantSlug && (
-                  <a href={`/${sg.tenantSlug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
-                    View chat
-                  </a>
-                )}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+                  {sg.tenantSlug && (
+                    <a href={`/${sg.tenantSlug}`} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12 }}>
+                      View chat
+                    </a>
+                  )}
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={archiving === sg.id}
+                    onClick={() => archive(sg.id, sg.archived)}
+                  >
+                    {archiving === sg.id ? "…" : sg.archived ? "Restore" : "Archive"}
+                  </Button>
+                </div>
               </td>
             </Table.Row>
           ))}
