@@ -1,48 +1,148 @@
+/* Structural reference: growthlabco.com.au's footer (giant watermark word,
+   marquee strip, center CTA, bottom bar). Reskinned solid/flat for Miia —
+   no gradients or glassmorphism per brand guidelines. */
+
 .footer {
+  position: relative;
+  overflow: hidden;
   background: var(--miia-dark);
   color: var(--miia-ink-inverse);
-  padding: 64px 24px 32px;
+  padding-top: 64px;
 }
 
-.inner { max-width: 1180px; margin: 0 auto; }
-
-.top {
-  display: flex;
-  align-items: baseline;
-  gap: 20px;
-  flex-wrap: wrap;
-  margin-bottom: 40px;
-}
-.logo {
+.giant {
+  position: absolute;
+  bottom: -6vw;
+  left: 50%;
+  transform: translateX(-50%);
   font-family: var(--miia-font-display);
-  font-weight: 700;
-  font-size: 26px;
+  font-weight: 600;
+  font-size: clamp(6rem, 26vw, 22rem);
+  letter-spacing: -0.04em;
+  line-height: 0.8;
+  white-space: nowrap;
+  color: rgba(244, 239, 230, 0.05);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
 }
-.tagline { color: rgba(250, 245, 236, 0.6); font-size: 15px; }
 
-.links {
+.marquee {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border-top: 1px solid rgba(244, 239, 230, 0.1);
+  border-bottom: 1px solid rgba(244, 239, 230, 0.1);
+  background: rgba(244, 239, 230, 0.03);
+  padding: 14px 0;
+}
+.marqueeTrack {
+  display: flex;
+  width: max-content;
+  animation: footerScroll 30s linear infinite;
+}
+.marqueeItem {
+  font-family: var(--miia-font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 230, 0.5);
+  white-space: nowrap;
+}
+@keyframes footerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.center {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 88px 24px 64px;
+  max-width: 720px;
+  margin: 0 auto;
+}
+.heading {
+  font-size: clamp(32px, 5.4vw, 60px);
+  letter-spacing: -0.025em;
+}
+.sub {
+  color: rgba(244, 239, 230, 0.68);
+  font-size: 17px;
+  margin: 20px auto 36px;
+  max-width: 460px;
+}
+.bigCta { box-shadow: 0 20px 40px -16px rgba(160, 112, 248, 0.5); }
+
+.pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 24px;
-  padding-bottom: 32px;
-  margin-bottom: 32px;
-  border-bottom: 1px solid rgba(250, 245, 236, 0.14);
+  justify-content: center;
+  gap: 10px;
+  margin-top: 36px;
 }
-.link {
-  font-size: 14px;
+.pill {
+  font-size: 13.5px;
   font-weight: 600;
-  color: rgba(250, 245, 236, 0.75);
-  transition: color var(--miia-duration-fast) var(--miia-ease);
+  color: rgba(244, 239, 230, 0.7);
+  background: rgba(244, 239, 230, 0.06);
+  border: 1px solid rgba(244, 239, 230, 0.12);
+  padding: 9px 18px;
+  border-radius: var(--miia-radius-pill);
+  transition: color var(--miia-duration-fast) var(--miia-ease), border-color var(--miia-duration-fast) var(--miia-ease), background-color var(--miia-duration-fast) var(--miia-ease);
 }
-.link:hover { color: var(--miia-ink-inverse); }
+.pill:hover {
+  color: var(--miia-ink-inverse);
+  border-color: var(--miia-accent);
+  background: rgba(160, 112, 248, 0.14);
+}
 
 .bottom {
+  position: relative;
+  z-index: 1;
   display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   flex-wrap: wrap;
-  gap: 10px;
-  font-size: 13px;
-  color: rgba(250, 245, 236, 0.5);
+  padding: 24px;
+  border-top: 1px solid rgba(244, 239, 230, 0.1);
 }
-.bottomLink { color: rgba(250, 245, 236, 0.5); }
-.bottomLink:hover { color: var(--miia-ink-inverse); }
-.sep { opacity: 0.5; }
+
+.brand { display: flex; align-items: center; gap: 12px; }
+.brandImg {
+  height: 20px;
+  width: auto;
+  filter: brightness(0) invert(1);
+  opacity: 0.9;
+}
+.brandName { font-size: 13px; font-weight: 500; color: rgba(244, 239, 230, 0.55); }
+
+.copy { font-size: 13px; color: rgba(244, 239, 230, 0.5); }
+.copy a { color: rgba(244, 239, 230, 0.5); }
+.copy a:hover { color: var(--miia-ink-inverse); }
+
+.backTop {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(244, 239, 230, 0.06);
+  border: 1px solid rgba(244, 239, 230, 0.14);
+  color: rgba(244, 239, 230, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform var(--miia-duration-fast) var(--miia-ease), border-color var(--miia-duration-fast) var(--miia-ease), color var(--miia-duration-fast) var(--miia-ease);
+}
+.backTop:hover {
+  color: var(--miia-ink-inverse);
+  border-color: var(--miia-accent);
+  transform: translateY(-3px);
+}
+
+@media (max-width: 560px) {
+  .bottom { flex-direction: column; align-items: flex-start; }
+}
