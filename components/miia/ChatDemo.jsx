@@ -4,11 +4,11 @@ import Image from "next/image";
 import { Check } from "lucide-react";
 import styles from "./ChatDemo.module.css";
 
-const CUSTOMER = {
+const DEFAULT_CUSTOMER = {
   text: "hi, got water coming through the ceiling near a light, can anyone come today? we're in Stafford Heights. how much roughly?",
   time: "2:14 pm",
 };
-const REPLY = {
+const DEFAULT_REPLY = {
   text: "That needs someone today. We can have a plumber out this afternoon, emergency call out is $250 for the first hour and we service Stafford Heights. Want me to lock in a time between 2 and 4pm?",
   time: "2:15 pm",
 };
@@ -26,7 +26,11 @@ const PHASE = {
 // The hero's looping proof-of-life: a real enquiry typing itself out, a
 // thinking beat, then Miia's reply sliding in. Freezes on the finished
 // exchange under prefers-reduced-motion instead of animating forever.
-export function ChatDemo() {
+// `exchange` lets industry pages swap in their own script; defaults to the
+// original Stafford Heights plumbing exchange used on the home page.
+export function ChatDemo({ exchange, channelLabel = "Website chat" }) {
+  const CUSTOMER = exchange?.customer || DEFAULT_CUSTOMER;
+  const REPLY = exchange?.reply || DEFAULT_REPLY;
   const [phase, setPhase] = useState(PHASE.TYPING_CUSTOMER);
   const [customerChars, setCustomerChars] = useState(0);
   const timerRef = useRef(null);
@@ -76,7 +80,7 @@ export function ChatDemo() {
         <span className={styles.dot} />
         <span className={styles.dot} />
         <span className={styles.dot} />
-        <span className={styles.barTitle}>Website chat</span>
+        <span className={styles.barTitle}>{channelLabel}</span>
       </div>
       <div className={[styles.body, fadingOut ? styles.bodyFading : ""].join(" ")}>
         <div className={styles.group}>

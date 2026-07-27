@@ -78,15 +78,44 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
-@media (max-width: 860px) { .whoForGrid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { .whoForGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .whoForGrid { grid-template-columns: minmax(0, 1fr); } }
+
+.whoForCardWrap { height: 100%; }
 
 .whoForCard {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   background: var(--miia-accent-tint);
   border-radius: var(--miia-radius-lg);
   padding: 32px 28px;
+  border: 1.5px solid transparent;
+  transition: transform var(--miia-duration-fast) var(--miia-ease),
+    box-shadow var(--miia-duration-fast) var(--miia-ease),
+    border-color var(--miia-duration-fast) var(--miia-ease),
+    background-color var(--miia-duration-fast) var(--miia-ease);
+}
+.whoForCard:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--miia-shadow-lift);
+  border-color: var(--miia-accent);
+  background: var(--miia-surface);
 }
 .whoForName { font-size: 21px; margin-bottom: 12px; }
-.whoForBody { font-size: 15px; line-height: 1.6; color: var(--miia-ink-soft); }
+.whoForBody { font-size: 15px; line-height: 1.6; color: var(--miia-ink-soft); flex: 1; }
+
+.whoForLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--miia-accent-hover);
+}
+.whoForLink svg { transition: transform var(--miia-duration-fast) var(--miia-ease); }
+.whoForCard:hover .whoForLink svg { transform: translateX(4px); }
 
 .complianceCard {
   max-width: 720px;

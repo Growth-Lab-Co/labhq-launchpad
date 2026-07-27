@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
+import { ShieldCheck, ArrowRight } from "lucide-react";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
 import { Reveal, RiseHeadline, useInView } from "./Reveal";
 import { OdometerNumber } from "./OdometerNumber";
@@ -11,6 +11,7 @@ import { Calculator } from "./Calculator";
 import { FaqAccordion } from "./FaqAccordion";
 import { PricingCards } from "./PricingCards";
 import { FAQ_ITEMS, HOME_FAQ_IDS, faqByIds } from "./faq";
+import { INDUSTRIES } from "./industries";
 import styles from "./home.module.css";
 
 const MARQUEE_ITEMS = ["MEET MIIA", "ANSWERS EVERYTHING", "BOOKS REAL JOBS", "SOUNDS LIKE YOU", "LIVE IN 48 HOURS"];
@@ -33,21 +34,6 @@ const STEPS = [
   {
     heading: "She starts working",
     body: "Every message answered in under a minute, real bookings in your calendar, and she hands over the moment someone needs the real you.",
-  },
-];
-
-const WHO_FOR = [
-  {
-    name: "Tradies",
-    body: "The 7pm burst pipe or the Sunday call out. Miia qualifies the job and locks in a time while you're still under the house.",
-  },
-  {
-    name: "Clinics and allied health",
-    body: "New patient enquiries answered the moment they land, booked straight into the gaps in your calendar, no receptionist required after hours.",
-  },
-  {
-    name: "Salons and studios",
-    body: "Every DM and website enquiry about availability gets a real answer in seconds, so bookings fill while you're with a client.",
   },
 ];
 
@@ -138,10 +124,15 @@ export function HomePage() {
             <h2 className={styles.h2}>Built for businesses that live on the phone</h2>
           </Reveal>
           <div className={styles.whoForGrid}>
-            {WHO_FOR.map((card, i) => (
-              <Reveal key={card.name} delay={i * 90} className={styles.whoForCard}>
-                <h3 className={styles.whoForName}>{card.name}</h3>
-                <p className={styles.whoForBody}>{card.body}</p>
+            {INDUSTRIES.map((industry, i) => (
+              <Reveal key={industry.slug} delay={i * 70} className={styles.whoForCardWrap}>
+                <Link href={industry.path} className={styles.whoForCard}>
+                  <h3 className={styles.whoForName}>{industry.name}</h3>
+                  <p className={styles.whoForBody}>{industry.cardBody}</p>
+                  <span className={styles.whoForLink}>
+                    See how <ArrowRight size={15} strokeWidth={2.5} />
+                  </span>
+                </Link>
               </Reveal>
             ))}
           </div>
