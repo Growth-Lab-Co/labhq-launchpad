@@ -8,18 +8,9 @@
   max-width: 700px;
   margin: 0 auto;
 }
-.introEyebrow {
-  display: inline-block;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--miia-accent);
-  background: var(--miia-accent-tint);
-  padding: 6px 14px;
-  border-radius: var(--miia-radius-pill);
-  margin-bottom: 20px;
-}
-.h1 { font-size: clamp(34px, 5vw, 58px); letter-spacing: -0.02em; }
-.intro p { margin-top: 20px; font-size: 18px; color: var(--miia-ink-soft); }
+.introEyebrow { margin-bottom: 20px; }
+.h1 { font-size: clamp(34px, 5vw, 58px); }
+.intro p { margin-top: clamp(20px, 2vw, 28px); font-size: 18px; color: var(--miia-ink-soft); }
 
 .featureRow {
   display: grid;

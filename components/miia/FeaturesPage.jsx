@@ -48,7 +48,7 @@ export function FeaturesPage() {
     <div className={styles.page}>
       <div className={styles.container}>
         <Reveal className={styles.intro}>
-          <span className={styles.introEyebrow}>What Miia does</span>
+          <span className={`eyebrowPill ${styles.introEyebrow}`}>What Miia does</span>
           <h1 className={styles.h1}>Everything a great front desk does. None of the overheads.</h1>
           <p>Six things Miia handles the moment she goes live, in your voice, on the channels your customers already use.</p>
         </Reveal>

@@ -16,7 +16,7 @@ export function PricingPage() {
         </Reveal>
 
         <div style={{ textAlign: "center" }}>
-          <Reveal className={styles.foundingBanner} as="span">
+          <Reveal className={`eyebrowPill ${styles.foundingBanner}`} as="span">
             <Sparkles size={16} strokeWidth={2.5} />
             First {FOUNDING_SPOTS} customers: 20% off for life. $79, $199, $319.
           </Reveal>

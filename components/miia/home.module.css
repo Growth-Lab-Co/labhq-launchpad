@@ -13,7 +13,6 @@
 
 .h1 {
   font-size: clamp(38px, 6.4vw, 84px);
-  letter-spacing: -0.02em;
 }
 .h2 { font-size: clamp(28px, 3.6vw, 44px); }
 .h2sm { font-size: clamp(24px, 3vw, 32px); margin-top: 16px; margin-bottom: 16px; }
@@ -38,7 +37,7 @@
   font-size: clamp(17px, 1.8vw, 20px);
   line-height: 1.55;
   color: var(--miia-ink-soft);
-  margin: 24px 0 32px;
+  margin: clamp(28px, 4vw, 44px) 0 32px;
   max-width: 540px;
 }
 .heroCtas { display: flex; gap: 14px; flex-wrap: wrap; }

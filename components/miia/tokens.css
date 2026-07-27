@@ -54,7 +54,14 @@
 
 .miia * { box-sizing: border-box; }
 
-.miia h1, .miia h2, .miia h3, .miia h4 {
+/* Every element-type reset below is wrapped in :where() so it carries ZERO
+   specificity. Without this, a rule like ".miia h1" (specificity 0,1,1)
+   silently beats a component's own single-class override like ".h1" or
+   ".foo .h2sm" (0,1,0) regardless of source order — which is exactly what
+   made every Button variant's text colour render wrong (see commit
+   history). Wrapping the whole base layer this way means any component
+   class always wins, predictably, no matter when its stylesheet loads. */
+:where(.miia h1, .miia h2, .miia h3, .miia h4) {
   font-family: var(--miia-font-display);
   font-weight: 600;
   line-height: 1.05;
@@ -62,19 +69,32 @@
   margin: 0;
 }
 
-.miia p { margin: 0; }
-/* :where() keeps this reset at zero specificity so component classes like
-   Button's .primary/.onDark always win — a plain ".miia a" rule was
-   silently beating them (0,1,1 > 0,1,0), leaving every link-rendered
-   button showing its ambient inherited text colour instead of its own. */
+:where(.miia p) { margin: 0; }
 :where(.miia a) { color: inherit; text-decoration: none; }
-.miia button { font-family: inherit; }
+:where(.miia button) { font-family: inherit; }
 
 .miia .eyebrow, .miia .mono {
   font-family: var(--miia-font-mono);
   text-transform: uppercase;
   letter-spacing: 0.16em;
   font-weight: 500;
+}
+
+/* Shared "tag above a heading" chrome — used by /features' intro eyebrow
+   and /pricing's founding banner, which previously duplicated this with
+   slightly different size/padding/weight. Pages compose their own class
+   alongside this one for margin/layout only. */
+.miia .eyebrowPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--miia-font-body);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--miia-accent-hover);
+  background: var(--miia-accent-tint);
+  padding: 9px 20px;
+  border-radius: var(--miia-radius-pill);
 }
 
 .miia ::selection {
