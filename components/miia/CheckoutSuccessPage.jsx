@@ -8,10 +8,17 @@ import styles from "./checkout-success.module.css";
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 20; // ~40s of active polling before settling on the calm fallback
 
+// Loosely tied to real progress, not a literal step tracker - the point is
+// pacing for the camera, not accuracy. Holds on the last line rather than
+// looping if provisioning takes longer than one full cycle.
+const STATUS_LINES = ["Learning your services", "Setting up your calendar", "Teaching Miia your prices", "Nearly there"];
+const STATUS_LINE_MS = 2500;
+
 export function CheckoutSuccessPage() {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const [state, setState] = useState("checking"); // checking | failed | unpaid | missing
+  const [statusLine, setStatusLine] = useState(0);
   const attemptsRef = useRef(0);
   const cancelledRef = useRef(false);
 
@@ -63,6 +70,14 @@ export function CheckoutSuccessPage() {
     };
   }, [sessionId]);
 
+  useEffect(() => {
+    if (state !== "checking") return;
+    const interval = setInterval(() => {
+      setStatusLine((i) => Math.min(i + 1, STATUS_LINES.length - 1));
+    }, STATUS_LINE_MS);
+    return () => clearInterval(interval);
+  }, [state]);
+
   return (
     <div className={styles.page}>
       <div className={styles.card}>
@@ -73,10 +88,11 @@ export function CheckoutSuccessPage() {
             <div className={styles.pulseRow} aria-hidden="true">
               <span />
               <span />
-              <span />
             </div>
             <h1 className={styles.heading}>Setting up your space</h1>
-            <p className={styles.body}>Give us a moment while Miia gets your front desk ready.</p>
+            <p className={styles.body} aria-live="polite">
+              {STATUS_LINES[statusLine]}
+            </p>
           </>
         )}
 

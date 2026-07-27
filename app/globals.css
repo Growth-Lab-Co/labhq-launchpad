@@ -22,6 +22,7 @@ a { color: var(--accent); text-decoration: none; }
   margin: 0 auto;
   padding: 24px 20px 48px;
   min-height: 100vh;
+  min-height: 100dvh; /* avoids the mobile-keyboard viewport-jump: dvh tracks the actual visible area */
   display: flex;
   flex-direction: column;
 }
@@ -45,22 +46,58 @@ a { color: var(--accent); text-decoration: none; }
 }
 .progress-fill { height: 100%; background: var(--accent); transition: width 400ms ease; }
 
-.chat { flex: 1; display: flex; flex-direction: column; gap: 14px; padding-bottom: 16px; }
+.chat { flex: 1; display: flex; flex-direction: column; gap: 4px; padding-bottom: 16px; }
+.bubble-group { display: flex; flex-direction: column; max-width: 85%; }
+.bubble-group.user { align-self: flex-end; align-items: flex-end; }
+.bubble-group.assistant { align-self: flex-start; align-items: flex-start; }
 .bubble {
-  max-width: 85%; padding: 12px 16px; border-radius: 14px;
+  padding: 12px 16px; border-radius: 14px;
   font-size: 15px; line-height: 1.55; white-space: pre-wrap;
+  animation: bubble-in 200ms ease both;
 }
-.bubble.assistant { background: var(--surface); border: 1px solid var(--line); align-self: flex-start; border-bottom-left-radius: 4px; }
-.bubble.user { background: var(--accent); color: #14102e; align-self: flex-end; border-bottom-right-radius: 4px; font-weight: 500; }
-.bubble.typing { color: var(--muted); font-style: italic; }
+/* Miia's own messages carry the accent colour; the customer's stay neutral -
+   this was previously backwards (customer=accent, assistant=neutral). */
+.bubble.assistant { background: var(--accent); color: var(--accent-on, #fff); border-bottom-left-radius: 4px; }
+.bubble.user { background: var(--surface); border: 1px solid var(--line); color: var(--text); align-self: flex-end; border-bottom-right-radius: 4px; }
+.bubble-time { font-size: 11px; color: var(--muted-2); margin-top: 4px; padding: 0 4px; }
 
-.composer { display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.typing-dots {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--accent); border-radius: 14px; border-bottom-left-radius: 4px;
+  padding: 14px 16px; align-self: flex-start;
+}
+.typing-dots span {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent-on, #fff); opacity: 0.5;
+  animation: typing-pulse 600ms ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: 300ms; }
+
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes typing-pulse {
+  0%, 100% { opacity: 0.4; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-3px); }
+}
+
+.composer {
+  display: flex; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line);
+  position: sticky; bottom: 0; background: var(--bg);
+}
 .composer textarea {
   flex: 1; resize: none; background: var(--surface);
   border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
   color: var(--text); font-family: inherit; font-size: 15px; min-height: 52px;
+  font-size: 16px; /* iOS Safari auto-zooms on focus for inputs under 16px */
 }
 .composer textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble { animation: none; }
+  .typing-dots span { animation: none; opacity: 0.8; }
+}
 .btn {
   background: var(--accent); color: #14102e; border: none; border-radius: 12px;
   padding: 12px 22px; font-family: inherit; font-weight: 700; font-size: 15px;
@@ -101,6 +138,30 @@ a { color: var(--accent); text-decoration: none; }
 }
 .error-note { background: rgba(214,64,69,0.08); border: 1px solid rgba(214,64,69,0.35); color: #ac2f34; border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-top: 12px; }
 .warning-note { background: var(--warning-bg); border: 1px solid var(--warning-border); color: var(--warning); border-radius: 12px; padding: 12px 16px; font-size: 14px; margin-top: 12px; }
+
+.code-block { margin-top: 16px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.code-block-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--surface-sunken, rgba(0,0,0,0.02));
+}
+.code-block-title { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.code-block-body { padding: 16px; }
+.code-block pre {
+  font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--text); background: var(--surface-sunken, rgba(0,0,0,0.03));
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 12px;
+}
+
+.channel-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.channel-state {
+  flex-shrink: 0; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px;
+  white-space: nowrap; margin-top: 1px;
+}
+.channel-state.not-started { background: var(--line); color: var(--muted); }
+.channel-state.connecting { background: rgba(214, 172, 64, 0.15); color: #a67c1f; }
+.channel-state.registering { background: rgba(64, 140, 214, 0.15); color: #2568b0; }
+.channel-state.live { background: rgba(47, 168, 118, 0.15); color: #2fa876; }
 
 .checklist { margin-top: 16px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 4px 18px; }
 .checklist summary { cursor: pointer; padding: 14px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--accent); list-style: none; }

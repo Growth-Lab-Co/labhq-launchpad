@@ -16,9 +16,42 @@ function launchSteps(assistantName) {
 // Required for Australian compliance, shown separately on the review screen.
 const COMPLIANCE_KEYS = ["greeting_line", "sms_compliance_footer", "privacy_policy_snippet"];
 
+// lib/channelWiring.js's copy is written for an AGENCY setting up a client
+// ("the client clicks approve", raw GHL menu paths) - correct for every
+// other tenant, wrong for Miia's direct-to-business model where the
+// business owner IS the one reading it. This is a business-owner-voiced
+// override for product:"miia" only; channelWiring.js itself, and every
+// other tenant's screen, is untouched.
+const MIIA_CHANNEL_COPY = {
+  webchat: "Copy the snippet below and paste it into your website. Ask whoever manages your site if you're not sure how.",
+  fb: "Connect your Facebook and Instagram pages with a couple of clicks from your dashboard.",
+  sms: "Your text number needs a quick registration, the same one every business completes. Miia takes over the moment it clears, usually 1 to 2 days.",
+};
+
 // Total messages (user + assistant) before we force a wrap-up to review,
 // so a rambling or looping interview can't run forever.
 const MAX_TURNS = 40;
+
+// Miia's opening line is scripted, not AI-generated, for product:"miia"
+// tenants specifically - camera-ready wording needs to be identical take
+// after take, not whatever Claude improvises this time. Every other
+// tenant (LabHQ-style, product unset) keeps the existing AI-written
+// opener via app/api/chat's system prompt - unchanged.
+function scriptedOpener(tenant) {
+  if (tenant.product !== "miia") return null;
+  return `Hi, I'm ${tenant.assistantName}. I'm going to be your new front desk. Tell me about your business and I'll take it from there. What's the business called?`;
+}
+
+function timeNow() {
+  return new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+// Never instant, never sluggish: the typing indicator holds for this long
+// even if the API responds faster, and never adds delay on top of a
+// response that's already slower than this.
+function typingDelayMs() {
+  return 600 + Math.random() * 300;
+}
 
 function loadStoredChat(slug) {
   if (typeof window === "undefined") return null;
@@ -86,11 +119,22 @@ export default function Chat({ tenant }) {
     if (stored?.messages?.length) {
       setMessages([
         ...stored.messages,
-        { role: "assistant", content: "Welcome back — picking up where you left off." },
+        { role: "assistant", content: "Welcome back — picking up where you left off.", time: timeNow() },
       ]);
       setAnswers(stored.answers || {});
     } else {
-      send(null); // kick off with Mia's opening message
+      const opener = scriptedOpener(tenant);
+      if (opener) {
+        // Scripted path: no API call, just the same typing-delay choreography
+        // a real reply gets, so it looks identical to everything after it.
+        setBusy(true);
+        setTimeout(() => {
+          setMessages([{ role: "assistant", content: opener, time: timeNow() }]);
+          setBusy(false);
+        }, typingDelayMs());
+      } else {
+        send(null); // non-Miia tenants: AI-generated opener, unchanged
+      }
     }
   }, []);
 
@@ -103,7 +147,7 @@ export default function Chat({ tenant }) {
   async function send(userText) {
     setError(null);
     const nextMessages = userText
-      ? [...messages, { role: "user", content: userText }]
+      ? [...messages, { role: "user", content: userText, time: timeNow() }]
       : messages;
     if (userText) {
       setMessages(nextMessages);
@@ -113,7 +157,7 @@ export default function Chat({ tenant }) {
     if (nextMessages.length >= MAX_TURNS) {
       const wrapUp = [
         ...nextMessages,
-        { role: "assistant", content: "We've covered a lot — let's get you to review with what we've got so far." },
+        { role: "assistant", content: "We've covered a lot — let's get you to review with what we've got so far.", time: timeNow() },
       ];
       setMessages(wrapUp);
       await generateConfig(answers);
@@ -121,6 +165,7 @@ export default function Chat({ tenant }) {
     }
 
     setBusy(true);
+    const requestStart = performance.now();
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -129,7 +174,12 @@ export default function Chat({ tenant }) {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Chat failed");
-      setMessages([...nextMessages, { role: "assistant", content: data.reply }]);
+      // Hold the typing indicator for a natural minimum, without adding
+      // extra wait on top of a response that already took longer than that.
+      const elapsed = performance.now() - requestStart;
+      const remaining = typingDelayMs() - elapsed;
+      if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
+      setMessages([...nextMessages, { role: "assistant", content: data.reply, time: timeNow() }]);
       if (data.answers) setAnswers(data.answers);
       if (data.done) await generateConfig(data.answers || answers);
     } catch (e) {
@@ -237,9 +287,17 @@ export default function Chat({ tenant }) {
           </div>
           <div className="chat" role="log" aria-live="polite">
             {messages.map((m, i) => (
-              <div key={i} className={`bubble ${m.role}`}>{m.content}</div>
+              <div key={i} className={`bubble-group ${m.role}`}>
+                <div className={`bubble ${m.role}`}>{m.content}</div>
+                {m.time && <div className="bubble-time">{m.time}</div>}
+              </div>
             ))}
-            {busy && <div className="bubble assistant typing">{tenant.assistantName} is typing…</div>}
+            {busy && (
+              <div className="typing-dots" aria-label={`${tenant.assistantName} is typing`}>
+                <span />
+                <span />
+              </div>
+            )}
             <div ref={bottomRef} />
           </div>
           {error && <div className="error-note">{error} — try sending that again.</div>}
@@ -347,15 +405,30 @@ export default function Chat({ tenant }) {
       {phase === "done" && deployResult && (
         <section className="success">
           <h2>Your system is deployed.</h2>
-          <p>
-            {answers.business_name || "Your business"} now has its onboarding engine built —
-            CRM, pipelines, follow-up sequences and {tenant.assistantName}, your AI receptionist.
-          </p>
-          <p>
-            The {tenant.name} team will connect your calendar and phone number next, run a test
-            call, and confirm your go-live — usually within one business day.
-          </p>
-          {deployResult.locationId && <div className="loc">system id: {deployResult.locationId}</div>}
+          {tenant.product === "miia" ? (
+            <>
+              <p>
+                {answers.business_name || "Your business"} is live. {tenant.assistantName} is trained on your
+                business and ready to answer every enquiry.
+              </p>
+              <p>
+                Next, we&apos;ll connect your calendar and phone number, run a quick test, and confirm
+                you&apos;re fully live — usually within one business day.
+              </p>
+            </>
+          ) : (
+            <>
+              <p>
+                {answers.business_name || "Your business"} now has its onboarding engine built —
+                CRM, pipelines, follow-up sequences and {tenant.assistantName}, your AI receptionist.
+              </p>
+              <p>
+                The {tenant.name} team will connect your calendar and phone number next, run a test
+                call, and confirm your go-live — usually within one business day.
+              </p>
+            </>
+          )}
+          {isOperator && deployResult.locationId && <div className="loc">system id: {deployResult.locationId}</div>}
           {deployResult.demo && (
             <div className="badge-demo">Demo mode — no live system was created</div>
           )}
@@ -400,46 +473,19 @@ export default function Chat({ tenant }) {
             </div>
           )}
           {deployResult.formEmbed && (
-            <div
-              style={{
-                marginTop: 16,
-                textAlign: "left",
-                background: "var(--surface)",
-                border: "1px solid var(--line)",
-                borderRadius: 12,
-                padding: "16px 18px",
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  color: "var(--accent)",
-                  marginBottom: 8,
-                }}
-              >
-                Website form embed
+            <div className="code-block">
+              <div className="code-block-head">
+                <span className="code-block-title">Website embed</span>
+                <button className="btn ghost" onClick={() => copyText(deployResult.formEmbed.snippet, "embed")}>
+                  {copiedKey === "embed" ? "Copied ✓" : "Copy"}
+                </button>
               </div>
-              <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
-                Send this to whoever manages your website.
-              </p>
-              <pre
-                style={{
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  marginBottom: 14,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-all",
-                  fontFamily: "monospace",
-                  color: "var(--muted)",
-                }}
-              >
-                {deployResult.formEmbed.snippet}
-              </pre>
-              <button className="btn ghost" onClick={() => copyText(deployResult.formEmbed.snippet, "embed")}>
-                {copiedKey === "embed" ? "Copied ✓" : "Copy embed code"}
-              </button>
+              <div className="code-block-body">
+                <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 12 }}>
+                  Send this to whoever manages your website, or paste it in yourself.
+                </p>
+                <pre>{deployResult.formEmbed.snippet}</pre>
+              </div>
             </div>
           )}
           <div
@@ -464,44 +510,55 @@ export default function Chat({ tenant }) {
               Connect the channels
             </div>
             <p style={{ fontSize: 14, color: "var(--muted)", marginBottom: 14 }}>
-              Each channel needs its normal GHL connection before {tenant.assistantName} can answer on it.
+              {tenant.product === "miia"
+                ? `Each channel is a couple of clicks from your dashboard before ${tenant.assistantName} can answer on it.`
+                : `Each channel needs its normal GHL connection before ${tenant.assistantName} can answer on it.`}
             </p>
             {CHANNEL_WIRING.map((c) => (
-              <div key={c.id} style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{c.label}</div>
-                <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4, lineHeight: 1.5 }}>
-                  {c.detail}
+              <div key={c.id} className="channel-row">
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 2 }}>{c.label}</div>
+                  <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 4, lineHeight: 1.5 }}>
+                    {tenant.product === "miia" ? MIIA_CHANNEL_COPY[c.id] || c.detail : c.detail}
+                  </div>
+                  {tenant.product !== "miia" && (
+                    <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--muted)" }}>{c.path}</div>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, fontFamily: "monospace", color: "var(--muted)" }}>{c.path}</div>
+                {tenant.product === "miia" && <span className="channel-state not-started">Not started</span>}
               </div>
             ))}
-            <button
-              className="btn ghost"
-              onClick={() =>
-                copyText(CHANNEL_WIRING.map((c) => `${c.label}: ${c.path}`).join("\n"), "channels")
-              }
-            >
-              {copiedKey === "channels" ? "Copied ✓" : "Copy connection steps"}
-            </button>
+            {tenant.product !== "miia" && (
+              <button
+                className="btn ghost"
+                onClick={() =>
+                  copyText(CHANNEL_WIRING.map((c) => `${c.label}: ${c.path}`).join("\n"), "channels")
+                }
+              >
+                {copiedKey === "channels" ? "Copied ✓" : "Copy connection steps"}
+              </button>
+            )}
           </div>
-          <details className="checklist">
-            <summary>Go-live checklist</summary>
-            <ol>
-              <li>Assign the client as a calendar staff member.</li>
-              <li>Connect their Google or Outlook calendar.</li>
-              <li>Tune calendar availability — days ahead, buffers, slot length.</li>
-              <li>Attach or forward their phone number.</li>
-              <li>
-                Swap {tenant.assistantName}&apos;s transfer number to{" "}
-                {config?.escalation_contact || "the client's escalation contact"}.
-              </li>
-              <li>Connect Facebook Lead Ads, if they use it.</li>
-              <li>
-                Run the four-question test call: are you a robot? a known FAQ? an unknown
-                question? ask for a human?
-              </li>
-            </ol>
-          </details>
+          {isOperator && (
+            <details className="checklist">
+              <summary>Go-live checklist</summary>
+              <ol>
+                <li>Assign the client as a calendar staff member.</li>
+                <li>Connect their Google or Outlook calendar.</li>
+                <li>Tune calendar availability — days ahead, buffers, slot length.</li>
+                <li>Attach or forward their phone number.</li>
+                <li>
+                  Swap {tenant.assistantName}&apos;s transfer number to{" "}
+                  {config?.escalation_contact || "the client's escalation contact"}.
+                </li>
+                <li>Connect Facebook Lead Ads, if they use it.</li>
+                <li>
+                  Run the four-question test call: are you a robot? a known FAQ? an unknown
+                  question? ask for a human?
+                </li>
+              </ol>
+            </details>
+          )}
           {isOperator && (
             <div style={{ marginTop: 24, fontSize: 12, color: "var(--muted)" }}>
               <a href={`/${tenant.slug}/missioncontrol`}>Mission Control →</a>
