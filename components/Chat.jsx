@@ -2,12 +2,16 @@
 import { useEffect, useRef, useState } from "react";
 import { CHANNEL_WIRING } from "@/lib/channelWiring";
 
-const LAUNCH_STEPS = [
-  "Generating your configuration",
-  "Creating your system from the Lab HQ blueprint",
-  "Personalising Mia, your AI receptionist",
-  "Activating pipelines and follow-up sequences",
-];
+// "Lab HQ blueprint" is deliberately generic here (not brand-specific) so
+// it reads correctly regardless of which product a tenant is under.
+function launchSteps(assistantName) {
+  return [
+    "Generating your configuration",
+    "Creating your system from your blueprint",
+    `Personalising ${assistantName}, your AI receptionist`,
+    "Activating pipelines and follow-up sequences",
+  ];
+}
 
 // Required for Australian compliance, shown separately on the review screen.
 const COMPLIANCE_KEYS = ["greeting_line", "sms_compliance_footer", "privacy_policy_snippet"];
@@ -45,6 +49,7 @@ function clearStoredChat(slug) {
 }
 
 export default function Chat({ tenant }) {
+  const LAUNCH_STEPS = launchSteps(tenant.assistantName);
   const [messages, setMessages] = useState([]);
   const [answers, setAnswers] = useState({});
   const [input, setInput] = useState("");
@@ -218,9 +223,11 @@ export default function Chat({ tenant }) {
         <div className="brand">
           {tenant.logoUrl ? <img src={tenant.logoUrl} alt={tenant.name} /> : tenant.logoText}
         </div>
-        <div className="powered">
-          powered by <b>Launchpad</b>
-        </div>
+        {tenant.product !== "miia" && (
+          <div className="powered">
+            powered by <b>Launchpad</b>
+          </div>
+        )}
       </header>
 
       {phase === "chat" && (

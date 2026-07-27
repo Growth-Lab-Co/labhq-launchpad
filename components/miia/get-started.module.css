@@ -46,5 +46,6 @@
 .pickSub { font-size: 15px; color: var(--miia-ink-soft); }
 
 .ctaBlock { text-align: center; padding: 64px 0 24px; }
+.ctaError { margin-top: 14px; font-size: 14px; color: var(--danger, #b42318); }
 .ctaNote { margin-top: 20px; font-size: 15px; color: var(--miia-ink-soft); }
 .ctaGuarantee { margin-top: 8px; font-size: 13.5px; color: var(--miia-ink-faint); }

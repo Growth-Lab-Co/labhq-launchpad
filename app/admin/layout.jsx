@@ -8,6 +8,7 @@ import s from "./admin.module.css";
 
 const NAV = [
   { label: "Tenants", path: "/admin" },
+  { label: "Miia signups", path: "/admin/miia-signups" },
   { label: "Invite codes", path: "/admin/invites" },
   { label: "Claim links", path: "/admin/claims" },
   { label: "Password resets", path: "/admin/resets" },

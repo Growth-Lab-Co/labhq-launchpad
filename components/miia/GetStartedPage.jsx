@@ -21,6 +21,28 @@ export function GetStartedPage() {
   const queryPlan = searchParams.get("plan");
   const initial = getPlan(queryPlan) ? queryPlan : DEFAULT_PLAN;
   const [selectedId, setSelectedId] = useState(initial);
+  const [yearly, setYearly] = useState(searchParams.get("billing") === "yearly");
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function startCheckout() {
+    if (checkingOut) return;
+    setCheckingOut(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/miia/checkout", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ plan: selectedId, billingPeriod: yearly ? "yearly" : "monthly" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error || "Couldn't start checkout.");
+      window.location.href = data.url;
+    } catch (e) {
+      setError(e.message);
+      setCheckingOut(false);
+    }
+  }
 
   return (
     <div className={styles.page}>
@@ -46,12 +68,15 @@ export function GetStartedPage() {
         </Reveal>
 
         <Reveal delay={80}>
-          <PricingCards selectedId={selectedId} onSelect={setSelectedId} />
+          <PricingCards selectedId={selectedId} onSelect={setSelectedId} yearly={yearly} onYearlyChange={setYearly} />
         </Reveal>
 
         <div className={styles.ctaBlock}>
           <Reveal>
-            <Button href={`/start?plan=${selectedId}`}>Start my 10 minute chat</Button>
+            <Button onClick={startCheckout} disabled={checkingOut}>
+              {checkingOut ? "Taking you to checkout…" : "Start my 10 minute chat"}
+            </Button>
+            {error && <p className={styles.ctaError}>{error}</p>}
             <p className={styles.ctaNote}>48 hours from now, she&apos;s answering.</p>
             <p className={styles.ctaGuarantee}>Better than voicemail in 30 days or that month is refunded.</p>
           </Reveal>

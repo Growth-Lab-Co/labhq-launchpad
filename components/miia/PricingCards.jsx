@@ -11,6 +11,21 @@ function useReducedMotion() {
   return reduced;
 }
 
+// Defaults to true (founding currently on) so there's no flash of "wrong"
+// pricing while the request is in flight - matches the value MIIA_FOUNDING_MODE
+// actually has today. Once the real value loads, if it's false the founding
+// price/strike-through disappears.
+export function useFoundingMode() {
+  const [founding, setFounding] = useState(true);
+  useEffect(() => {
+    fetch("/api/miia/config")
+      .then((r) => r.json())
+      .then((d) => setFounding(Boolean(d.foundingMode)))
+      .catch(() => {});
+  }, []);
+  return founding;
+}
+
 function useRollingNumber(value) {
   const [display, setDisplay] = useState(value);
   const fromRef = useRef(value);
@@ -44,50 +59,70 @@ function useRollingNumber(value) {
   return Math.round(display);
 }
 
-export function PricingToggle({ yearly, onChange }) {
+export function PricingToggle({ yearly, onChange, foundingMode }) {
   return (
     <div className={styles.toggleWrap}>
-      <span className={!yearly ? styles.toggleLabelActive : styles.toggleLabel}>Monthly</span>
-      <button
-        type="button"
-        className={styles.toggle}
-        role="switch"
-        aria-checked={yearly}
-        onClick={() => onChange(!yearly)}
-      >
-        <span className={[styles.toggleKnob, yearly ? styles.toggleKnobYearly : ""].join(" ")} />
-      </button>
-      <span className={yearly ? styles.toggleLabelActive : styles.toggleLabel}>
-        Yearly <span className={styles.toggleBadge}>2 months free</span>
-      </span>
+      <div className={styles.toggleRowInner}>
+        <span className={!yearly ? styles.toggleLabelActive : styles.toggleLabel}>Monthly</span>
+        <button
+          type="button"
+          className={styles.toggle}
+          role="switch"
+          aria-checked={yearly}
+          onClick={() => onChange(!yearly)}
+        >
+          <span className={[styles.toggleKnob, yearly ? styles.toggleKnobYearly : ""].join(" ")} />
+        </button>
+        <span className={yearly ? styles.toggleLabelActive : styles.toggleLabel}>
+          Yearly <span className={styles.toggleBadge}>2 months free</span>
+        </span>
+      </div>
+      {foundingMode && <p className={styles.toggleNote}>Founding pricing is monthly only. Yearly uses standard pricing.</p>}
     </div>
   );
 }
 
-function PriceTag({ plan, yearly }) {
-  const founding = yearly ? yearlyPerMonth(plan.foundingPrice) : plan.foundingPrice;
+// Yearly is always the standard price (no founding-yearly price exists).
+// Monthly shows founding-with-strikethrough only while founding mode is on.
+function PriceTag({ plan, yearly, foundingMode }) {
+  const showFounding = foundingMode && !yearly;
   const standard = yearly ? yearlyPerMonth(plan.price) : plan.price;
-  const foundingDisplay = useRollingNumber(founding);
+  const founding = yearly ? standard : plan.foundingPrice;
   const standardDisplay = useRollingNumber(standard);
+  const foundingDisplay = useRollingNumber(founding);
+
+  if (!showFounding) {
+    return (
+      <div className={styles.priceRow}>
+        <span className={styles.priceFounding}>
+          ${standardDisplay}
+          <span className={styles.pricePer}>/mo{yearly ? ", billed yearly" : ""}</span>
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.priceRow}>
       <span className={styles.priceStandard}>${standardDisplay}</span>
       <span className={styles.priceFounding}>
         ${foundingDisplay}
-        <span className={styles.pricePer}>/mo{yearly ? ", billed yearly" : ""}</span>
+        <span className={styles.pricePer}>/mo</span>
       </span>
     </div>
   );
 }
 
-export function PricingCards({ selectedId, onSelect, showCta = true }) {
-  const [yearly, setYearly] = useState(false);
+export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yearlyProp, onYearlyChange }) {
+  const [yearlyState, setYearlyState] = useState(false);
+  const yearly = yearlyProp !== undefined ? yearlyProp : yearlyState;
+  const setYearly = onYearlyChange || setYearlyState;
+  const foundingMode = useFoundingMode();
 
   return (
     <div>
       <div className={styles.toggleRow}>
-        <PricingToggle yearly={yearly} onChange={setYearly} />
+        <PricingToggle yearly={yearly} onChange={setYearly} foundingMode={foundingMode} />
       </div>
 
       <div className={styles.grid}>
@@ -110,7 +145,7 @@ export function PricingCards({ selectedId, onSelect, showCta = true }) {
               <h3 className={styles.name}>{plan.name}</h3>
               <p className={styles.tagline}>{plan.tagline}</p>
 
-              <PriceTag plan={plan} yearly={yearly} />
+              <PriceTag plan={plan} yearly={yearly} foundingMode={foundingMode} />
 
               <ul className={styles.features}>
                 {plan.features.map((f) => (
@@ -123,7 +158,7 @@ export function PricingCards({ selectedId, onSelect, showCta = true }) {
 
               {!selectable && showCta && (
                 <Button
-                  href={`/get-started?plan=${plan.id}`}
+                  href={`/get-started?plan=${plan.id}${yearly ? "&billing=yearly" : ""}`}
                   variant={plan.popular ? "primary" : "outline"}
                   className={styles.cta}
                 >
