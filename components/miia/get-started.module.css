@@ -1,4 +1,4 @@
-.page { padding-bottom: 40px; }
+.page { padding-bottom: 40px; overflow-x: clip; }
 .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
 
 .intro { padding: 72px 0 56px; text-align: center; max-width: 640px; margin: 0 auto; }
@@ -7,15 +7,15 @@
 
 .stepsRow {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
   margin-bottom: 80px;
 }
 @media (max-width: 860px) {
-  .stepsRow { grid-template-columns: 1fr 1fr; }
+  .stepsRow { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
 @media (max-width: 520px) {
-  .stepsRow { grid-template-columns: 1fr; }
+  .stepsRow { grid-template-columns: minmax(0, 1fr); }
 }
 
 .stepCard {

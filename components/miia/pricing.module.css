@@ -1,4 +1,4 @@
-.page { padding-bottom: 40px; }
+.page { padding-bottom: 40px; overflow-x: clip; }
 .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
 
 .intro { padding: 72px 0 32px; text-align: center; max-width: 680px; margin: 0 auto; }

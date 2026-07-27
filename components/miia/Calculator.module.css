@@ -10,13 +10,13 @@
 
 .fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 32px;
   margin-bottom: 32px;
 }
 
 @media (max-width: 700px) {
-  .fields { grid-template-columns: 1fr; gap: 28px; }
+  .fields { grid-template-columns: minmax(0, 1fr); gap: 28px; }
 }
 
 .field { display: flex; flex-direction: column; gap: 12px; }
@@ -93,11 +93,11 @@
 
 .results {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 16px;
   margin-bottom: 20px;
 }
-@media (max-width: 480px) { .results { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .results { grid-template-columns: minmax(0, 1fr); } }
 
 .resultBox {
   background: var(--miia-accent-tint);

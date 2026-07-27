@@ -24,13 +24,13 @@
 
 .heroGrid {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: 1.15fr minmax(0, 1fr);
   gap: 56px;
   align-items: center;
   margin-bottom: 72px;
 }
 @media (max-width: 900px) {
-  .heroGrid { grid-template-columns: 1fr; gap: 40px; }
+  .heroGrid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
 }
 
 .heroCopy { max-width: 620px; }
@@ -47,13 +47,13 @@
 
 .statsRow {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 32px;
   padding-top: 56px;
   border-top: 1px solid var(--miia-line);
 }
 @media (max-width: 700px) {
-  .statsRow { grid-template-columns: 1fr; gap: 28px; text-align: center; }
+  .statsRow { grid-template-columns: minmax(0, 1fr); gap: 28px; text-align: center; }
 }
 
 .statNumber {
@@ -76,10 +76,10 @@
 
 .whoForGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px;
 }
-@media (max-width: 860px) { .whoForGrid { grid-template-columns: 1fr; } }
+@media (max-width: 860px) { .whoForGrid { grid-template-columns: minmax(0, 1fr); } }
 
 .whoForCard {
   background: var(--miia-accent-tint);
