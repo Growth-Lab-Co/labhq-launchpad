@@ -87,7 +87,7 @@ export default function Chat({ tenant }) {
   const [answers, setAnswers] = useState({});
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [phase, setPhase] = useState("chat"); // chat | review | deploying | done
+  const [phase, setPhase] = useState(tenant.deployedAt ? "locked" : "chat"); // locked | chat | review | deploying | done
   const [config, setConfig] = useState(null);
   const [deployResult, setDeployResult] = useState(null);
   const [launchStep, setLaunchStep] = useState(0);
@@ -113,7 +113,7 @@ export default function Chat({ tenant }) {
   }, []);
 
   useEffect(() => {
-    if (startedRef.current) return;
+    if (startedRef.current || tenant.deployedAt) return;
     startedRef.current = true;
     const stored = loadStoredChat(tenant.slug);
     if (stored?.messages?.length) {
@@ -279,6 +279,19 @@ export default function Chat({ tenant }) {
           </div>
         )}
       </header>
+
+      {phase === "locked" && (
+        <section className="success">
+          <h2>This business is already set up.</h2>
+          <p>
+            {tenant.name || "This business"}&apos;s system has already been deployed. If something needs to
+            change, reach out and we&apos;ll sort it.
+          </p>
+          <p>
+            <a href="mailto:hello@growthlabco.com.au">hello@growthlabco.com.au</a>
+          </p>
+        </section>
+      )}
 
       {phase === "chat" && (
         <>

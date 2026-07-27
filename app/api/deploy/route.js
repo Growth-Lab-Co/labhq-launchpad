@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
-import { getTenant, ghlCredsFor } from "@/lib/tenants";
+import { getTenant, ghlCredsFor, markTenantDeployed } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
 import { buildHardGuardrails } from "@/lib/guardrails";
 import {
@@ -40,6 +40,19 @@ function claimDeployLock(sessionId) {
   }
   deployLocks.set(sessionId, { status: "in-progress", ts: Date.now() });
   return { ok: true };
+}
+
+// Persists the one-deploy-per-tenant lock for product:"miia" tenants only -
+// see the comment on markTenantDeployed in lib/tenants.js for why this must
+// never run for agency-style tenants. Best-effort: a Blobs hiccup here must
+// not turn an otherwise-successful deploy into a failure for the customer.
+async function lockDeployedTenant(tenant, slug) {
+  if (tenant.product !== "miia") return;
+  try {
+    await markTenantDeployed(slug);
+  } catch (e) {
+    console.error(`[DEPLOY-LOCK-FAIL] tenant=${slug}`, e.message);
+  }
 }
 
 export async function POST(req) {
@@ -100,6 +113,18 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
     if (action === "deploy") {
       if (!customValues) return NextResponse.json({ error: "Missing customValues" }, { status: 400 });
 
+      // One deploy per tenant, for life, for product:"miia" - each slug is a
+      // single business that already paid via Stripe, not a reusable agency
+      // portal. Closes off an unauthenticated stranger re-running the
+      // interview and creating another real GHL sub-account for free against
+      // someone else's paid signup.
+      if (tenant.product === "miia" && tenant.deployedAt) {
+        return NextResponse.json(
+          { error: "This business is already set up. Contact hello@growthlabco.com.au if you need changes." },
+          { status: 409 }
+        );
+      }
+
       const lock = claimDeployLock(sessionId);
       if (!lock.ok) return NextResponse.json({ error: lock.message }, { status: 409 });
 
@@ -113,6 +138,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         if (!configured) {
           await new Promise((r) => setTimeout(r, 4000));
           if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+          await lockDeployedTenant(tenant, slug);
           const demoLocationId = "demo-" + Math.random().toString(36).slice(2, 8);
           const demoBusinessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
           const demoRecord = await recordDeployment({
@@ -220,6 +246,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         }
 
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+        await lockDeployedTenant(tenant, slug);
 
         const deployRecord = await recordDeployment({
           tenant: slug,

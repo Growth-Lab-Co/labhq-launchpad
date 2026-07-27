@@ -25,6 +25,7 @@ export default async function TenantPage({ params }) {
     accent: tenant.accent,
     welcome: tenant.welcome,
     product: tenant.product || null,
+    deployedAt: tenant.deployedAt || null,
   };
 
   return <Chat tenant={publicTenant} />;

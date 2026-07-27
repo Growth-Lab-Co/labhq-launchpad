@@ -39,6 +39,16 @@ export async function POST(req) {
     const tenant = await getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
+    // Once a product:"miia" tenant has deployed, its intake is locked (see
+    // lib/tenants.js markTenantDeployed) - don't let a stranger who found
+    // the URL run up paid Claude calls re-interviewing an already-live
+    // business. app/[tenant]/page.jsx already keeps the chat UI from
+    // starting in this case; this is the server-side backstop for anyone
+    // hitting the API directly.
+    if (tenant.product === "miia" && tenant.deployedAt) {
+      return NextResponse.json({ error: "This business is already set up." }, { status: 409 });
+    }
+
     const remaining = INTERVIEW_FIELDS.filter((f) => !answers[f.field]);
     const fieldList = INTERVIEW_FIELDS.map(
       (f) => `- ${f.field}: ${f.ask}${answers[f.field] ? " [CAPTURED]" : ""}`
