@@ -49,12 +49,23 @@ export async function POST(req) {
       return NextResponse.json({ error: "This business is already set up." }, { status: 409 });
     }
 
-    const remaining = INTERVIEW_FIELDS.filter((f) => !answers[f.field]);
+    // Miia direct-customer tenants only - agency onboarding has no "plan"
+    // concept (lib/tenants.js's plan field is always null for them, so this
+    // condition is never true and their interview is untouched). A
+    // non-voice plan (Chat/Everywhere) skips outbound_calls entirely - it
+    // only makes sense once phone/voice is actually on the table (Miia
+    // Complete).
+    const isNonVoiceMiiaPlan = tenant.product === "miia" && tenant.plan && tenant.plan !== "complete";
+    const activeFields = isNonVoiceMiiaPlan
+      ? INTERVIEW_FIELDS.filter((f) => f.field !== "outbound_calls")
+      : INTERVIEW_FIELDS;
+
+    const remaining = activeFields.filter((f) => !answers[f.field]);
     // {{assistant}} in each field's "ask" hint substitutes to this tenant's
     // real assistant name (Mia for growthlab/obm, Miia for direct
     // customers) - see lib/questions.js's own comment on why it's not
     // hardcoded there.
-    const fieldList = INTERVIEW_FIELDS.map(
+    const fieldList = activeFields.map(
       (f) => `- ${f.field}: ${f.ask.replaceAll("{{assistant}}", tenant.assistantName)}${answers[f.field] ? " [CAPTURED]" : ""}`
     ).join("\n");
 
@@ -69,10 +80,22 @@ Rules:
 - Every reply is 2 to 4 sentences, never a wall of text. End every reply either by asking the next question, or (on the final turn) telling them plainly what happens next.
 - When the user answers, capture it. If an answer clearly covers MULTIPLE fields, capture all of them.
 - If an answer is too vague to configure a system from, ask one brief follow-up for that same field, then move on.
-- Never re-ask captured fields. Never mention field names, JSON, or "the system prompt".
-- Special rule for outbound_calls: if their answer indicates ${tenant.assistantName} will make OUTBOUND calls (not inbound-only), your reply for that turn must also plainly state: "Outbound telemarketing calls in Australia must be washed against the Do Not Call Register, and are restricted to 9am–8pm weekdays and 9am–5pm Saturdays — never Sundays or public holidays. ${tenant.name} will confirm Do Not Call Register washing is set up before outbound calling is switched on." Then continue to the next question.
+- Never re-ask captured fields. Never mention field names, JSON, or "the system prompt".${
+      isNonVoiceMiiaPlan
+        ? ` This business is on a chat-only plan (no phone/voice) - frame every mention of how ${tenant.assistantName} reaches customers around website chat, DMs and SMS, never phone calls.`
+        : ""
+    }
+${
+      isNonVoiceMiiaPlan
+        ? ""
+        : `- Special rule for outbound_calls: if their answer indicates ${tenant.assistantName} will make OUTBOUND calls (not inbound-only), your reply for that turn must also plainly state: "Outbound telemarketing calls in Australia must be washed against the Do Not Call Register, and are restricted to 9am–8pm weekdays and 9am–5pm Saturdays — never Sundays or public holidays. ${tenant.name} will confirm Do Not Call Register washing is set up before outbound calling is switched on." Then continue to the next question.\n`
+    }
 - If this is the very start (no messages yet), give a 2-sentence welcome explaining this takes about 10 minutes and their system will be built from their answers, then ask the first question.
-- When ALL fields are captured, set done=true and your reply should tell them you've got everything and their setup summary is coming up for review.
+- When ALL fields are captured, set done=true and your reply should tell them you've got everything and their setup summary is coming up for review.${
+      isNonVoiceMiiaPlan
+        ? ` On that final turn only, after the review-is-coming line, add this exact sentence: "If you ever want ${tenant.assistantName} answering your phone too, that's the Everything plan, just say the word."`
+        : ""
+    }
 
 Respond ONLY with a JSON object, no other text before or after it, no preamble, no markdown fences:
 {"reply": "<your conversational message>", "captured": {"field_name": "value", ...} or {}, "done": true|false}`;
@@ -110,7 +133,7 @@ Respond ONLY with a JSON object, no other text before or after it, no preamble, 
     }
 
     const merged = { ...answers, ...(parsed.captured || {}) };
-    const allDone = INTERVIEW_FIELDS.every((f) => merged[f.field]);
+    const allDone = activeFields.every((f) => merged[f.field]);
 
     return NextResponse.json({
       reply: parsed.reply || "Sorry, could you say that again?",
