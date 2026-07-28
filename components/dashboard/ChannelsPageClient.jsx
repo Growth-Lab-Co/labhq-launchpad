@@ -1,6 +1,6 @@
 "use client";
-import { useState } from "react";
-import { MessageCircle, Smartphone, AtSign, Phone, Check } from "lucide-react";
+import { useEffect, useState } from "react";
+import { MessageCircle, Smartphone, AtSign, Phone, Check, Mail } from "lucide-react";
 import { MIIA_CHANNEL_COPY } from "@/lib/channelWiring";
 import styles from "./ChannelsPageClient.module.css";
 
@@ -18,64 +18,81 @@ function pillLabel(status) {
   return "Not started";
 }
 
-function EmbedSnippet({ tenantSlug }) {
-  const [embed, setEmbed] = useState(undefined); // undefined = not fetched, null = none available
-  const [copied, setCopied] = useState(false);
-  const [loading, setLoading] = useState(false);
+function mailtoHref(businessName, snippet) {
+  const subject = `Add our Miia chat widget to the website`;
+  const body = [
+    "Hi,",
+    "",
+    `Could you add this chat widget to ${businessName || "our"} website? It lets Miia (our AI front desk) answer visitors right on the site.`,
+    "",
+    "Paste this snippet right before the closing </body> tag, on every page you'd like it to appear:",
+    "",
+    snippet,
+    "",
+    "Thanks!",
+  ].join("\n");
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
 
-  async function fetchEmbed() {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/miia/dashboard/embed-snippet?tenantSlug=${encodeURIComponent(tenantSlug)}`);
-      const data = await res.json();
-      setEmbed(data.embed || null);
-    } catch {
-      setEmbed(null);
-    } finally {
-      setLoading(false);
-    }
-  }
+// Always shows a real, working snippet once deployed - never an empty card
+// (see lib/channelWiring.js websiteChatEmbedSnippet for why this can be
+// generated deterministically, no GHL call needed). Fetches automatically
+// so there's nothing for the customer to click to reveal it.
+function EmbedSnippet({ tenantSlug, businessName }) {
+  const [embed, setEmbed] = useState(undefined); // undefined = loading, null = not deployed yet
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/miia/dashboard/embed-snippet?tenantSlug=${encodeURIComponent(tenantSlug)}`)
+      .then((res) => res.json())
+      .then((data) => { if (!cancelled) setEmbed(data.embed || null); })
+      .catch(() => { if (!cancelled) setEmbed(null); });
+    return () => { cancelled = true; };
+  }, [tenantSlug]);
 
   if (embed === undefined) {
-    return (
-      <div className={styles.actions}>
-        <button type="button" className={styles.connectBtn} onClick={fetchEmbed} disabled={loading}>
-          {loading ? "Getting your code" : "Get embed code"}
-        </button>
-      </div>
-    );
+    return <p className={styles.detail} style={{ marginTop: 10 }}>Getting your embed code…</p>;
   }
   if (!embed) {
-    return <p className={styles.detail} style={{ marginTop: 10 }}>Couldn&apos;t find a website form for this yet. Reach out and we&apos;ll sort it.</p>;
+    return <p className={styles.detail} style={{ marginTop: 10 }}>Your embed code will appear here once setup finishes.</p>;
   }
   return (
     <div className={styles.codeBlock}>
       <div className={styles.codeHead}>
-        <span className={styles.codeTitle}>Website embed</span>
-        <button
-          type="button"
-          className={styles.connectBtn}
-          onClick={() => {
-            navigator.clipboard?.writeText(embed.snippet);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 2000);
-          }}
-        >
-          {copied ? (
-            <>
-              <Check size={14} /> Copied
-            </>
-          ) : (
-            "Copy"
-          )}
-        </button>
+        <span className={styles.codeTitle}>Website chat widget</span>
+        <div className={styles.codeHeadActions}>
+          <a
+            className={styles.connectBtn}
+            href={mailtoHref(businessName, embed.snippet)}
+          >
+            <Mail size={14} /> Email this to my web person
+          </a>
+          <button
+            type="button"
+            className={styles.connectBtn}
+            onClick={() => {
+              navigator.clipboard?.writeText(embed.snippet);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? (
+              <>
+                <Check size={14} /> Copied
+              </>
+            ) : (
+              "Copy"
+            )}
+          </button>
+        </div>
       </div>
       <pre className={styles.pre}>{embed.snippet}</pre>
     </div>
   );
 }
 
-export function ChannelsPageClient({ tenantSlug, channels }) {
+export function ChannelsPageClient({ tenantSlug, channels, businessName }) {
   return (
     <>
       <h1 className={styles.heading}>Channels</h1>
@@ -103,7 +120,7 @@ export function ChannelsPageClient({ tenantSlug, channels }) {
                 </span>
               </div>
 
-              {!live && c.id === "webchat" && <EmbedSnippet tenantSlug={tenantSlug} />}
+              {c.id === "webchat" && <EmbedSnippet tenantSlug={tenantSlug} businessName={businessName} />}
             </div>
           );
         })}

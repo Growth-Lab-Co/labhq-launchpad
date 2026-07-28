@@ -10,6 +10,7 @@ export default async function ChannelsPage({ params }) {
   const deployment = deployments[0] || null;
   const signup = await getSignupByTenantSlug(params.tenant).catch(() => null);
   const { channels } = await getChannelsData(tenant, deployment, signup);
+  const businessName = deployment?.businessName || tenant.name;
 
-  return <ChannelsPageClient tenantSlug={params.tenant} channels={channels} />;
+  return <ChannelsPageClient tenantSlug={params.tenant} channels={channels} businessName={businessName} />;
 }

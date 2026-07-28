@@ -27,6 +27,7 @@
   display: inline-flex;
   min-height: 40px;
   align-items: center;
+  gap: 6px;
   padding: 0 16px;
   border-radius: 10px;
   border: 1px solid var(--dash-border);
@@ -34,6 +35,8 @@
   color: var(--dash-ink);
   font-size: 13.5px;
   font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
 }
 .connectBtn:hover { border-color: var(--dash-violet); color: var(--dash-violet); }
 
@@ -44,6 +47,7 @@
   background: var(--dash-canvas);
   padding: 14px;
 }
-.codeHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.codeHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.codeHeadActions { display: flex; align-items: center; gap: 8px; }
 .codeTitle { font-size: 12.5px; font-weight: 600; color: var(--dash-secondary); }
 .pre { font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; color: var(--dash-ink); max-height: 160px; overflow-y: auto; }
