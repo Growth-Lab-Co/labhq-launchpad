@@ -100,6 +100,19 @@ export default function Chat({ tenant }) {
     setIsOperator(new URLSearchParams(window.location.search).get("operator") === "1");
   }, []);
 
+  // Miia direct-customer tenants: the old detailed success screen (compliance
+  // pack, channel checklist, go-live steps) is now redundant with the
+  // dashboard's own Channels/Billing pages, so it's agency-only below. This
+  // is a brief (~4s) transitional moment before auto-continuing into the
+  // dashboard - the "Go to your dashboard" button lets them skip the wait.
+  useEffect(() => {
+    if (phase !== "done" || tenant.product !== "miia") return;
+    const t = setTimeout(() => {
+      window.location.href = `/${tenant.slug}`;
+    }, 4000);
+    return () => clearTimeout(t);
+  }, [phase, tenant.product, tenant.slug]);
+
   useEffect(() => {
     if (startedRef.current || tenant.deployedAt) return;
     startedRef.current = true;
@@ -403,32 +416,29 @@ export default function Chat({ tenant }) {
         </section>
       )}
 
-      {phase === "done" && deployResult && (
+      {phase === "done" && deployResult && tenant.product === "miia" && (
         <section className="success">
           <h2>Your system is deployed.</h2>
-          {tenant.product === "miia" ? (
-            <>
-              <p>
-                {answers.business_name || "Your business"} is live. {tenant.assistantName} is trained on your
-                business and ready to answer every enquiry.
-              </p>
-              <p>
-                Next, we&apos;ll connect your calendar and phone number, run a quick test, and confirm
-                you&apos;re fully live — usually within one business day.
-              </p>
-            </>
-          ) : (
-            <>
-              <p>
-                {answers.business_name || "Your business"} now has its onboarding engine built —
-                CRM, pipelines, follow-up sequences and {tenant.assistantName}, your AI receptionist.
-              </p>
-              <p>
-                The {tenant.name} team will connect your calendar and phone number next, run a test
-                call, and confirm your go-live — usually within one business day.
-              </p>
-            </>
-          )}
+          <p>
+            {answers.business_name || "Your business"} is live. {tenant.assistantName} is trained on your
+            business and ready to answer every enquiry.
+          </p>
+          <p>Taking you to your dashboard…</p>
+          <a className="btn" href={`/${tenant.slug}`}>Go to your dashboard</a>
+        </section>
+      )}
+
+      {phase === "done" && deployResult && tenant.product !== "miia" && (
+        <section className="success">
+          <h2>Your system is deployed.</h2>
+          <p>
+            {answers.business_name || "Your business"} now has its onboarding engine built —
+            CRM, pipelines, follow-up sequences and {tenant.assistantName}, your AI receptionist.
+          </p>
+          <p>
+            The {tenant.name} team will connect your calendar and phone number next, run a test
+            call, and confirm your go-live — usually within one business day.
+          </p>
           {isOperator && deployResult.locationId && <div className="loc">system id: {deployResult.locationId}</div>}
           {deployResult.demo && (
             <div className="badge-demo">Demo mode — no live system was created</div>
