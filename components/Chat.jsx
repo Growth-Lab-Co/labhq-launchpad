@@ -16,6 +16,14 @@ function launchSteps(assistantName) {
 // Required for Australian compliance, shown separately on the review screen.
 const COMPLIANCE_KEYS = ["greeting_line", "sms_compliance_footer", "privacy_policy_snippet"];
 
+// mia_guardrails is shared with the GHL snapshot's {{ custom_values.mia_guardrails }}
+// template reference, so the key itself can't be renamed - but its label on
+// this customer-facing review screen still needs to read "Miia".
+const FIELD_LABEL_OVERRIDES = { mia_guardrails: "Miia guardrails" };
+function fieldLabel(key) {
+  return FIELD_LABEL_OVERRIDES[key] || key.replaceAll("_", " ");
+}
+
 // Total messages (user + assistant) before we force a wrap-up to review,
 // so a rambling or looping interview can't run forever.
 const MAX_TURNS = 40;
@@ -360,7 +368,7 @@ export default function Chat({ tenant }) {
             </p>
             {COMPLIANCE_KEYS.map((key) => (
               <div className="cv-item" key={key}>
-                <label htmlFor={`cv-${key}`}>{key.replaceAll("_", " ")}</label>
+                <label htmlFor={`cv-${key}`}>{fieldLabel(key)}</label>
                 <textarea
                   id={`cv-${key}`}
                   value={config[key] ?? ""}
@@ -376,7 +384,7 @@ export default function Chat({ tenant }) {
               .filter(([key]) => !COMPLIANCE_KEYS.includes(key))
               .map(([key, value]) => (
                 <div className="cv-item" key={key}>
-                  <label htmlFor={`cv-${key}`}>{key.replaceAll("_", " ")}</label>
+                  <label htmlFor={`cv-${key}`}>{fieldLabel(key)}</label>
                   <textarea
                     id={`cv-${key}`}
                     value={value}
