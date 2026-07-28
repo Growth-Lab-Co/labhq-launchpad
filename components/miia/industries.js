@@ -6,6 +6,7 @@ export const INDUSTRIES = [
     slug: "tradies",
     path: "/miia-for-tradies",
     name: "Tradies",
+    audienceSingular: "trade",
     cardBody:
       "The 7pm burst pipe or the Sunday call out. Miia qualifies the job and locks in a time while you're still under the house.",
     heroSub:
@@ -53,59 +54,22 @@ export const INDUSTRIES = [
       "Miia is the AI front desk for trade businesses. She answers calls and messages, quotes callouts and books jobs in your calendar, day and night.",
   },
   {
+    // Beachhead vertical - hand-written page at /allied-health, not the
+    // shared IndustryPage template. Kept here only for cross-linking: the
+    // home page's "who's this for" grid and the other five vertical pages'
+    // "Miia for other industries" grid both read name/path/cardBody for
+    // every industry uniformly.
     slug: "allied-health",
-    path: "/miia-for-allied-health",
+    path: "/allied-health",
     name: "Allied Health & Clinics",
     cardBody:
       "New patient enquiries answered the moment they land, booked straight into the gaps in your calendar, no receptionist required after hours.",
-    heroSub:
-      "New patient enquiries answered the second they land, booked into the actual gaps in your calendar, so your front desk is never the reason a patient goes elsewhere.",
-    painPoints: [
-      {
-        heading: "New patients enquire after hours",
-        body: "Most people search for a physio or dentist at night or on a lunch break. Miia is there when your reception isn't.",
-      },
-      {
-        heading: "Reception is buried in admin",
-        body: "Bookings, reschedules and health fund questions all land on Miia first, so your team can focus on the patient in the room.",
-      },
-      {
-        heading: "No-shows cost real money",
-        body: "Miia confirms bookings and handles reschedules the moment a patient asks, keeping your calendar full.",
-      },
-    ],
-    chat: {
-      customer: {
-        text: "hi, do you have anything free this week for a new patient? I've had a sore lower back for about 2 weeks",
-        time: "2:41 pm",
-      },
-      reply: {
-        text: "Sorry to hear that. We've got a physio appointment free Thursday at 9:15am or Friday at 3:30pm for new patients, both 45 minutes. Want me to lock one in and send you the new patient form?",
-        time: "2:42 pm",
-      },
-    },
-    faq: [
-      {
-        q: "Does Miia know our health fund rules?",
-        a: "Once she's trained on your policies, she can answer common questions like rebates and referral requirements accurately, and flag anything that needs a real person.",
-      },
-      {
-        q: "Can she handle Medicare and referral questions?",
-        a: "Yes, the basics you'd want a receptionist to know: what needs a referral, what's bulk billed, what to bring to the first appointment.",
-      },
-      {
-        q: "What about existing patients?",
-        a: "She can confirm, reschedule or cancel appointments for existing patients too, not just new enquiries.",
-      },
-    ],
-    seoTitle: "Miia for allied health and clinics: AI front desk for practices",
-    seoDescription:
-      "Miia answers new patient enquiries, books appointments and handles common questions for clinics and allied health practices, day and night.",
   },
   {
     slug: "salons",
     path: "/miia-for-salons",
     name: "Salons",
+    audienceSingular: "salon",
     cardBody:
       "Every DM and website enquiry about availability gets a real answer in seconds, so bookings fill while you're with a client.",
     heroSub:
@@ -156,6 +120,7 @@ export const INDUSTRIES = [
     slug: "gyms",
     path: "/miia-for-gyms",
     name: "Gym & Fitness",
+    audienceSingular: "gym",
     cardBody:
       "Casual pass, class timetable, membership pricing. Miia answers every question the moment it lands and gets new members through the door.",
     heroSub:
@@ -206,6 +171,7 @@ export const INDUSTRIES = [
     slug: "law-firms",
     path: "/miia-for-law-firms",
     name: "Law Firms",
+    audienceSingular: "law firm",
     cardBody:
       "Every new enquiry qualified and booked into a consult, so your team spends time on clients, not screening calls.",
     heroSub:
@@ -256,6 +222,7 @@ export const INDUSTRIES = [
     slug: "real-estate",
     path: "/miia-for-real-estate",
     name: "Real Estate",
+    audienceSingular: "real estate",
     cardBody:
       "Every listing enquiry answered instantly, inspections booked and buyers qualified while you're at another open home.",
     heroSub:

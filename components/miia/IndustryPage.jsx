@@ -8,8 +8,18 @@ import { FaqAccordion } from "./FaqAccordion";
 import { INDUSTRIES } from "./industries";
 import styles from "./industry.module.css";
 
+// "audienceSingular" (e.g. "trade", "salon", "law firm") is what reads
+// naturally in "a ___ business" / "___ businesses ask" phrasing - the
+// plural display name (e.g. "Tradies", "Salons") doesn't, since stacking it
+// straight into those templates produces double plurals ("a tradies
+// business", "salons businesses ask") and article mismatches.
+function article(word) {
+  return /^[aeiou]/i.test(word) ? "an" : "a";
+}
+
 export function IndustryPage({ industry }) {
   const others = INDUSTRIES.filter((i) => i.slug !== industry.slug);
+  const who = industry.audienceSingular;
 
   return (
     <div className={styles.page}>
@@ -46,7 +56,7 @@ export function IndustryPage({ industry }) {
       <section className={`${styles.section} ${styles.sectionAlt}`}>
         <div className={styles.container}>
           <Reveal className={styles.sectionHead}>
-            <h2 className={styles.h2}>What running a {industry.name.toLowerCase()} business on the phone actually looks like</h2>
+            <h2 className={styles.h2}>What running {article(who)} {who} business on the phone actually looks like</h2>
           </Reveal>
           <NumberedSteps steps={industry.painPoints} />
         </div>
@@ -57,8 +67,7 @@ export function IndustryPage({ industry }) {
           <Reveal className={styles.linkOut}>
             <p className={styles.linkOutBody}>
               Miia answers every channel, books straight into your calendar and hands over the moment someone needs
-              you. See exactly what she does, or check pricing for {industry.name.toLowerCase()} businesses your
-              size.
+              you. See exactly what she does, or check pricing for {who} businesses your size.
             </p>
             <div className={styles.linkOutRow}>
               <Link href="/features" className="eyebrowPill">
@@ -75,7 +84,7 @@ export function IndustryPage({ industry }) {
       <section className={`${styles.section} ${styles.sectionAlt}`}>
         <div className={styles.container}>
           <Reveal className={styles.sectionHead}>
-            <h2 className={styles.h2}>Questions {industry.name.toLowerCase()} businesses ask</h2>
+            <h2 className={styles.h2}>Questions {who} businesses ask</h2>
           </Reveal>
           <Reveal delay={100} className={styles.faqWrap}>
             <FaqAccordion items={industry.faq} />
@@ -102,7 +111,7 @@ export function IndustryPage({ industry }) {
         <div className={styles.container}>
           <Reveal>
             <h2 className={styles.finalCtaHeading}>
-              Ready for {industry.name.toLowerCase()} enquiries to answer themselves?
+              Ready for {who} enquiries to answer themselves?
             </h2>
             <Button href="/get-started" variant="onDark">
               {PRIMARY_CTA_LABEL}

@@ -57,7 +57,7 @@ async function lockDeployedTenant(tenant, slug) {
 
 export async function POST(req) {
   try {
-    const { tenant: slug, answers = {}, customValues, action, sessionId } = await req.json();
+    const { tenant: slug, answers = {}, customValues, action, sessionId, vertical } = await req.json();
     const tenant = await getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
@@ -147,6 +147,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
             contactName: answers.contact_name || "",
             locationId: demoLocationId,
             demo: true,
+            vertical,
             answers,
             customValues,
           });
@@ -254,6 +255,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           contactName: answers.contact_name || "",
           locationId,
           demo: false,
+          vertical,
           answers,
           customValues,
           locationAuthNeeded,

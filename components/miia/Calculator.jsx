@@ -58,17 +58,32 @@ function useRollingNumber(value) {
   return display;
 }
 
-export function Calculator() {
-  const [missed, setMissed] = useState(5);
-  const [value, setValue] = useState(2500);
+// `missed*` and `value*` props let a page tune the calculator to its own
+// cadence and price range (e.g. the allied-health page uses "per week" and a
+// $50-$500 appointment value) while sharing the same 30%-recovery math and
+// UI. `periodsPerMonth` converts the missed-count cadence to a monthly
+// figure - 30 for "per day", ~4.345 (52 weeks / 12 months) for "per week".
+export function Calculator({
+  missedLabel = "Missed or unanswered enquiries per day",
+  missedDefault = 5,
+  missedMax = 200,
+  periodsPerMonth = 30,
+  valueLabel = "Average value of a new customer",
+  valueMin = 100,
+  valueMax = 20000,
+  valueDefault = 2500,
+  valueStep = 100,
+}) {
+  const [missed, setMissed] = useState(missedDefault);
+  const [value, setValue] = useState(valueDefault);
 
-  const monthly = Math.round(missed * value * CONVERSION_RATE * 30);
+  const monthly = Math.round(missed * value * CONVERSION_RATE * periodsPerMonth);
   const yearly = monthly * 12;
   const monthlyDisplay = useRollingNumber(monthly);
   const yearlyDisplay = useRollingNumber(yearly);
 
   function stepMissed(delta) {
-    setMissed((m) => Math.min(200, Math.max(1, m + delta)));
+    setMissed((m) => Math.min(missedMax, Math.max(1, m + delta)));
   }
 
   return (
@@ -76,7 +91,7 @@ export function Calculator() {
       <div className={styles.fields}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="miia-calc-missed">
-            Missed or unanswered enquiries per day
+            {missedLabel}
           </label>
           <div className={styles.stepper}>
             <button
@@ -93,11 +108,11 @@ export function Calculator() {
               type="number"
               inputMode="numeric"
               min={1}
-              max={200}
+              max={missedMax}
               value={missed}
               onChange={(e) => {
                 const n = parseInt(e.target.value, 10);
-                setMissed(Number.isFinite(n) ? Math.min(200, Math.max(1, n)) : 1);
+                setMissed(Number.isFinite(n) ? Math.min(missedMax, Math.max(1, n)) : 1);
               }}
             />
             <button
@@ -114,7 +129,7 @@ export function Calculator() {
         <div className={styles.field}>
           <div className={styles.labelRow}>
             <label className={styles.label} htmlFor="miia-calc-slider">
-              Average value of a new customer
+              {valueLabel}
             </label>
             <span className={styles.sliderValue}>{formatCurrency(value)}</span>
           </div>
@@ -122,16 +137,16 @@ export function Calculator() {
             id="miia-calc-slider"
             className={styles.slider}
             type="range"
-            min={100}
-            max={20000}
-            step={100}
+            min={valueMin}
+            max={valueMax}
+            step={valueStep}
             value={value}
             onChange={(e) => setValue(parseInt(e.target.value, 10))}
-            style={{ "--_fill": `${((value - 100) / (20000 - 100)) * 100}%` }}
+            style={{ "--_fill": `${((value - valueMin) / (valueMax - valueMin)) * 100}%` }}
           />
           <div className={styles.sliderScale}>
-            <span>$100</span>
-            <span>$20,000+</span>
+            <span>{formatCurrency(valueMin)}</span>
+            <span>{formatCurrency(valueMax)}+</span>
           </div>
         </div>
       </div>

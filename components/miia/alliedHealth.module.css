@@ -1,0 +1,95 @@
+.page { padding-bottom: 40px; overflow-x: clip; }
+.container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+.hero { padding: 56px 0 72px; }
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: center;
+}
+@media (max-width: 900px) {
+  .heroGrid { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+}
+
+.h1 { font-size: clamp(36px, 5.4vw, 64px); }
+.accent { color: var(--miia-accent); }
+
+.heroSub {
+  font-size: clamp(17px, 1.6vw, 19px);
+  line-height: 1.55;
+  color: var(--miia-ink-soft);
+  margin: clamp(24px, 3vw, 32px) 0 32px;
+  max-width: 520px;
+}
+
+.heroCtas { display: flex; gap: 14px; flex-wrap: wrap; }
+.heroDemoWrap { display: flex; justify-content: center; }
+
+.section { padding: 88px 0; }
+.sectionAlt { background: var(--miia-bg-alt); }
+.sectionHead { text-align: center; max-width: 640px; margin: 0 auto 48px; }
+.h2 { font-size: clamp(28px, 3.4vw, 40px); }
+
+.faqWrap { max-width: 720px; margin: 0 auto; }
+
+/* Stats strip */
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 32px;
+}
+@media (max-width: 700px) {
+  .statsRow { grid-template-columns: minmax(0, 1fr); gap: 28px; }
+}
+.stat {
+  text-align: center;
+  background: var(--miia-surface);
+  border: 1px solid var(--miia-line);
+  border-radius: var(--miia-radius-lg);
+  padding: clamp(28px, 3vw, 36px) 24px;
+}
+.statValue {
+  font-family: var(--miia-font-display);
+  font-weight: 600;
+  font-size: clamp(30px, 3.6vw, 42px);
+  color: var(--miia-accent);
+  font-variant-numeric: tabular-nums;
+}
+.statLabel { font-size: 14.5px; color: var(--miia-ink-soft); margin-top: 10px; }
+
+/* Trust section */
+.trustCard {
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+  background: var(--miia-surface);
+  border: 1px solid var(--miia-line);
+  border-radius: var(--miia-radius-lg);
+  padding: clamp(32px, 5vw, 56px);
+}
+.trustEyebrow { margin-bottom: 20px; }
+.trustHeading { font-size: clamp(24px, 3vw, 34px); margin-bottom: 20px; }
+.trustBody { font-size: 16px; line-height: 1.65; color: var(--miia-ink-soft); max-width: 560px; margin: 0 auto; }
+
+/* Booking honesty line */
+.bookingCard {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
+}
+.bookingHeading { font-size: clamp(22px, 2.6vw, 28px); margin-bottom: 16px; }
+.bookingBody { font-size: 16px; line-height: 1.65; color: var(--miia-ink-soft); }
+
+.finalCta {
+  background: var(--miia-dark);
+  color: var(--miia-ink-inverse);
+  padding: 100px 0;
+  text-align: center;
+}
+.finalCtaHeading {
+  font-size: clamp(28px, 4vw, 48px);
+  max-width: 720px;
+  margin: 0 auto 20px;
+}
+.finalCtaFounding { font-size: 15px; color: var(--miia-ink-inverse); opacity: 0.72; margin-bottom: 32px; }
