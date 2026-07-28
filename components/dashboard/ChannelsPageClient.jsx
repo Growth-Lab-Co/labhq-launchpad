@@ -1,19 +1,30 @@
 "use client";
 import { useEffect, useState } from "react";
-import { MessageCircle, Smartphone, AtSign, Phone, Check, Mail } from "lucide-react";
+import { MessageCircle, Smartphone, AtSign, Phone, Check, Mail, X } from "lucide-react";
 import { MIIA_CHANNEL_COPY } from "@/lib/channelWiring";
 import styles from "./ChannelsPageClient.module.css";
+
+// Set this to your Leadsie connect-request URL once one exists (Leadsie
+// Dashboard -> your request -> "embed on your website" -> copy the page's
+// URL, e.g. https://app.leadsie.com/connect/{agency}/{request}) - one
+// request, reused for every tenant via ?customUserId=<tenantSlug> below, so
+// each webhook call (app/api/leadsie-webhook/route.js) can be mapped back to
+// the right tenant. Left blank until then - the button below shows an
+// honest "not wired up yet" state rather than a broken iframe.
+const LEADSIE_EMBED_URL = "";
 
 const ICONS = { webchat: MessageCircle, sms: Smartphone, social: AtSign, phone: Phone };
 const COPY_KEY = { webchat: "webchat", sms: "sms", social: "fb", phone: null };
 
 function pillClass(status) {
   if (status === "live") return styles.pillLive;
+  if (status === "connecting") return styles.pillUpgrade;
   if (status === "upgrade") return styles.pillUpgrade;
   return styles.pillNotStarted;
 }
 function pillLabel(status) {
   if (status === "live") return "Live";
+  if (status === "connecting") return "Connecting";
   if (status === "upgrade") return "Upgrade";
   return "Not started";
 }
@@ -92,6 +103,47 @@ function EmbedSnippet({ tenantSlug, businessName }) {
   );
 }
 
+// Opens Leadsie's embedded access request so the business owner can grant
+// Facebook/Instagram page access without leaving the dashboard - one
+// Leadsie "connect request" reused for every tenant via customUserId.
+// Granting access here is NOT the same as being live (see
+// lib/leadsieConnections.js) - the "Connecting" pill above this button
+// reflects that honestly once the webhook fires.
+function LeadsieConnect({ tenantSlug }) {
+  const [open, setOpen] = useState(false);
+
+  if (!LEADSIE_EMBED_URL) {
+    return (
+      <p className={styles.detail} style={{ marginTop: 10 }}>
+        Facebook and Instagram connection isn&apos;t wired up yet on our end - ask your Miia team and we&apos;ll sort it.
+      </p>
+    );
+  }
+
+  const src = `${LEADSIE_EMBED_URL}${LEADSIE_EMBED_URL.includes("?") ? "&" : "?"}customUserId=${encodeURIComponent(tenantSlug)}`;
+
+  return (
+    <div className={styles.actions}>
+      <button type="button" className={styles.connectBtn} onClick={() => setOpen(true)}>
+        Connect Facebook and Instagram
+      </button>
+      {open && (
+        <div className={styles.modalOverlay} onClick={() => setOpen(false)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHead}>
+              <span className={styles.codeTitle}>Connect Facebook and Instagram</span>
+              <button type="button" className={styles.modalClose} onClick={() => setOpen(false)} aria-label="Close">
+                <X size={16} />
+              </button>
+            </div>
+            <iframe src={src} className={styles.modalFrame} title="Connect Facebook and Instagram" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function ChannelsPageClient({ tenantSlug, channels, businessName }) {
   return (
     <>
@@ -121,6 +173,7 @@ export function ChannelsPageClient({ tenantSlug, channels, businessName }) {
               </div>
 
               {c.id === "webchat" && <EmbedSnippet tenantSlug={tenantSlug} businessName={businessName} />}
+              {c.id === "social" && !live && <LeadsieConnect tenantSlug={tenantSlug} />}
             </div>
           );
         })}

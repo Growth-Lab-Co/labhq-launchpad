@@ -51,3 +51,25 @@
 .codeHeadActions { display: flex; align-items: center; gap: 8px; }
 .codeTitle { font-size: 12.5px; font-weight: 600; color: var(--dash-secondary); }
 .pre { font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; color: var(--dash-ink); max-height: 160px; overflow-y: auto; }
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 18, 24, 0.5);
+  display: grid;
+  place-items: center;
+  z-index: 100;
+  padding: 20px;
+}
+.modalCard {
+  width: 100%;
+  max-width: 560px;
+  background: var(--dash-surface);
+  border-radius: var(--dash-radius-card);
+  border: 1px solid var(--dash-border);
+  box-shadow: var(--dash-shadow-card);
+  overflow: hidden;
+}
+.modalHead { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--dash-border); }
+.modalClose { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--dash-border); background: var(--dash-canvas); color: var(--dash-ink); }
+.modalFrame { width: 100%; height: 560px; border: none; display: block; }
