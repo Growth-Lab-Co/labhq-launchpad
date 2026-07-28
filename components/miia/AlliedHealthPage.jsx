@@ -1,4 +1,4 @@
-import { Button } from "./Button";
+import { Button, PRIMARY_CTA_LABEL } from "./Button";
 import { Reveal, RiseHeadline } from "./Reveal";
 import { ChatDemo } from "./ChatDemo";
 import { NumberedSteps } from "./NumberedSteps";
@@ -6,10 +6,11 @@ import { Calculator } from "./Calculator";
 import { FaqAccordion } from "./FaqAccordion";
 import styles from "./alliedHealth.module.css";
 
-const HERO_CTA_LABEL = "Be one of the first 20 clinics";
 // Carries the signup-source healthcare trigger through to checkout - see
 // lib/guardrails.js HEALTH_VERTICAL_SLUGS and lib/miiaProvisioning.js.
-const GET_STARTED_HREF = "/get-started?vertical=allied-health";
+// Points straight at /pricing (payment is consolidated there) rather than
+// the retired /get-started picker.
+const CHECKOUT_HREF = "/pricing?vertical=allied-health";
 
 const CHAT_EXCHANGE = {
   customer: {
@@ -87,11 +88,12 @@ export function AlliedHealthPage() {
               </Reveal>
               <Reveal delay={520}>
                 <div className={styles.heroCtas}>
-                  <Button href={GET_STARTED_HREF}>{HERO_CTA_LABEL}</Button>
+                  <Button href={CHECKOUT_HREF}>{PRIMARY_CTA_LABEL}</Button>
                   <Button href="/how-it-works" variant="outline">
                     See how she works
                   </Button>
                 </div>
+                <p className={styles.heroScarcity}>First 20 clinics: founding pricing for life.</p>
               </Reveal>
             </div>
             <Reveal delay={300} className={styles.heroDemoWrap}>
@@ -187,10 +189,10 @@ export function AlliedHealthPage() {
           <Reveal>
             <h2 className={styles.finalCtaHeading}>The 5:40pm enquiry deserves an answer.</h2>
             <p className={styles.finalCtaFounding}>
-              Be one of the first 20 founding clinics. 20% off, locked in for life.
+              First 20 founding clinics: 20% off, locked in for life.
             </p>
-            <Button href={GET_STARTED_HREF} variant="onDark">
-              {HERO_CTA_LABEL}
+            <Button href={CHECKOUT_HREF} variant="onDark">
+              {PRIMARY_CTA_LABEL}
             </Button>
           </Reveal>
         </div>

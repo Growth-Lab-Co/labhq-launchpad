@@ -167,7 +167,7 @@ export function Calculator({
         under a minute, 24/7.
       </p>
 
-      <Button href="/get-started" className={styles.cta}>
+      <Button href="/pricing" className={styles.cta}>
         {PRIMARY_CTA_LABEL}
       </Button>
     </div>

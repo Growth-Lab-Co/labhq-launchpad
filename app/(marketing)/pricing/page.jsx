@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PricingPage } from "@/components/miia/PricingPage";
 import { SITE_URL, SITE_NAME } from "@/components/miia/site";
 
@@ -20,5 +21,9 @@ export const metadata = {
 };
 
 export default function Page() {
-  return <PricingPage />;
+  return (
+    <Suspense fallback={null}>
+      <PricingPage />
+    </Suspense>
+  );
 }

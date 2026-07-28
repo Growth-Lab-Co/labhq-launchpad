@@ -68,7 +68,7 @@ export function FeaturesPage() {
 
         <Reveal className={styles.finalCta}>
           <h2 className={styles.finalCtaHeading}>See all of this running on your business in 10 minutes.</h2>
-          <Button href="/get-started" variant="onDark">
+          <Button href="/pricing" variant="onDark">
             {PRIMARY_CTA_LABEL}
           </Button>
         </Reveal>

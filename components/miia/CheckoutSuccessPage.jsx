@@ -113,7 +113,7 @@ export function CheckoutSuccessPage() {
           <>
             <h1 className={styles.heading}>We couldn&apos;t find that checkout</h1>
             <p className={styles.body}>If you just paid, check your email for confirmation, or try again below.</p>
-            <Button href="/get-started" className={styles.cta}>
+            <Button href="/pricing" className={styles.cta}>
               {PRIMARY_CTA_LABEL}
             </Button>
           </>

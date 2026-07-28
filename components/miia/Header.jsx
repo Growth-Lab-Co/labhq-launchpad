@@ -47,7 +47,7 @@ export function Header() {
         </nav>
 
         <div className={styles.right}>
-          <Button href="/get-started" size="sm" className={styles.desktopCta}>
+          <Button href="/pricing" size="sm" className={styles.desktopCta}>
             {PRIMARY_CTA_LABEL}
           </Button>
           <button
@@ -69,7 +69,7 @@ export function Header() {
               {item.label}
             </Link>
           ))}
-          <Button href="/get-started" className={styles.mobileCta}>
+          <Button href="/pricing" className={styles.mobileCta}>
             {PRIMARY_CTA_LABEL}
           </Button>
         </div>

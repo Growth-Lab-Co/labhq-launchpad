@@ -71,7 +71,7 @@ export function HomePage() {
               </Reveal>
               <Reveal delay={520}>
                 <div className={styles.heroCtas}>
-                  <Button href="/get-started">{PRIMARY_CTA_LABEL}</Button>
+                  <Button href="/pricing">{PRIMARY_CTA_LABEL}</Button>
                   <Button href="#how-it-works" variant="outline">
                     See how she works
                   </Button>
@@ -185,7 +185,7 @@ export function HomePage() {
         <div className={styles.container}>
           <Reveal>
             <h2 className={styles.finalCtaHeading}>Your 7:40pm enquiry deserves an answer.</h2>
-            <Button href="/get-started" variant="onDark" className={styles.finalCtaBtn}>
+            <Button href="/pricing" variant="onDark" className={styles.finalCtaBtn}>
               {PRIMARY_CTA_LABEL}
             </Button>
           </Reveal>

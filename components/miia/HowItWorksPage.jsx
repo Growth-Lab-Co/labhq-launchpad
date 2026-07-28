@@ -110,7 +110,7 @@ export function HowItWorksPage() {
 
         <Reveal className={styles.finalCta}>
           <h2 className={styles.finalCtaHeading}>See it happen with your own business.</h2>
-          <Button href="/get-started" variant="onDark">
+          <Button href="/pricing" variant="onDark">
             {PRIMARY_CTA_LABEL}
           </Button>
         </Reveal>

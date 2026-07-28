@@ -40,7 +40,7 @@ export function Footer() {
       <div className={styles.center}>
         <h2 className={styles.heading}>Ready for your new front desk?</h2>
         <p className={styles.sub}>Be one of the first 20 founding members. 20% off, locked in for life.</p>
-        <Button href="/get-started" size="lg" className={styles.bigCta}>
+        <Button href="/pricing" size="lg" className={styles.bigCta}>
           {PRIMARY_CTA_LABEL}
         </Button>
         <nav className={styles.pills}>

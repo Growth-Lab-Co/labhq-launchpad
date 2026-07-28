@@ -24,6 +24,7 @@
 }
 
 .heroCtas { display: flex; gap: 14px; flex-wrap: wrap; }
+.heroScarcity { margin-top: 14px; font-size: 13.5px; color: var(--miia-ink-soft, rgba(22,20,26,0.68)); }
 .heroDemoWrap { display: flex; justify-content: center; }
 
 .section { padding: 88px 0; }

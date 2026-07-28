@@ -1,12 +1,24 @@
+"use client";
 import { Sparkles } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 import { Reveal } from "./Reveal";
 import { PricingCards } from "./PricingCards";
 import { FaqAccordion } from "./FaqAccordion";
 import { FAQ_ITEMS } from "./faq";
-import { WHITE_GLOVE, FOUNDING_SPOTS } from "./plans";
+import { WHITE_GLOVE, FOUNDING_SPOTS, getPlan } from "./plans";
 import styles from "./pricing.module.css";
 
+// Payment is consolidated here - a vertical page's CTA
+// (e.g. /allied-health -> /pricing?vertical=allied-health) or a plan link
+// (?plan=everywhere) arrives with state that must survive straight into
+// checkout, not just onto the page.
 export function PricingPage() {
+  const searchParams = useSearchParams();
+  const vertical = searchParams.get("vertical") || "";
+  const planParam = searchParams.get("plan");
+  const highlightId = getPlan(planParam) ? planParam : null;
+  const yearly = searchParams.get("billing") === "yearly";
+
   return (
     <div className={styles.page}>
       <div className={styles.container}>
@@ -23,7 +35,7 @@ export function PricingPage() {
         </div>
 
         <Reveal className={styles.cardsSection}>
-          <PricingCards />
+          <PricingCards vertical={vertical} highlightId={highlightId} yearly={yearly} />
         </Reveal>
 
         <p className={styles.incGst}>All prices inc. GST.</p>

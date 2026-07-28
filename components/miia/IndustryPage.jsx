@@ -39,7 +39,7 @@ export function IndustryPage({ industry }) {
               </Reveal>
               <Reveal delay={520}>
                 <div className={styles.heroCtas}>
-                  <Button href="/get-started">{PRIMARY_CTA_LABEL}</Button>
+                  <Button href="/pricing">{PRIMARY_CTA_LABEL}</Button>
                   <Button href="/how-it-works" variant="outline">
                     See how she works
                   </Button>
@@ -113,7 +113,7 @@ export function IndustryPage({ industry }) {
             <h2 className={styles.finalCtaHeading}>
               Ready for {who} enquiries to answer themselves?
             </h2>
-            <Button href="/get-started" variant="onDark">
+            <Button href="/pricing" variant="onDark">
               {PRIMARY_CTA_LABEL}
             </Button>
           </Reveal>

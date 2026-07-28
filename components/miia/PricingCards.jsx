@@ -113,7 +113,7 @@ function PriceTag({ plan, yearly, foundingMode }) {
   );
 }
 
-export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yearlyProp, onYearlyChange }) {
+export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yearlyProp, onYearlyChange, vertical, highlightId }) {
   const [yearlyState, setYearlyState] = useState(false);
   const yearly = yearlyProp !== undefined ? yearlyProp : yearlyState;
   const setYearly = onYearlyChange || setYearlyState;
@@ -122,7 +122,8 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
   // Direct-checkout mode (showCta, not selectable - i.e. /pricing itself):
   // clicking a plan's CTA highlights that card immediately (purple border,
   // same treatment as the selectable/get-started mode below) and goes
-  // straight to Stripe, skipping /get-started entirely.
+  // straight to Stripe. `highlightId` (from a preselected ?plan= in the URL)
+  // pre-highlights a card the same way before any click.
   const [checkoutPlanId, setCheckoutPlanId] = useState(null);
   const [checkoutError, setCheckoutError] = useState(null);
 
@@ -134,7 +135,7 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
       const res = await fetch("/api/miia/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan: plan.id, billingPeriod: yearly ? "yearly" : "monthly" }),
+        body: JSON.stringify({ plan: plan.id, billingPeriod: yearly ? "yearly" : "monthly", vertical: vertical || "" }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Couldn't start checkout.");
@@ -154,7 +155,7 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
       <div className={styles.grid}>
         {PLANS.map((plan) => {
           const selectable = typeof onSelect === "function";
-          const isSelected = selectable ? selectedId === plan.id : checkoutPlanId === plan.id;
+          const isSelected = selectable ? selectedId === plan.id : checkoutPlanId === plan.id || highlightId === plan.id;
           const Wrapper = selectable ? "button" : "div";
           const planError = checkoutError?.planId === plan.id ? checkoutError.message : null;
           return (
