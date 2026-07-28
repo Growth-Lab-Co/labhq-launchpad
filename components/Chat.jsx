@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { CHANNEL_WIRING } from "@/lib/channelWiring";
+import { CHANNEL_WIRING, MIIA_CHANNEL_COPY } from "@/lib/channelWiring";
 
 // "Lab HQ blueprint" is deliberately generic here (not brand-specific) so
 // it reads correctly regardless of which product a tenant is under.
@@ -15,18 +15,6 @@ function launchSteps(assistantName) {
 
 // Required for Australian compliance, shown separately on the review screen.
 const COMPLIANCE_KEYS = ["greeting_line", "sms_compliance_footer", "privacy_policy_snippet"];
-
-// lib/channelWiring.js's copy is written for an AGENCY setting up a client
-// ("the client clicks approve", raw GHL menu paths) - correct for every
-// other tenant, wrong for Miia's direct-to-business model where the
-// business owner IS the one reading it. This is a business-owner-voiced
-// override for product:"miia" only; channelWiring.js itself, and every
-// other tenant's screen, is untouched.
-const MIIA_CHANNEL_COPY = {
-  webchat: "Copy the snippet below and paste it into your website. Ask whoever manages your site if you're not sure how.",
-  fb: "Connect your Facebook and Instagram pages with a couple of clicks from your dashboard.",
-  sms: "Your text number needs a quick registration, the same one every business completes. Miia takes over the moment it clears, usually 1 to 2 days.",
-};
 
 // Total messages (user + assistant) before we force a wrap-up to review,
 // so a rambling or looping interview can't run forever.

@@ -1,0 +1,36 @@
+.card {
+  border-radius: var(--dash-radius-card);
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  box-shadow: var(--dash-shadow-card);
+  padding: 24px;
+  animation: dash-fade-up 0.5s var(--dash-ease) both;
+}
+
+.cardHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.cardHeadLeft { display: flex; align-items: center; gap: 10px; }
+.cardTitle { font-family: var(--dash-font-display); font-size: 17px; font-weight: 700; color: var(--dash-ink); }
+.cardMeta { font-size: 12.5px; color: var(--dash-secondary); }
+
+.empty { text-align: center; padding: 28px 12px; }
+.emptyIcon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--dash-violet-10); color: var(--dash-violet); margin: 0 auto 14px; }
+.emptyTitle { font-size: 14.5px; font-weight: 600; color: var(--dash-ink); margin-bottom: 4px; }
+.emptyBody { font-size: 13.5px; color: var(--dash-secondary); line-height: 1.5; max-width: 320px; margin: 0 auto; }
+.emptyAction { margin-top: 16px; }
+
+.loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 12px; color: var(--dash-secondary); font-size: 13.5px; }
+
+.errorBox { text-align: center; padding: 28px 12px; }
+.errorBody { font-size: 13.5px; color: var(--dash-secondary); margin-bottom: 14px; }
+.retryButton {
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  color: var(--dash-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.retryButton:hover { border-color: var(--dash-violet); color: var(--dash-violet); }

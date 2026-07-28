@@ -1,0 +1,89 @@
+.heading { font-family: var(--dash-font-display); font-size: 24px; font-weight: 700; color: var(--dash-ink); }
+
+.primaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 12px;
+  border: none;
+  background: var(--dash-violet);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 auto;
+}
+.primaryBtn:hover { filter: brightness(1.05); }
+.searchWrap { position: relative; margin-top: 16px; max-width: 360px; }
+.searchIcon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--dash-secondary); }
+.searchInput {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  padding: 0 14px 0 38px;
+  font-size: 14px;
+  color: var(--dash-ink);
+  outline: none;
+}
+.searchInput:focus { border-color: var(--dash-violet); box-shadow: 0 0 0 3px var(--dash-violet-20); }
+
+.layout { margin-top: 20px; display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 900px) {
+  .layout { grid-template-columns: 340px 1fr; align-items: start; }
+}
+
+.list {
+  border-radius: var(--dash-radius-card);
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  box-shadow: var(--dash-shadow-card);
+  overflow: hidden;
+}
+.row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--dash-border);
+  min-height: 44px;
+}
+.row:last-child { border-bottom: none; }
+.row:hover { background: var(--dash-canvas); }
+.rowActive { background: var(--dash-violet-10); }
+.rowName { font-size: 14px; font-weight: 600; color: var(--dash-ink); }
+.rowSnippet { margin-top: 2px; font-size: 12.5px; color: var(--dash-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rowTime { margin-top: 4px; font-size: 11.5px; color: var(--dash-secondary); }
+
+.transcript {
+  border-radius: var(--dash-radius-card);
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  box-shadow: var(--dash-shadow-card);
+  padding: 24px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.bubbleIn {
+  align-self: flex-start;
+  max-width: 78%;
+  border-radius: 16px 16px 16px 4px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-canvas);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--dash-ink);
+}
+.bubbleOut {
+  align-self: flex-end;
+  max-width: 78%;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--dash-violet);
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #fff;
+}

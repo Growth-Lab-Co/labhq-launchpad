@@ -1,0 +1,11 @@
+.box { display: inline-flex; align-items: center; }
+.sm { height: 12px; width: 20px; gap: 4px; }
+.md { height: 16px; width: 28px; gap: 6px; }
+.lg { height: 20px; width: 36px; gap: 8px; }
+
+.dot { border-radius: 999px; background: var(--dash-violet); }
+.sm .dot { height: 6px; width: 6px; }
+.md .dot { height: 8px; width: 8px; }
+.lg .dot { height: 10px; width: 10px; }
+
+.pulse { animation: dash-pulse-dot 1.4s ease-in-out infinite; }

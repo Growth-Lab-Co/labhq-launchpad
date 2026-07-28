@@ -1,0 +1,49 @@
+.heading { font-family: var(--dash-font-display); font-size: 24px; font-weight: 700; color: var(--dash-ink); margin-bottom: 20px; }
+
+.grid { display: flex; flex-direction: column; gap: 16px; }
+.row {
+  border-radius: var(--dash-radius-card);
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  box-shadow: var(--dash-shadow-card);
+  padding: 20px;
+}
+.rowHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.rowLeft { display: flex; align-items: center; gap: 14px; }
+.iconWrap { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
+.iconLive { background: var(--dash-violet-12); color: var(--dash-violet); }
+.iconOff { background: rgba(228, 224, 214, 0.6); color: var(--dash-secondary); }
+.name { font-size: 16px; font-weight: 700; color: var(--dash-ink); font-family: var(--dash-font-display); }
+.detail { margin-top: 2px; font-size: 13px; color: var(--dash-secondary); line-height: 1.5; max-width: 480px; }
+
+.pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 12px; font-size: 12.5px; font-weight: 600; }
+.pillLive { background: var(--dash-good-10); color: var(--dash-good); }
+.pillNotStarted { background: rgba(90, 90, 102, 0.10); color: var(--dash-secondary); }
+.pillUpgrade { background: var(--dash-violet-10); color: var(--dash-violet); }
+.pillDot { width: 6px; height: 6px; border-radius: 999px; background: currentColor; }
+
+.actions { margin-top: 14px; }
+.connectBtn {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-canvas);
+  color: var(--dash-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.connectBtn:hover { border-color: var(--dash-violet); color: var(--dash-violet); }
+
+.codeBlock {
+  margin-top: 14px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-canvas);
+  padding: 14px;
+}
+.codeHead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.codeTitle { font-size: 12.5px; font-weight: 600; color: var(--dash-secondary); }
+.pre { font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; color: var(--dash-ink); max-height: 160px; overflow-y: auto; }

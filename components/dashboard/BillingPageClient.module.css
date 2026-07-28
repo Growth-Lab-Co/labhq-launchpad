@@ -1,0 +1,53 @@
+.heading { font-family: var(--dash-font-display); font-size: 24px; font-weight: 700; color: var(--dash-ink); margin-bottom: 20px; }
+
+.card {
+  border-radius: var(--dash-radius-card);
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  box-shadow: var(--dash-shadow-card);
+  padding: 24px;
+  margin-bottom: 16px;
+}
+.planRow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.planName { font-family: var(--dash-font-display); font-size: 20px; font-weight: 700; color: var(--dash-ink); }
+.badge { display: inline-block; border-radius: 999px; background: var(--dash-violet-12); color: var(--dash-violet); padding: 4px 12px; font-size: 12px; font-weight: 700; }
+.tagline { margin-top: 6px; font-size: 14px; color: var(--dash-secondary); }
+.period { margin-top: 4px; font-size: 12.5px; color: var(--dash-secondary); text-transform: capitalize; }
+
+.usageWrap { margin-top: 20px; }
+.usageLabel { display: flex; justify-content: space-between; font-size: 13px; color: var(--dash-secondary); margin-bottom: 8px; }
+.usageTrack { height: 8px; border-radius: 999px; background: var(--dash-canvas); overflow: hidden; }
+.usageFill { height: 100%; background: var(--dash-violet); border-radius: 999px; }
+.usageNote { margin-top: 8px; font-size: 11.5px; color: var(--dash-secondary); }
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.primaryBtn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--dash-violet);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.primaryBtn:hover:not(:disabled) { filter: brightness(1.05); }
+.primaryBtn:disabled { opacity: 0.6; cursor: default; }
+
+.dangerBtn {
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  color: var(--dash-bad);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dangerBtn:hover:not(:disabled) { border-color: var(--dash-bad); }
+.dangerBtn:disabled { opacity: 0.6; cursor: default; }
+
+.error { font-size: 13px; color: var(--dash-bad); margin-top: 10px; }
+.confirmText { font-size: 13.5px; color: var(--dash-secondary); margin-top: 10px; line-height: 1.5; }

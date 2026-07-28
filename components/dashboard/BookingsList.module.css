@@ -1,0 +1,36 @@
+.list { margin-top: 16px; display: flex; flex-direction: column; }
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 4px;
+  border-top: 1px solid var(--dash-border);
+  border-radius: 10px;
+  transition: background-color var(--dash-duration) var(--dash-ease), transform var(--dash-duration) var(--dash-ease);
+}
+.row:first-child { border-top: none; }
+.row:hover { background: var(--dash-canvas); transform: translateY(-1px); }
+
+.rowLeft { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--dash-violet-10);
+  font-family: var(--dash-font-display);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dash-violet);
+}
+.name { font-size: 14px; font-weight: 600; color: var(--dash-ink); }
+.service { font-size: 12.5px; color: var(--dash-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.rowRight { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.time { font-size: 13px; font-weight: 500; color: var(--dash-ink); }
+.status { border-radius: 999px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; }
+.statusBooked { background: var(--dash-violet-12); color: var(--dash-violet); }
+.statusRescheduled { background: var(--dash-warn-12); color: var(--dash-warn); }
