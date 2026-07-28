@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
-import { getTenant, ghlCredsFor, markTenantDeployed, setHealthcareMode } from "@/lib/tenants";
+import { getTenant, ghlCredsFor, markTenantDeployed, setHealthcareMode, updateTenant } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
 import { buildHardGuardrails, classifyHealthcareBusiness } from "@/lib/guardrails";
 import {
@@ -159,6 +159,23 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         } catch (e) {
           console.error(`[HEALTHCARE-CLASSIFY-FAIL] tenant=${slug}`, e.message);
         }
+      }
+
+      // Stored on the tenant (not customValues - this isn't sent to GHL,
+      // just drives which practice-software connect card the dashboard
+      // emphasises - see lib/integrations/registry.js).
+      if (tenant.product === "miia" && answers.practice_software) {
+        const t = answers.practice_software.toLowerCase();
+        const practiceSoftware = t.includes("cliniko")
+          ? "cliniko"
+          : t.includes("halaxy")
+          ? "halaxy"
+          : /\bnone\b|don'?t use|do not use|no practice software|nothing/.test(t)
+          ? "none"
+          : "other";
+        await updateTenant(slug, { practiceSoftware }).catch((e) =>
+          console.error(`[DEPLOY] failed to save practiceSoftware for ${slug}:`, e.message)
+        );
       }
 
       const lock = claimDeployLock(sessionId);

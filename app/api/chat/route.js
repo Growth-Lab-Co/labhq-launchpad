@@ -56,13 +56,13 @@ export async function POST(req) {
     // only makes sense once phone/voice is actually on the table (Miia
     // Complete).
     const isNonVoiceMiiaPlan = tenant.product === "miia" && tenant.plan && tenant.plan !== "complete";
-    // booking_link is opt-IN (only healthcareMode Miia tenants use Cliniko/
-    // Halaxy-style booking links) - opposite of outbound_calls above, which
-    // is opt-OUT.
-    const showBookingLink = tenant.product === "miia" && Boolean(tenant.healthcareMode);
+    // practice_software/booking_link are opt-IN (only healthcareMode Miia
+    // tenants use practice software like Cliniko/Halaxy) - opposite of
+    // outbound_calls above, which is opt-OUT.
+    const showPracticeFields = tenant.product === "miia" && Boolean(tenant.healthcareMode);
     const activeFields = INTERVIEW_FIELDS.filter((f) => {
       if (f.field === "outbound_calls" && isNonVoiceMiiaPlan) return false;
-      if (f.field === "booking_link" && !showBookingLink) return false;
+      if ((f.field === "booking_link" || f.field === "practice_software") && !showPracticeFields) return false;
       return true;
     });
 
