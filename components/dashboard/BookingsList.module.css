@@ -34,3 +34,32 @@
 .status { border-radius: 999px; padding: 4px 10px; font-size: 11.5px; font-weight: 600; }
 .statusBooked { background: var(--dash-violet-12); color: var(--dash-violet); }
 .statusRescheduled { background: var(--dash-warn-12); color: var(--dash-warn); }
+
+.linkLabel { font-size: 15px; font-weight: 700; color: var(--dash-ink); font-family: var(--dash-font-display); }
+.linkHint { margin-top: 4px; font-size: 13px; color: var(--dash-secondary); line-height: 1.5; max-width: 520px; }
+.linkRow { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+.linkInput {
+  flex: 1 1 280px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-canvas);
+  color: var(--dash-ink);
+  font-size: 13.5px;
+}
+.linkSaveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-violet);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.linkError { margin-top: 8px; font-size: 12.5px; color: var(--dash-warn, #b45309); }

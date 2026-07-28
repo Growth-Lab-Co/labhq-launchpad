@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { CalendarDays, Search } from "lucide-react";
+import { CalendarDays, Search, Check } from "lucide-react";
 import { Card, CardEmpty } from "./Card";
 import styles from "./ConversationsPageClient.module.css";
 import bookingStyles from "./BookingsList.module.css";
@@ -12,7 +12,69 @@ function dateTimeOf(iso) {
   return new Date(iso).toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 }
 
-export function BookingsPageClient({ events }) {
+// Editable booking link (Cliniko, Halaxy, Calendly, whatever they use) - the
+// bot offers this directly on booking intent (lib/bot.js), falling back to
+// taking details when it's blank. Saves straight to the live deployment
+// record, no redeploy needed.
+function BookingLinkField({ tenantSlug, initialValue }) {
+  const [value, setValue] = useState(initialValue || "");
+  const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function save() {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/miia/dashboard/booking-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenantSlug, bookingLink: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't save that");
+      setValue(data.bookingLink || "");
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card style={{ marginTop: 20 }}>
+      <p className={bookingStyles.linkLabel}>Booking link</p>
+      <p className={bookingStyles.linkHint}>
+        Paste your Cliniko, Halaxy, Calendly or other booking link - Miia offers it directly when someone wants to book.
+      </p>
+      <div className={bookingStyles.linkRow}>
+        <input
+          type="url"
+          className={bookingStyles.linkInput}
+          placeholder="https://yourclinic.cliniko.com/bookings"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        <button type="button" className={bookingStyles.linkSaveBtn} onClick={save} disabled={saving}>
+          {saved ? (
+            <>
+              <Check size={14} /> Saved
+            </>
+          ) : saving ? (
+            "Saving…"
+          ) : (
+            "Save"
+          )}
+        </button>
+      </div>
+      {error && <p className={bookingStyles.linkError}>{error}</p>}
+    </Card>
+  );
+}
+
+export function BookingsPageClient({ events, tenantSlug, showBookingLinkField, initialBookingLink }) {
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState("upcoming");
 
@@ -25,6 +87,8 @@ export function BookingsPageClient({ events }) {
   return (
     <>
       <h1 className={styles.heading}>Bookings</h1>
+
+      {showBookingLinkField && <BookingLinkField tenantSlug={tenantSlug} initialValue={initialBookingLink} />}
 
       {events !== null && (
         <>

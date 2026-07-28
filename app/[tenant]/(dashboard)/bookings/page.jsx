@@ -27,6 +27,16 @@ async function getEvents(tenantSlug) {
 }
 
 export default async function BookingsPage({ params }) {
-  const events = await getEvents(params.tenant);
-  return <BookingsPageClient events={events} />;
+  const [tenant, events] = await Promise.all([getTenant(params.tenant), getEvents(params.tenant)]);
+  const deployments = await listDeployments(params.tenant).catch(() => []);
+  const bookingLink = deployments[0]?.customValues?.booking_link || "";
+
+  return (
+    <BookingsPageClient
+      events={events}
+      tenantSlug={params.tenant}
+      showBookingLinkField={tenant?.product === "miia"}
+      initialBookingLink={bookingLink}
+    />
+  );
 }

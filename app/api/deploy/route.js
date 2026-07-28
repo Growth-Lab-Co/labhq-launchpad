@@ -107,6 +107,11 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         .filter(Boolean)
         .join("\n\n");
 
+      // Direct passthrough, not part of the "Keys to produce" prompt above -
+      // a pasted URL must survive byte-for-byte, not get paraphrased by the
+      // generation model.
+      complete.booking_link = (answers.booking_link || "").trim();
+
       return NextResponse.json({ customValues: complete });
     }
 
