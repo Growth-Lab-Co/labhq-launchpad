@@ -31,11 +31,23 @@ function AdminGate({ children }) {
   const [passwordInput, setPasswordInput] = useState("");
   const [error, setError] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [emailFailureCount, setEmailFailureCount] = useState(0);
 
   useEffect(() => {
     const stored = window.sessionStorage.getItem(SESSION_KEY);
     if (stored) setAdminKey(stored);
   }, []);
+
+  // Site-wide fallback for "email itself might be down" - a plain Blobs
+  // read, so this still works even if Resend is completely broken. See
+  // lib/emailFailures.js.
+  useEffect(() => {
+    if (!adminKey) return;
+    fetch("/api/admin/email-failures", { headers: { "x-mc-key": adminKey } })
+      .then((r) => r.json())
+      .then((d) => setEmailFailureCount((d.failures || []).length))
+      .catch(() => {});
+  }, [adminKey, pathname]);
 
   useEffect(() => {
     fetch("/api/admin/auth")
@@ -122,6 +134,24 @@ function AdminGate({ children }) {
           ))}
         </nav>
       </header>
+      {emailFailureCount > 0 && (
+        <div
+          style={{
+            background: "var(--danger-bg)",
+            borderBottom: "1px solid var(--danger-border)",
+            color: "var(--danger)",
+            padding: "10px 20px",
+            fontSize: 13,
+            fontWeight: 600,
+          }}
+        >
+          {emailFailureCount} email send{emailFailureCount === 1 ? "" : "s"} failed in the last 24 hours - see{" "}
+          <Link href="/admin/miia-signups" style={{ textDecoration: "underline" }}>
+            Miia signups
+          </Link>
+          .
+        </div>
+      )}
       <div className={s.content}>{children}</div>
     </div>
   );

@@ -50,6 +50,22 @@ const HEALTHCARE_SOURCE_LABEL = {
   manual: "manual override",
 };
 
+function WelcomeEmailCell({ signup, busy, onResend }) {
+  if (!signup.tenantSlug) return <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>;
+  const sent = Boolean(signup.welcomeEmailSentAt);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+      <Badge tone={sent ? "success" : "danger"}>{sent ? "Sent" : "Not sent"}</Badge>
+      {sent && (
+        <span style={{ fontSize: 11, color: "var(--muted)" }}>{new Date(signup.welcomeEmailSentAt).toLocaleString()}</span>
+      )}
+      <Button variant="secondary" size="sm" disabled={busy} onClick={() => onResend(signup)}>
+        {busy ? "Sending…" : sent ? "Resend" : "Send now"}
+      </Button>
+    </div>
+  );
+}
+
 function HealthcareCell({ signup, busy, onToggle }) {
   if (!signup.tenantSlug) return <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>;
   const on = Boolean(signup.healthcareMode);
@@ -72,7 +88,9 @@ export default function MiiaSignupsPage() {
   const [retrying, setRetrying] = useState(null);
   const [archiving, setArchiving] = useState(null);
   const [togglingHealthcare, setTogglingHealthcare] = useState(null);
+  const [resendingWelcome, setResendingWelcome] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [emailFailures, setEmailFailures] = useState([]);
 
   function load(includeArchived = showArchived) {
     adminFetch(`/api/admin/miia-signups${includeArchived ? "?includeArchived=true" : ""}`)
@@ -81,6 +99,26 @@ export default function MiiaSignupsPage() {
   }
 
   useEffect(() => load(showArchived), [showArchived]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    adminFetch("/api/admin/email-failures")
+      .then((data) => setEmailFailures(data.failures || []))
+      .catch(() => {});
+  }, []);
+
+  function resendWelcome(signup) {
+    setResendingWelcome(signup.id);
+    adminFetch(`/api/admin/miia-signups/${signup.id}/resend-welcome`, { method: "POST" })
+      .then(({ signup: updated }) => {
+        setSignups((prev) => prev.map((s) => (s.id === signup.id ? { ...s, ...updated } : s)));
+        toast.push(
+          updated.welcomeEmailSentAt ? `Welcome email sent to ${updated.email}` : "Still failing - check the red banner above for the error",
+          updated.welcomeEmailSentAt ? "success" : "error"
+        );
+      })
+      .catch((e) => toast.push(e.message, "error"))
+      .finally(() => setResendingWelcome(null));
+  }
 
   function toggleChecklist(id, item, value) {
     setSignups((prev) => prev.map((s) => (s.id === id ? { ...s, checklist: { ...s.checklist, [item]: value } } : s)));
@@ -135,6 +173,24 @@ export default function MiiaSignupsPage() {
         <p className={s.pageSubtitle}>Every paid Miia checkout, provisioning status, and the go-live checklist.</p>
       </div>
 
+      {emailFailures.length > 0 && (
+        <div
+          style={{
+            background: "var(--danger-bg)",
+            border: "1px solid var(--danger-border)",
+            color: "var(--danger)",
+            borderRadius: 8,
+            padding: "12px 16px",
+            marginBottom: 16,
+            fontSize: 13,
+          }}
+        >
+          {emailFailures.length} email send{emailFailures.length === 1 ? "" : "s"} failed in the last 24 hours. Most
+          recent: <strong>{emailFailures[0].context}</strong> to {emailFailures[0].to || "unknown"}, error:{" "}
+          {emailFailures[0].error}
+        </div>
+      )}
+
       <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "var(--muted)", marginBottom: 16 }}>
         <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} />
         Show archived (test tenants)
@@ -149,6 +205,7 @@ export default function MiiaSignupsPage() {
             <th>Provisioning</th>
             <th>Intake</th>
             <th>Deploy</th>
+            <th>Welcome email</th>
             <th>Healthcare</th>
             <th>Checklist</th>
             <th></th>
@@ -189,6 +246,9 @@ export default function MiiaSignupsPage() {
               <td>{statusBadge(sg.intakeStatus)}</td>
               <td>{statusBadge(sg.deployStatus)}</td>
               <td>
+                <WelcomeEmailCell signup={sg} busy={resendingWelcome === sg.id} onResend={resendWelcome} />
+              </td>
+              <td>
                 <HealthcareCell signup={sg} busy={togglingHealthcare === sg.id} onToggle={toggleHealthcare} />
               </td>
               <td>
@@ -219,7 +279,7 @@ export default function MiiaSignupsPage() {
           ))}
           {signups && signups.length === 0 && (
             <tr>
-              <td colSpan={9} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
+              <td colSpan={10} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
                 No signups yet.
               </td>
             </tr>

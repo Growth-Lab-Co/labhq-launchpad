@@ -3,7 +3,7 @@ import { getTenant } from "@/lib/tenants";
 import { getSignupByTenantSlug } from "@/lib/miiaSignups";
 import { createMagicLink } from "@/lib/miiaCustomerAuth";
 import { buildMagicLinkEmail } from "@/lib/miiaEmails";
-import { sendEmail } from "@/lib/email";
+import { sendTransactionalEmail, logEmailFailure } from "@/lib/emailFailures";
 import { checkRateLimit, getClientIp } from "@/lib/rateLimit";
 import { SITE_URL } from "@/components/miia/site";
 
@@ -43,15 +43,37 @@ export async function POST(req) {
   const signup = await getSignupByTenantSlug(tenantSlug);
   if (!signup || signup.email.toLowerCase() !== cleanEmail) return NextResponse.json(generic);
 
-  const token = await createMagicLink({ tenantSlug });
-  const link = `${SITE_URL}/api/miia/auth/verify?token=${encodeURIComponent(token)}`;
-  const { subject, html, text } = buildMagicLinkEmail({
-    firstName: (signup.contactName || "").trim().split(/\s+/)[0] || null,
-    link,
-  });
-  await sendEmail({ to: signup.email, subject, html, text, from: MIIA_FROM }).catch((e) =>
-    console.error(`[MIIA-AUTH-FAIL] tenant=${tenantSlug} step=sendEmail`, e.message)
-  );
+  // Wrapped end to end: a throw anywhere here must still return the same
+  // generic response (never a 500 that tips off a caller probing emails),
+  // and must never silently vanish either - see lib/emailFailures.js and
+  // the 2026-07-28 "welcome email never sent" incident this pattern backs.
+  try {
+    const token = await createMagicLink({ tenantSlug });
+    const link = `${SITE_URL}/api/miia/auth/verify?token=${encodeURIComponent(token)}`;
+    const { subject, html, text } = buildMagicLinkEmail({
+      firstName: (signup.contactName || "").trim().split(/\s+/)[0] || null,
+      link,
+    });
+    await sendTransactionalEmail({
+      context: "magic-link-request",
+      to: signup.email,
+      subject,
+      html,
+      text,
+      from: MIIA_FROM,
+      signupId: signup.id,
+      tenantSlug,
+    });
+  } catch (e) {
+    console.error(`[MIIA-AUTH-FAIL] tenant=${tenantSlug} step=crashed`, e.stack || e.message);
+    await logEmailFailure({
+      context: "magic-link-request-crashed",
+      to: signup.email,
+      error: e.stack || e.message,
+      signupId: signup.id,
+      tenantSlug,
+    }).catch(() => {});
+  }
 
   return NextResponse.json(generic);
 }
