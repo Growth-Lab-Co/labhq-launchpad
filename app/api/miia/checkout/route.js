@@ -11,7 +11,7 @@ export async function POST(req) {
     return NextResponse.json({ error: "Checkout isn't set up yet." }, { status: 503 });
   }
 
-  const { plan, billingPeriod } = await req.json().catch(() => ({}));
+  const { plan, billingPeriod, vertical } = await req.json().catch(() => ({}));
   if (!VALID_PLANS.includes(plan)) {
     return NextResponse.json({ error: "Unknown plan." }, { status: 400 });
   }
@@ -20,6 +20,7 @@ export async function POST(req) {
     const session = await createMiiaCheckoutSession({
       plan,
       billingPeriod: billingPeriod === "yearly" ? "yearly" : "monthly",
+      vertical: typeof vertical === "string" ? vertical.slice(0, 60) : "",
       successUrl: `${SITE_URL}/get-started/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${SITE_URL}/pricing`,
     });

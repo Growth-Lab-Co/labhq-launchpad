@@ -44,11 +44,34 @@ function statusBadge(status) {
   return <Badge tone="warning">{status}</Badge>;
 }
 
+const HEALTHCARE_SOURCE_LABEL = {
+  signup: "via /allied-health signup",
+  "intake-classifier": "via intake classifier",
+  manual: "manual override",
+};
+
+function HealthcareCell({ signup, busy, onToggle }) {
+  if (!signup.tenantSlug) return <span style={{ fontSize: 12, color: "var(--muted)" }}>—</span>;
+  const on = Boolean(signup.healthcareMode);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
+      <Badge tone={on ? "accent" : "neutral"}>{on ? "Healthcare mode ON" : "Healthcare mode off"}</Badge>
+      {signup.healthcareModeSource && (
+        <span style={{ fontSize: 11, color: "var(--muted)" }}>{HEALTHCARE_SOURCE_LABEL[signup.healthcareModeSource] || signup.healthcareModeSource}</span>
+      )}
+      <Button variant="secondary" size="sm" disabled={busy} onClick={() => onToggle(signup, !on)}>
+        {busy ? "…" : on ? "Turn off" : "Turn on"}
+      </Button>
+    </div>
+  );
+}
+
 export default function MiiaSignupsPage() {
   const toast = useToast();
   const [signups, setSignups] = useState(null);
   const [retrying, setRetrying] = useState(null);
   const [archiving, setArchiving] = useState(null);
+  const [togglingHealthcare, setTogglingHealthcare] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
 
   function load(includeArchived = showArchived) {
@@ -79,6 +102,19 @@ export default function MiiaSignupsPage() {
       })
       .catch((e) => toast.push(e.message, "error"))
       .finally(() => setRetrying(null));
+  }
+
+  function toggleHealthcare(signup, enabled) {
+    setTogglingHealthcare(signup.id);
+    adminFetch(`/api/admin/tenants/${signup.tenantSlug}/healthcare-mode`, { method: "POST", body: { enabled } })
+      .then(() => {
+        setSignups((prev) =>
+          prev.map((s) => (s.id === signup.id ? { ...s, healthcareMode: enabled, healthcareModeSource: "manual" } : s))
+        );
+        toast.push(`Healthcare mode ${enabled ? "turned on" : "turned off"} for ${signup.businessName}`, "success");
+      })
+      .catch((e) => toast.push(e.message, "error"))
+      .finally(() => setTogglingHealthcare(null));
   }
 
   function archive(id, restore) {
@@ -113,6 +149,7 @@ export default function MiiaSignupsPage() {
             <th>Provisioning</th>
             <th>Intake</th>
             <th>Deploy</th>
+            <th>Healthcare</th>
             <th>Checklist</th>
             <th></th>
           </tr>
@@ -152,6 +189,9 @@ export default function MiiaSignupsPage() {
               <td>{statusBadge(sg.intakeStatus)}</td>
               <td>{statusBadge(sg.deployStatus)}</td>
               <td>
+                <HealthcareCell signup={sg} busy={togglingHealthcare === sg.id} onToggle={toggleHealthcare} />
+              </td>
+              <td>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, maxWidth: 220 }}>
                   {CHECKLIST_ITEMS.map((item) => (
                     <ChecklistChip key={item.id} signup={sg} item={item} onToggle={toggleChecklist} />
@@ -179,7 +219,7 @@ export default function MiiaSignupsPage() {
           ))}
           {signups && signups.length === 0 && (
             <tr>
-              <td colSpan={8} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
+              <td colSpan={9} style={{ color: "var(--muted)", fontSize: 13, padding: "16px 0" }}>
                 No signups yet.
               </td>
             </tr>

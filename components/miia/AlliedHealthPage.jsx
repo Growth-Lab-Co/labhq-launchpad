@@ -7,6 +7,9 @@ import { FaqAccordion } from "./FaqAccordion";
 import styles from "./alliedHealth.module.css";
 
 const HERO_CTA_LABEL = "Be one of the first 20 clinics";
+// Carries the signup-source healthcare trigger through to checkout - see
+// lib/guardrails.js HEALTH_VERTICAL_SLUGS and lib/miiaProvisioning.js.
+const GET_STARTED_HREF = "/get-started?vertical=allied-health";
 
 const CHAT_EXCHANGE = {
   customer: {
@@ -84,7 +87,7 @@ export function AlliedHealthPage() {
               </Reveal>
               <Reveal delay={520}>
                 <div className={styles.heroCtas}>
-                  <Button href="/get-started">{HERO_CTA_LABEL}</Button>
+                  <Button href={GET_STARTED_HREF}>{HERO_CTA_LABEL}</Button>
                   <Button href="/how-it-works" variant="outline">
                     See how she works
                   </Button>
@@ -186,7 +189,7 @@ export function AlliedHealthPage() {
             <p className={styles.finalCtaFounding}>
               Be one of the first 20 founding clinics. 20% off, locked in for life.
             </p>
-            <Button href="/get-started" variant="onDark">
+            <Button href={GET_STARTED_HREF} variant="onDark">
               {HERO_CTA_LABEL}
             </Button>
           </Reveal>

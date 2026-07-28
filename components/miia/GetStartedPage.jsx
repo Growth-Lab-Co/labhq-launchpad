@@ -24,6 +24,11 @@ export function GetStartedPage() {
   const [yearly, setYearly] = useState(searchParams.get("billing") === "yearly");
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState(null);
+  // Signup-source healthcare trigger (see lib/guardrails.js
+  // HEALTH_VERTICAL_SLUGS) - carried through as a query param from a
+  // vertical page's CTA (e.g. /allied-health) all the way to checkout
+  // metadata, so the tenant that gets created already has healthcareMode on.
+  const vertical = searchParams.get("vertical") || "";
 
   async function startCheckout() {
     if (checkingOut) return;
@@ -33,7 +38,7 @@ export function GetStartedPage() {
       const res = await fetch("/api/miia/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan: selectedId, billingPeriod: yearly ? "yearly" : "monthly" }),
+        body: JSON.stringify({ plan: selectedId, billingPeriod: yearly ? "yearly" : "monthly", vertical }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Couldn't start checkout.");

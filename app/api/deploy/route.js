@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
-import { getTenant, ghlCredsFor, markTenantDeployed } from "@/lib/tenants";
+import { getTenant, ghlCredsFor, markTenantDeployed, setHealthcareMode } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
-import { buildHardGuardrails } from "@/lib/guardrails";
+import { buildHardGuardrails, classifyHealthcareBusiness } from "@/lib/guardrails";
 import {
   createSubAccount,
   pushAllCustomValues,
@@ -57,7 +57,7 @@ async function lockDeployedTenant(tenant, slug) {
 
 export async function POST(req) {
   try {
-    const { tenant: slug, answers = {}, customValues, action, sessionId, vertical } = await req.json();
+    const { tenant: slug, answers = {}, customValues, action, sessionId } = await req.json();
     const tenant = await getTenant(slug);
     if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
@@ -125,6 +125,28 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         );
       }
 
+      // The "belt" healthcare trigger (see lib/guardrails.js
+      // classifyHealthcareBusiness): catches a health business regardless of
+      // which page it signed up through - the "braces" trigger is the
+      // signup-source vertical, set at tenant creation in
+      // lib/miiaProvisioning.js. Skipped once the tenant already has
+      // healthcareMode on, or once an operator has made an explicit manual
+      // call either way (source === "manual" is sticky - see
+      // setHealthcareMode). Never blocks or fails the deploy.
+      if (tenant.product === "miia" && !tenant.healthcareMode && tenant.healthcareModeSource !== "manual") {
+        try {
+          const isHealthcare = await classifyHealthcareBusiness({
+            businessName: customValues.business_name || answers.business_name || tenant.name,
+            services: answers.services || customValues.services_summary || "",
+          });
+          if (isHealthcare) {
+            await setHealthcareMode(slug, { enabled: true, source: "intake-classifier" });
+          }
+        } catch (e) {
+          console.error(`[HEALTHCARE-CLASSIFY-FAIL] tenant=${slug}`, e.message);
+        }
+      }
+
       const lock = claimDeployLock(sessionId);
       if (!lock.ok) return NextResponse.json({ error: lock.message }, { status: 409 });
 
@@ -147,7 +169,6 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
             contactName: answers.contact_name || "",
             locationId: demoLocationId,
             demo: true,
-            vertical,
             answers,
             customValues,
           });
@@ -255,7 +276,6 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           contactName: answers.contact_name || "",
           locationId,
           demo: false,
-          vertical,
           answers,
           customValues,
           locationAuthNeeded,
