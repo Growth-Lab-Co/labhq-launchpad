@@ -109,8 +109,17 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
 
       // Direct passthrough, not part of the "Keys to produce" prompt above -
       // a pasted URL must survive byte-for-byte, not get paraphrased by the
-      // generation model.
-      complete.booking_link = (answers.booking_link || "").trim();
+      // generation model. Validated, not trusted blindly: found during
+      // testing that the interview model can occasionally capture an
+      // unrelated later answer against this field once it's "the next
+      // uncaptured one" (harmless for prose fields, but this one gets
+      // offered as a live link by the bot, so garbage here is worse than
+      // blank). Falls back to pulling a URL out of booking_rules, since
+      // that's where a mid-conversation link mention has landed in
+      // practice - blank if neither has one.
+      const urlPattern = /https?:\/\/[^\s,)]+/i;
+      const pickUrl = (text) => urlPattern.exec(text || "")?.[0]?.replace(/[.,;]+$/, "") || "";
+      complete.booking_link = pickUrl(answers.booking_link) || pickUrl(answers.booking_rules);
 
       return NextResponse.json({ customValues: complete });
     }
