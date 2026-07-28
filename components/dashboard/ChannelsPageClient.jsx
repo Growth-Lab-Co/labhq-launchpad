@@ -144,7 +144,202 @@ function LeadsieConnect({ tenantSlug }) {
   );
 }
 
-export function ChannelsPageClient({ tenantSlug, channels, businessName }) {
+// "Connect your calendar" - no Google OAuth app exists anywhere in this
+// codebase today (grepped before building this - confirmed, not assumed),
+// so this can't be a real connect flow yet. Files an ops task instead of
+// faking a connected state - see MORNING-REPORT.md for the exact blocker
+// (a Google Cloud project + OAuth consent screen + client ID/secret all
+// need to exist first, none of which do).
+function CalendarConnectCard({ tenantSlug }) {
+  const [state, setState] = useState("idle"); // idle | sending | sent
+  async function requestSetup() {
+    setState("sending");
+    try {
+      await fetch("/api/miia/dashboard/calendar-interest", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenantSlug }),
+      });
+      setState("sent");
+    } catch {
+      setState("idle");
+    }
+  }
+  return (
+    <div className={styles.row} style={{ marginTop: 16 }}>
+      <div className={styles.rowHead}>
+        <div className={styles.rowLeft}>
+          <div>
+            <p className={styles.name}>Calendar</p>
+            <p className={styles.detail}>
+              Google Calendar sync isn&apos;t wired up yet - tell us and we&apos;ll set it up with you directly. Outlook is on our roadmap.
+            </p>
+          </div>
+        </div>
+        <span className={[styles.pill, styles.pillNotStarted].join(" ")}>
+          <span className={styles.pillDot} />
+          Not started
+        </span>
+      </div>
+      <div className={styles.actions}>
+        <button type="button" className={styles.connectBtn} onClick={requestSetup} disabled={state !== "idle"}>
+          {state === "sent" ? (
+            <>
+              <Check size={14} /> We'll be in touch
+            </>
+          ) : state === "sending" ? (
+            "Sending…"
+          ) : (
+            "Connect your calendar"
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Cliniko: real connect flow - pastes an API key, validated live against
+// Cliniko itself (app/api/miia/dashboard/practice-integration). Halaxy:
+// honest stub - see HALAXY-FEASIBILITY.md for why it isn't real yet.
+// `emphasise` (from tenant.practiceSoftware, set at intake) puts whichever
+// one the business actually said they use first.
+function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
+  const [loading, setLoading] = useState(true);
+  const [connection, setConnection] = useState(null);
+  const [apiKey, setApiKey] = useState("");
+  const [connecting, setConnecting] = useState(false);
+  const [error, setError] = useState(null);
+  const [halaxyInterest, setHalaxyInterest] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/miia/dashboard/practice-integration?tenantSlug=${encodeURIComponent(tenantSlug)}`)
+      .then((res) => res.json())
+      .then((data) => { if (!cancelled) setConnection(data.connection || null); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [tenantSlug]);
+
+  async function connectCliniko() {
+    setConnecting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/miia/dashboard/practice-integration", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenantSlug, provider: "cliniko", apiKey }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't validate that key");
+      setConnection({ provider: "cliniko", status: "connected", meta: data.meta });
+      setApiKey("");
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setConnecting(false);
+    }
+  }
+
+  async function registerHalaxyInterest() {
+    setHalaxyInterest(true);
+    await fetch("/api/miia/dashboard/practice-integration", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantSlug, interest: "halaxy" }),
+    }).catch(() => {});
+  }
+
+  if (loading) return null;
+
+  if (connection?.status === "connected" && connection.provider === "cliniko") {
+    return (
+      <div className={styles.row} style={{ marginTop: 16 }}>
+        <div className={styles.rowHead}>
+          <div className={styles.rowLeft}>
+            <div>
+              <p className={styles.name}>Practice software</p>
+              <p className={styles.detail}>
+                Connected to Cliniko{connection.meta?.businessName ? ` - ${connection.meta.businessName}` : ""}. Miia offers your real
+                availability and books straight into your diary.
+              </p>
+            </div>
+          </div>
+          <span className={[styles.pill, styles.pillLive].join(" ")}>
+            <span className={styles.pillDot} />
+            Connected
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  const clinikoFirst = practiceSoftware !== "halaxy";
+  const clinikoCard = (
+    <div key="cliniko" className={styles.codeBlock}>
+      <div className={styles.codeHead}>
+        <span className={styles.codeTitle}>Cliniko</span>
+      </div>
+      <p className={styles.detail} style={{ marginBottom: 10 }}>
+        Paste your Cliniko API key -{" "}
+        <a href="https://help.cliniko.com/kb/api" target="_blank" rel="noreferrer">
+          find it under My Info → API Keys
+        </a>
+        .
+      </p>
+      <div className={styles.linkRowInline}>
+        <input
+          type="password"
+          className={styles.linkInput}
+          placeholder="Cliniko API key"
+          value={apiKey}
+          onChange={(e) => setApiKey(e.target.value)}
+        />
+        <button type="button" className={styles.connectBtn} onClick={connectCliniko} disabled={connecting || !apiKey.trim()}>
+          {connecting ? "Validating…" : "Connect"}
+        </button>
+      </div>
+      {error && <p className={styles.linkError}>{error}</p>}
+    </div>
+  );
+  const halaxyCard = (
+    <div key="halaxy" className={styles.codeBlock}>
+      <div className={styles.codeHead}>
+        <span className={styles.codeTitle}>Halaxy</span>
+      </div>
+      <p className={styles.detail} style={{ marginBottom: 10 }}>
+        Halaxy integration: in progress - register your interest and we&apos;ll notify you.
+      </p>
+      <button type="button" className={styles.connectBtn} onClick={registerHalaxyInterest} disabled={halaxyInterest}>
+        {halaxyInterest ? (
+          <>
+            <Check size={14} /> Noted
+          </>
+        ) : (
+          "Register interest"
+        )}
+      </button>
+    </div>
+  );
+
+  return (
+    <div className={styles.row} style={{ marginTop: 16 }}>
+      <div className={styles.rowHead}>
+        <div className={styles.rowLeft}>
+          <div>
+            <p className={styles.name}>Practice software</p>
+            <p className={styles.detail}>Connect Cliniko so Miia can offer real availability and book straight into your diary.</p>
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
+        {clinikoFirst ? [clinikoCard, halaxyCard] : [halaxyCard, clinikoCard]}
+      </div>
+    </div>
+  );
+}
+
+export function ChannelsPageClient({ tenantSlug, channels, businessName, showPracticeCards, practiceSoftware }) {
   return (
     <>
       <h1 className={styles.heading}>Channels</h1>
@@ -178,6 +373,9 @@ export function ChannelsPageClient({ tenantSlug, channels, businessName }) {
           );
         })}
       </div>
+
+      <CalendarConnectCard tenantSlug={tenantSlug} />
+      {showPracticeCards && <PracticeIntegrationCard tenantSlug={tenantSlug} practiceSoftware={practiceSoftware} />}
     </>
   );
 }

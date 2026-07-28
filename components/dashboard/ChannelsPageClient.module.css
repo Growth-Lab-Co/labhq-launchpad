@@ -73,3 +73,16 @@
 .modalHead { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--dash-border); }
 .modalClose { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--dash-border); background: var(--dash-canvas); color: var(--dash-ink); }
 .modalFrame { width: 100%; height: 560px; border: none; display: block; }
+
+.linkRowInline { display: flex; gap: 8px; flex-wrap: wrap; }
+.linkInput {
+  flex: 1 1 220px;
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--dash-border);
+  background: var(--dash-surface);
+  color: var(--dash-ink);
+  font-size: 13.5px;
+}
+.linkError { margin-top: 8px; font-size: 12.5px; color: var(--dash-warn, #b45309); }
