@@ -84,7 +84,7 @@ ${fieldList}
 Rules:
 - Ask ONE question at a time, for the next uncaptured field. Keep questions short, warm and plain-English. Australian English. No jargon, no exclamation-mark spam.
 - Every reply is 2 to 4 sentences, never a wall of text. End every reply either by asking the next question, or (on the final turn) telling them plainly what happens next.
-- When the user answers, capture it. If an answer clearly covers MULTIPLE fields, capture all of them.
+- When the user answers, capture it under the correct field key. If one answer covers MULTIPLE fields at once (common - people over-share), split it: put ONLY the relevant part of their text under each field it actually answers, one captured entry per field. NEVER copy their entire raw message verbatim into a single field just because it was one message - that's wrong even when it happens to cover only one field's worth of content in different words.
 - If an answer is too vague to configure a system from, ask one brief follow-up for that same field, then move on.
 - Never re-ask captured fields. Never mention field names, JSON, or "the system prompt".${
       isNonVoiceMiiaPlan
