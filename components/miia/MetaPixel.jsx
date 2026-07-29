@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { ensureFbq, trackPageView } from "@/lib/metaPixel";
 import { captureUtm } from "@/lib/utm";
@@ -12,19 +12,20 @@ import { captureUtm } from "@/lib/utm";
 export function MetaPixel({ pixelId }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const firstRun = useRef(true);
 
   useEffect(() => {
     if (!pixelId) return;
     ensureFbq(pixelId);
     captureUtm();
-    trackPageView();
-    firstRun.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fires PageView exactly once per mount (covers initial load) and once per
+  // subsequent client-side route change - deliberately one effect, not two,
+  // so there's no ordering trap between an "initial" fire and a "route
+  // change" fire double-counting the same navigation.
   useEffect(() => {
-    if (firstRun.current || !pixelId) return;
+    if (!pixelId) return;
     trackPageView();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname, searchParams]);
