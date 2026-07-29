@@ -44,6 +44,12 @@ export async function POST(req) {
     if (provided !== expectedSecret) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+  } else {
+    // Job 4 (2026-07-29): stays honest in the logs, not just in the code
+    // comment above - every call is accepted unverified until
+    // LEADSIE_WEBHOOK_SECRET is set and registered with Leadsie as
+    // ?secret=... on the webhook URL.
+    console.warn("[LEADSIE-WEBHOOK] LEADSIE_WEBHOOK_SECRET is not set - accepting this call unverified.");
   }
 
   const body = await req.json().catch(() => null);

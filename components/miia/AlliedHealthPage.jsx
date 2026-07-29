@@ -166,8 +166,9 @@ export function AlliedHealthPage() {
           <Reveal className={styles.bookingCard}>
             <h2 className={styles.bookingHeading}>How booking works</h2>
             <p className={styles.bookingBody}>
-              Miia books into her own calendar or shares your online booking link, your choice. Direct integration
-              with practice software like Cliniko is on our roadmap, and we&apos;ll say so plainly until it ships.
+              Connect Cliniko and Miia offers patients real available times straight from your actual diary - your
+              team confirms each booking with one click. No Cliniko yet? Miia shares your online booking link or
+              books into her own calendar instead, your choice. Halaxy and Momence integrations are on our roadmap.
             </p>
           </Reveal>
         </div>

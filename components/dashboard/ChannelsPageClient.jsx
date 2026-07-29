@@ -270,8 +270,8 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
             <div>
               <p className={styles.name}>Practice software</p>
               <p className={styles.detail}>
-                Connected to Cliniko{connection.meta?.businessName ? ` - ${connection.meta.businessName}` : ""}. Miia offers your real
-                availability and books straight into your diary.
+                Connected to Cliniko{connection.meta?.businessName ? ` - ${connection.meta.businessName}` : ""}. Miia offers patients
+                real available times from your actual diary - your team confirms each booking with one click.
               </p>
             </div>
           </div>
@@ -364,7 +364,10 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
         <div className={styles.rowLeft}>
           <div>
             <p className={styles.name}>Practice software</p>
-            <p className={styles.detail}>Connect Cliniko so Miia can offer real availability and book straight into your diary.</p>
+            <p className={styles.detail}>
+              Connect Cliniko and Miia offers patients real available times from your actual diary - your team
+              confirms each booking with one click.
+            </p>
           </div>
         </div>
       </div>
