@@ -54,6 +54,17 @@
 .row:hover { background: var(--dash-canvas); }
 .rowActive { background: var(--dash-violet-10); }
 .rowName { font-size: 14px; font-weight: 600; color: var(--dash-ink); }
+.sourceBadge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--dash-violet);
+  background: var(--dash-violet-10);
+  vertical-align: middle;
+}
 .rowSnippet { margin-top: 2px; font-size: 12.5px; color: var(--dash-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rowTime { margin-top: 4px; font-size: 11.5px; color: var(--dash-secondary); }
 

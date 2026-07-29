@@ -12,7 +12,7 @@ function timeLabel(iso) {
   return isToday ? `${time} today` : `${time} ${d.toLocaleDateString([], { day: "numeric", month: "short" })}`;
 }
 
-export function ConversationHero({ conversation, tenantSlug, base }) {
+export function ConversationHero({ conversation, tenantSlug, widgetKey, base }) {
   if (!conversation) {
     return (
       <Card>
@@ -21,7 +21,7 @@ export function ConversationHero({ conversation, tenantSlug, base }) {
           title="No conversations yet"
           body="Miia's ready. Try her yourself and see how she sounds."
         />
-        <TestChat tenantSlug={tenantSlug} triggerClassName={styles.primaryBtn} />
+        <TestChat tenantSlug={tenantSlug} widgetKey={widgetKey} triggerClassName={styles.primaryBtn} />
       </Card>
     );
   }
@@ -61,7 +61,7 @@ export function ConversationHero({ conversation, tenantSlug, base }) {
           <MessageSquare size={16} /> View conversation
         </a>
       </div>
-      <TestChat tenantSlug={tenantSlug} triggerClassName={styles.secondaryBtn} />
+      <TestChat tenantSlug={tenantSlug} widgetKey={widgetKey} triggerClassName={styles.secondaryBtn} />
     </Card>
   );
 }

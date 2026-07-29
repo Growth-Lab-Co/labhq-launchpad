@@ -28,7 +28,7 @@ export function DashboardHome({ tenant, deployment, businessName, contactFirstNa
 
       <div className={styles.columns}>
         <div className={styles.col}>
-          <ConversationHero conversation={data.latestConversation} tenantSlug={tenant.slug} base={base} />
+          <ConversationHero conversation={data.latestConversation} tenantSlug={tenant.slug} widgetKey={tenant.widgetKey} base={base} />
           <BookingsList bookings={data.bookingsTodayList} />
           <RevenueCard
             afterHoursBookingsThisMonth={data.revenueProtected?.afterHoursBookings}

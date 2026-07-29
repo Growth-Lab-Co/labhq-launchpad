@@ -1,38 +1,73 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { TwoDots } from "./TwoDots";
 import styles from "./TestChat.module.css";
 
-// Inline "try her yourself" widget - expands in place rather than
-// navigating anywhere, since there's no separate test-chat page.
-export function TestChat({ tenantSlug, triggerClassName, triggerLabel = "Open test chat" }) {
+// The dashboard's "try her yourself" chat and the in-house Miia widget
+// (public/widget.js) are now the same underlying conversation - this talks
+// directly to /api/widget/message with the tenant's own widgetKey, the
+// exact same endpoint a customer's embedded widget calls, with real
+// multi-turn history (see lib/widgetConversations.js) and streaming
+// replies. Same-origin (dashboard is on meetmiia.com), so none of the CORS
+// handling the embedded widget needs applies here.
+export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel = "Open test chat" }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [exchange, setExchange] = useState(null);
+  const [messages, setMessages] = useState([]); // [{ direction: "inbound"|"outbound", body }]
   const [error, setError] = useState(null);
+  const conversationIdRef = useRef(null);
 
   async function send(e) {
     e.preventDefault();
-    if (!input.trim() || busy) return;
+    if (!input.trim() || busy || !widgetKey) return;
     const text = input.trim();
+    setInput("");
     setBusy(true);
     setError(null);
-    setExchange({ question: text, reply: null });
+    setMessages((m) => [...m, { direction: "inbound", body: text }, { direction: "outbound", body: "" }]);
+
     try {
-      const res = await fetch("/api/miia/dashboard/test-message", {
+      const res = await fetch("/api/widget/message", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ tenantSlug, inboundText: text }),
+        body: JSON.stringify({ widgetKey, conversationId: conversationIdRef.current, message: text }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Couldn't reach Miia. Try again.");
-      setExchange({ question: text, reply: data.reply });
-      setInput("");
+      const convId = res.headers.get("X-Conversation-Id");
+      if (convId) conversationIdRef.current = convId;
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Couldn't reach Miia. Try again.");
+      }
+
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("application/json")) {
+        const data = await res.json();
+        setMessages((m) => {
+          const next = [...m];
+          next[next.length - 1] = { direction: "outbound", body: data.text || "" };
+          return next;
+        });
+        return;
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let full = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += decoder.decode(value, { stream: true });
+        setMessages((m) => {
+          const next = [...m];
+          next[next.length - 1] = { direction: "outbound", body: full };
+          return next;
+        });
+      }
     } catch (e) {
       setError(e.message);
-      setExchange(null);
+      setMessages((m) => m.slice(0, -1)); // drop the empty placeholder reply
     } finally {
       setBusy(false);
     }
@@ -46,17 +81,23 @@ export function TestChat({ tenantSlug, triggerClassName, triggerLabel = "Open te
     );
   }
 
+  const lastIsEmptyOutbound =
+    messages.length > 0 && messages[messages.length - 1].direction === "outbound" && !messages[messages.length - 1].body && busy;
+
   return (
     <div className={styles.panel}>
-      {exchange && (
-        <div className={styles.exchange}>
-          <div className={styles.bubbleIn}>{exchange.question}</div>
-          {exchange.reply ? (
-            <div className={styles.bubbleOut}>{exchange.reply}</div>
-          ) : (
-            <div className={styles.typing}>
-              <TwoDots size="sm" pulse />
-            </div>
+      {messages.length > 0 && (
+        <div className={styles.thread}>
+          {messages.map((m, i) =>
+            i === messages.length - 1 && lastIsEmptyOutbound ? (
+              <div key={i} className={styles.typing}>
+                <TwoDots size="sm" pulse />
+              </div>
+            ) : (
+              <div key={i} className={m.direction === "inbound" ? styles.bubbleIn : styles.bubbleOut}>
+                {m.body}
+              </div>
+            )
           )}
         </div>
       )}

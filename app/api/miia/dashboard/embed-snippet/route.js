@@ -1,17 +1,17 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { getTenant } from "@/lib/tenants";
-import { listDeployments } from "@/lib/deployments";
+import { getTenant, ensureWidgetKey } from "@/lib/tenants";
 import { getSession, SESSION_COOKIE } from "@/lib/miiaCustomerAuth";
-import { websiteChatEmbedSnippet } from "@/lib/channelWiring";
+import { miiaWidgetEmbedSnippet } from "@/lib/channelWiring";
 
-// Generates the website chat widget's embed snippet rather than fetching it
-// from GHL - the real chat-widget-config endpoint is gated behind the
-// chat-widget.readonly scope, which the location app doesn't request (see
-// lib/channelWiring.js's header comment), and adding OAuth scopes is out of
-// bounds here. HighLevel's own docs confirm the snippet only ever needs the
-// location's ID (verified 2026-07-28) - nothing else to fetch, so this never
-// has to return an empty card once a tenant is deployed.
+// Extended for job 1 (2026-07-29 "simplification build"), not rebuilt: this
+// used to generate a GHL chat-widget snippet keyed by locationId (see
+// lib/channelWiring.js's websiteChatEmbedSnippet, left in place - existing
+// customers who already embedded that one keep working untouched). The
+// Channels card now hands out the in-house Miia widget instead, keyed by
+// the tenant's own public widgetKey - no GHL sub-account/locationId
+// dependency at all, so it's available immediately, before any GHL
+// provisioning has finished (see job 2a's instant Chat tier).
 export async function GET(req) {
   const tenantSlug = req.nextUrl.searchParams.get("tenantSlug");
   const token = cookies().get(SESSION_COOKIE)?.value;
@@ -23,10 +23,9 @@ export async function GET(req) {
   const tenant = await getTenant(tenantSlug);
   if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
 
-  const deployments = await listDeployments(tenantSlug).catch(() => []);
-  const deployment = deployments[0];
-  if (!deployment?.locationId) return NextResponse.json({ embed: null });
+  const withKey = await ensureWidgetKey(tenant);
+  if (!withKey?.widgetKey) return NextResponse.json({ embed: null });
 
-  const snippet = websiteChatEmbedSnippet({ locationId: deployment.locationId, accent: tenant.accent });
-  return NextResponse.json({ embed: { locationId: deployment.locationId, snippet } });
+  const snippet = miiaWidgetEmbedSnippet({ widgetKey: withKey.widgetKey });
+  return NextResponse.json({ embed: { widgetKey: withKey.widgetKey, snippet } });
 }

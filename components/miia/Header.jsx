@@ -7,6 +7,7 @@ import { Button, PRIMARY_CTA_LABEL } from "./Button";
 import styles from "./Header.module.css";
 
 const NAV = [
+  { href: "/meet-miia", label: "Meet Miia" },
   { href: "/features", label: "Features" },
   { href: "/how-it-works", label: "How it works" },
   { href: "/allied-health", label: "For clinics" },

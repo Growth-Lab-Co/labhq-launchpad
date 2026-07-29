@@ -1,5 +1,6 @@
 .panel { margin-top: 16px; border-top: 1px solid var(--dash-border); padding-top: 16px; }
 .exchange { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.thread { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; max-height: 320px; overflow-y: auto; }
 .bubbleIn {
   align-self: flex-start;
   max-width: 85%;

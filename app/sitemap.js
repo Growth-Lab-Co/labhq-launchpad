@@ -6,7 +6,7 @@ import { INDUSTRIES } from "@/components/miia/industries";
 export default function sitemap() {
   // /get-started 301s to /pricing now (payment consolidated there) - not
   // worth an indexed sitemap entry for a permanent redirect.
-  const routes = ["", "/features", "/how-it-works", "/pricing", "/legal/terms", "/legal/privacy"];
+  const routes = ["", "/meet-miia", "/features", "/how-it-works", "/pricing", "/legal/terms", "/legal/privacy"];
   const industryRoutes = INDUSTRIES.map((i) => i.path);
   return [...routes, ...industryRoutes].map((route) => ({
     url: `${SITE_URL}${route}`,

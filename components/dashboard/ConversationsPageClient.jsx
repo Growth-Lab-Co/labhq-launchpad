@@ -9,7 +9,7 @@ function timeOf(iso) {
   return iso ? new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
 }
 
-export function ConversationsPageClient({ tenantSlug, conversations }) {
+export function ConversationsPageClient({ tenantSlug, widgetKey, conversations }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
   const [messages, setMessages] = useState(null);
@@ -61,7 +61,7 @@ export function ConversationsPageClient({ tenantSlug, conversations }) {
             icon={MessageSquare}
             title="No conversations yet"
             body="Once a channel's connected, every conversation Miia has will show up here."
-            action={<TestChat tenantSlug={tenantSlug} triggerClassName={styles.primaryBtn} />}
+            action={<TestChat tenantSlug={tenantSlug} widgetKey={widgetKey} triggerClassName={styles.primaryBtn} />}
           />
         </Card>
       ) : filtered.length === 0 ? (
@@ -78,7 +78,10 @@ export function ConversationsPageClient({ tenantSlug, conversations }) {
                 onClick={() => selectConversation(c.id)}
                 className={[styles.row, selectedId === c.id ? styles.rowActive : ""].filter(Boolean).join(" ")}
               >
-                <p className={styles.rowName}>{c.contactName || "Unknown contact"}</p>
+                <p className={styles.rowName}>
+                  {c.contactName || "Unknown contact"}
+                  {c.source === "widget" && <span className={styles.sourceBadge}>Website</span>}
+                </p>
                 <p className={styles.rowSnippet}>{c.lastMessageBody || " "}</p>
                 <p className={styles.rowTime}>{timeOf(c.dateUpdated)}</p>
               </button>
