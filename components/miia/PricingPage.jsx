@@ -6,6 +6,7 @@ import { PricingCards } from "./PricingCards";
 import { FaqAccordion } from "./FaqAccordion";
 import { FAQ_ITEMS } from "./faq";
 import { WHITE_GLOVE, FOUNDING_SPOTS, getPlan } from "./plans";
+import { ViewContentTracker } from "./ViewContentTracker";
 import styles from "./pricing.module.css";
 
 // Payment is consolidated here - a vertical page's CTA
@@ -21,6 +22,7 @@ export function PricingPage() {
 
   return (
     <div className={styles.page}>
+      <ViewContentTracker name="pricing" />
       <div className={styles.container}>
         <Reveal className={styles.intro}>
           <h1 className={styles.h1}>Simple pricing. No lock-in.</h1>

@@ -4,6 +4,7 @@ import { ChatDemo } from "./ChatDemo";
 import { NumberedSteps } from "./NumberedSteps";
 import { Calculator } from "./Calculator";
 import { FaqAccordion } from "./FaqAccordion";
+import { ViewContentTracker } from "./ViewContentTracker";
 import styles from "./alliedHealth.module.css";
 
 // Carries the signup-source healthcare trigger through to checkout - see
@@ -70,6 +71,7 @@ const FAQ = [
 export function AlliedHealthPage() {
   return (
     <div className={styles.page}>
+      <ViewContentTracker name="allied-health" />
       <section className={styles.hero}>
         <div className={styles.container}>
           <div className={styles.heroGrid}>

@@ -17,6 +17,9 @@ export async function POST(req) {
     return NextResponse.json({
       status: result.status, // "success" | "failed" | "pending"
       tenantSlug: result.signup?.tenantSlug || null,
+      plan: result.signup?.plan || null,
+      billingPeriod: result.signup?.billingPeriod || null,
+      founding: Boolean(result.signup?.founding),
     });
   } catch (e) {
     console.error("[miia-checkout-status] failed:", e.status ?? "-", e.body ?? e.message);

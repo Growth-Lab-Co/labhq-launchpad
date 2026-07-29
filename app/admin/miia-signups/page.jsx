@@ -46,6 +46,20 @@ function statusBadge(status) {
   return <Badge tone="warning">{status}</Badge>;
 }
 
+function sourceBadge(sg) {
+  if (!sg.utmSource && !sg.utmMedium && !sg.utmCampaign) {
+    return <Badge tone="neutral">Direct</Badge>;
+  }
+  return (
+    <div>
+      <Badge tone="accent">{sg.utmSource || "—"}</Badge>
+      <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>
+        {[sg.utmMedium, sg.utmCampaign].filter(Boolean).join(" · ") || "—"}
+      </div>
+    </div>
+  );
+}
+
 const HEALTHCARE_SOURCE_LABEL = {
   signup: "via /allied-health signup",
   "intake-classifier": "via intake classifier",
@@ -203,6 +217,7 @@ export default function MiiaSignupsPage() {
           <tr>
             <th>Business</th>
             <th>Plan</th>
+            <th>Source</th>
             <th>Paid</th>
             <th>Provisioning</th>
             <th>Intake</th>
@@ -234,6 +249,7 @@ export default function MiiaSignupsPage() {
                   {sg.whiteGlove ? " · White glove" : ""}
                 </div>
               </td>
+              <td>{sourceBadge(sg)}</td>
               <td style={{ fontSize: 13 }}>{sg.paidAt ? new Date(sg.paidAt).toLocaleString() : "—"}</td>
               <td>
                 {statusBadge(sg.provisioningStatus)}

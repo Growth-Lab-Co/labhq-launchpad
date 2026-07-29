@@ -4,6 +4,8 @@ import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
 import styles from "./checkout-success.module.css";
+import { ensureFbq, trackPurchase } from "@/lib/metaPixel";
+import { getPlan, yearlyTotal } from "./plans";
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 20; // ~40s of active polling before settling on the calm fallback
@@ -14,7 +16,7 @@ const MAX_POLLS = 20; // ~40s of active polling before settling on the calm fall
 const STATUS_LINES = ["Learning your services", "Setting up your calendar", "Teaching Miia your prices", "Nearly there"];
 const STATUS_LINE_MS = 2500;
 
-export function CheckoutSuccessPage() {
+export function CheckoutSuccessPage({ pixelId }) {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const [state, setState] = useState("checking"); // checking | failed | unpaid | missing
@@ -41,6 +43,24 @@ export function CheckoutSuccessPage() {
         if (cancelledRef.current) return;
 
         if (data.status === "success" && data.tenantSlug) {
+          // Purchase fires here, v1 (client-side, on the post-checkout
+          // return) rather than server-side via Conversions API - no CAPI
+          // token was available to wire tonight. This is the only point
+          // in the flow where it can fire at all: the page redirects to
+          // the tenant app immediately below, and the pixel must never
+          // load past that redirect (customer dashboards/tenant pages are
+          // out of bounds for it).
+          const planData = getPlan(data.plan);
+          if (planData && typeof planData.price === "number") {
+            const monthlyPrice = data.founding ? planData.foundingPrice ?? planData.price : planData.price;
+            const value = data.billingPeriod === "yearly" ? yearlyTotal(monthlyPrice) : monthlyPrice;
+            ensureFbq(pixelId);
+            const firedKey = `miia_purchase_fired_${sessionId}`;
+            if (!sessionStorage.getItem(firedKey)) {
+              trackPurchase({ value, currency: "AUD", content_name: data.plan, content_type: "product" });
+              sessionStorage.setItem(firedKey, "1");
+            }
+          }
           window.location.href = `/${data.tenantSlug}`;
           return;
         }

@@ -171,6 +171,19 @@
     addBubble("in", text);
     var typingEl = showTyping();
 
+    // Generic, pixel-agnostic signal for the first message of a conversation -
+    // this script runs unmodified on arbitrary customer websites, so it must
+    // never carry ad-tracking code itself. Only components/miia/MeetMiiaPage.jsx
+    // (our own marketing page, mode:"preview" only) listens for this and turns
+    // it into a Meta Pixel Lead event.
+    if (!conversationId) {
+      try {
+        document.dispatchEvent(
+          new CustomEvent("miia:first-message", { detail: { mode: WIDGET_KEY ? "tenant" : "preview" } })
+        );
+      } catch (e) {}
+    }
+
     var payload = WIDGET_KEY
       ? { widgetKey: WIDGET_KEY, conversationId: conversationId, message: text }
       : { previewId: PREVIEW_ID, message: text };

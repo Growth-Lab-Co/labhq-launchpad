@@ -1,7 +1,9 @@
+import { Suspense } from "react";
 import { Space_Grotesk, Space_Mono } from "next/font/google";
 import { Header } from "@/components/miia/Header";
 import { Footer } from "@/components/miia/Footer";
 import { ScrollbarTheme } from "@/components/miia/ScrollbarTheme";
+import { MetaPixel } from "@/components/miia/MetaPixel";
 import "@/components/miia/tokens.css";
 
 // Per Miia-Brand-Guidelines.pdf v1.0: Space Grotesk carries everything
@@ -26,6 +28,9 @@ export default function MarketingLayout({ children }) {
   return (
     <div className={`miia ${display.variable} ${mono.variable}`}>
       <ScrollbarTheme />
+      <Suspense fallback={null}>
+        <MetaPixel pixelId={process.env.META_PIXEL_ID} />
+      </Suspense>
       <Header />
       {children}
       <Footer />

@@ -9,7 +9,7 @@ export const metadata = {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <CheckoutSuccessPage />
+      <CheckoutSuccessPage pixelId={process.env.META_PIXEL_ID} />
     </Suspense>
   );
 }

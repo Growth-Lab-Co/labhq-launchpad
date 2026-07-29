@@ -2,8 +2,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
-import { PLANS, VOICE_PLAN, yearlyPerMonth } from "./plans";
+import { PLANS, VOICE_PLAN, yearlyPerMonth, yearlyTotal } from "./plans";
 import { BOOKING_URL } from "./site";
+import { trackInitiateCheckout } from "@/lib/metaPixel";
+import { readUtm } from "@/lib/utm";
 import styles from "./PricingCards.module.css";
 
 function useReducedMotion() {
@@ -133,10 +135,21 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
     setCheckoutPlanId(plan.id);
     setCheckoutError(null);
     try {
+      const monthlyPrice = foundingMode && !yearly ? plan.foundingPrice : plan.price;
+      const value = yearly ? yearlyTotal(monthlyPrice) : monthlyPrice;
+      trackInitiateCheckout({ value, currency: "AUD", content_name: plan.id });
+      const utm = readUtm() || {};
       const res = await fetch("/api/miia/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan: plan.id, billingPeriod: yearly ? "yearly" : "monthly", vertical: vertical || "" }),
+        body: JSON.stringify({
+          plan: plan.id,
+          billingPeriod: yearly ? "yearly" : "monthly",
+          vertical: vertical || "",
+          utmSource: utm.utmSource || "",
+          utmMedium: utm.utmMedium || "",
+          utmCampaign: utm.utmCampaign || "",
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.url) throw new Error(data.error || "Couldn't start checkout.");

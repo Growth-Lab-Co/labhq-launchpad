@@ -6,6 +6,7 @@ import { ChatDemo } from "./ChatDemo";
 import { NumberedSteps } from "./NumberedSteps";
 import { FaqAccordion } from "./FaqAccordion";
 import { INDUSTRIES } from "./industries";
+import { ViewContentTracker } from "./ViewContentTracker";
 import styles from "./industry.module.css";
 
 // "audienceSingular" (e.g. "trade", "salon", "law firm") is what reads
@@ -23,6 +24,7 @@ export function IndustryPage({ industry }) {
 
   return (
     <div className={styles.page}>
+      <ViewContentTracker name={industry.slug} />
       <section className={styles.hero}>
         <div className={styles.container}>
           <div className={styles.heroGrid}>

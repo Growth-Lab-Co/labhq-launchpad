@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import styles from "./MeetMiiaPage.module.css";
+import { trackLead } from "@/lib/metaPixel";
 
 // The same in-house widget (public/widget.js) that powers a customer's
 // embedded chat also powers this preview - job 1's "the same widget powers
@@ -12,6 +13,19 @@ export function MeetMiiaPage() {
   const [status, setStatus] = useState("idle"); // idle | starting | started | error
   const [error, setError] = useState(null);
   const [businessName, setBusinessName] = useState(null);
+
+  // public/widget.js dispatches this generic, pixel-agnostic event on the
+  // first message of any conversation (preview or tenant) - only this page
+  // translates it into a Lead, and only for mode:"preview" (this is the
+  // only place the widget runs in preview mode; a tenant's own embed on
+  // their own site never has the pixel loaded to react to it anyway).
+  useEffect(() => {
+    function onFirstMessage(e) {
+      if (e.detail?.mode === "preview") trackLead({ content_name: "meet-miia-preview" });
+    }
+    document.addEventListener("miia:first-message", onFirstMessage);
+    return () => document.removeEventListener("miia:first-message", onFirstMessage);
+  }, []);
 
   async function start(e) {
     e.preventDefault();
