@@ -187,7 +187,13 @@
           try { localStorage.setItem(STORAGE_KEY, conversationId); } catch (e) {}
         }
         if (!res.ok) {
-          return res.json().then(function (d) { throw new Error(d.error || "Something went wrong."); });
+          // Body might not be JSON (a platform error/timeout page rather
+          // than our own route responding) - never let a raw parse error
+          // leak into the chat as if Miia said it.
+          return res.json().then(
+            function (d) { throw new Error(d.error || "Something went wrong - try again."); },
+            function () { throw new Error("Something went wrong - try again."); }
+          );
         }
         var contentType = res.headers.get("content-type") || "";
         if (contentType.indexOf("application/json") !== -1) {
@@ -241,7 +247,11 @@
       })
       .catch(function (err) {
         typingEl.remove();
-        addBubble("out", err.message || "Couldn't reach Miia - try again.");
+        // A raw SyntaxError from a failed .json() parse looks nothing like
+        // something a customer should see - show the honest fallback
+        // instead of leaking a parser error into the transcript.
+        var isParseError = err && err.name === "SyntaxError";
+        addBubble("out", isParseError ? "Couldn't reach Miia - try again." : (err.message || "Couldn't reach Miia - try again."));
         sending = false;
       });
   });
