@@ -88,6 +88,17 @@ export async function OPTIONS(req) {
 // once the stream ends (awaited inside flush() so the persist genuinely
 // finishes before the HTTP response closes - can't rely on work continuing
 // after the response is fully sent on a serverless platform).
+//
+// Known gap: the underlying connection has been observed to take far
+// longer to formally close (~30s) than the actual reply takes to arrive
+// (confirmed the visible text streams in 2-5s; raw Claude streaming
+// independently timed at under 2s to first byte) - looks like a
+// Netlify/Next.js response-streaming characteristic on this route rather
+// than anything in this function, but wasn't fully root-caused tonight.
+// public/widget.js works around it client-side (treats a reply as "done"
+// once chunks stop arriving for ~2.5s, rather than waiting for the fetch
+// promise to fully settle) so it doesn't block the next message - see its
+// own comment for why that's safe.
 function tapStream(source, onDone) {
   let full = "";
   return source.pipeThrough(

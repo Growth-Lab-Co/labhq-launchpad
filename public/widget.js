@@ -195,20 +195,45 @@
             typingEl.remove();
             addBubble("out", d.text || "");
             if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
+            sending = false;
           });
         }
         typingEl.remove();
         var bubble = addBubble("out", "");
         var reader = res.body.getReader();
         var decoder = new TextDecoder();
+        // The underlying connection has been observed to take much longer to
+        // formally close than the actual reply takes to arrive (a platform
+        // streaming quirk, not a generation-speed problem - confirmed
+        // separately that raw Claude streaming itself is fast). Rather than
+        // block the user from sending their next message until the fetch
+        // promise fully settles, treat the reply as "done" once no new
+        // chunk has arrived for a couple of seconds - the read loop below
+        // keeps running in the background regardless, so nothing is lost if
+        // more text does arrive after that.
+        var settled = false;
+        var quietTimer = null;
+        function settle() {
+          if (settled) return;
+          settled = true;
+          sending = false;
+          if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
+        }
+        function armQuietTimer() {
+          clearTimeout(quietTimer);
+          quietTimer = setTimeout(settle, 2500);
+        }
+        armQuietTimer();
         function pump() {
           return reader.read().then(function (r) {
             if (r.done) {
-              if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
+              clearTimeout(quietTimer);
+              settle();
               return;
             }
             bubble.textContent += decoder.decode(r.value, { stream: true });
             body.scrollTop = body.scrollHeight;
+            armQuietTimer();
             return pump();
           });
         }
@@ -217,7 +242,7 @@
       .catch(function (err) {
         typingEl.remove();
         addBubble("out", err.message || "Couldn't reach Miia - try again.");
-      })
-      .finally(function () { sending = false; });
+        sending = false;
+      });
   });
 })();
