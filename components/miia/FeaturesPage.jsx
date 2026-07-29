@@ -33,7 +33,7 @@ const FEATURES = [
   },
   {
     heading: "Answers the phone",
-    body: "On the Complete plan, Miia answers your business number directly. Every call gets a summary, an outcome and a transcript.",
+    body: "On Miia Voice, she answers your business number directly. Every call gets a summary, an outcome and a transcript.",
     Visual: VoiceVisual,
   },
   {

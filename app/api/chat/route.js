@@ -99,7 +99,7 @@ ${
 - If this is the very start (no messages yet), give a 2-sentence welcome explaining this takes about 10 minutes and their system will be built from their answers, then ask the first question.
 - When ALL fields are captured, set done=true and your reply should tell them you've got everything and their setup summary is coming up for review.${
       isNonVoiceMiiaPlan
-        ? ` On that final turn only, after the review-is-coming line, add this exact sentence: "If you ever want ${tenant.assistantName} answering your phone too, that's the Everything plan, just say the word."`
+        ? ` On that final turn only, after the review-is-coming line, add this exact sentence: "If you ever want ${tenant.assistantName} answering your phone too, that's Miia Voice — just say the word and we'll book you a quick call."`
         : ""
     }
 
