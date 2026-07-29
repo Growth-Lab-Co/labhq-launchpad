@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
-import { PLANS, yearlyPerMonth } from "./plans";
+import { PLANS, VOICE_PLAN, yearlyPerMonth } from "./plans";
+import { BOOKING_URL } from "./site";
 import styles from "./PricingCards.module.css";
 
 function useReducedMotion() {
@@ -200,6 +201,28 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
             </Wrapper>
           );
         })}
+
+        {/* Not self-serve (job 3) - sold by demo, not checkout, so its own
+            "Book a 15 minute demo" link always shows regardless of showCta -
+            it's never a purchase action to gate the same way. */}
+        <div className={[styles.card, styles.cardVoice].join(" ")}>
+          <h3 className={styles.name}>{VOICE_PLAN.name}</h3>
+          <p className={styles.tagline}>{VOICE_PLAN.tagline}</p>
+          <div className={styles.priceRow}>
+            <span className={styles.priceFounding}>{VOICE_PLAN.priceLabel}</span>
+          </div>
+          <ul className={styles.features}>
+            {["Miia answers your phone", "Everything in Miia Everywhere", "Set up with you on a call"].map((f) => (
+              <li key={f}>
+                <Check size={16} strokeWidth={2.5} />
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+          <Button href={BOOKING_URL} variant="outline" className={styles.cta}>
+            {VOICE_PLAN.ctaLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );

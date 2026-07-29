@@ -210,6 +210,7 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState(null);
   const [halaxyInterest, setHalaxyInterest] = useState(false);
+  const [momenceInterest, setMomenceInterest] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -247,6 +248,15 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ tenantSlug, interest: "halaxy" }),
+    }).catch(() => {});
+  }
+
+  async function registerMomenceInterest() {
+    setMomenceInterest(true);
+    await fetch("/api/miia/dashboard/practice-integration", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantSlug, interest: "momence" }),
     }).catch(() => {});
   }
 
@@ -308,10 +318,36 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
         <span className={styles.codeTitle}>Halaxy</span>
       </div>
       <p className={styles.detail} style={{ marginBottom: 10 }}>
-        Halaxy integration: in progress - register your interest and we&apos;ll notify you.
+        Halaxy integration: in progress - register your interest and we&apos;ll notify you. Halaxy requires the
+        clinic&apos;s own API add-on (~$33/month from Halaxy) before we can connect, on top of your existing Halaxy
+        subscription.
       </p>
       <button type="button" className={styles.connectBtn} onClick={registerHalaxyInterest} disabled={halaxyInterest}>
         {halaxyInterest ? (
+          <>
+            <Check size={14} /> Noted
+          </>
+        ) : (
+          "Register interest"
+        )}
+      </button>
+    </div>
+  );
+  // Momence serves studios (gyms, pilates, yoga) rather than clinics - a
+  // different business category to Cliniko/Halaxy, but the same honest
+  // "register interest, file an ops note" stub (job 3, 2026-07-29) since
+  // no Momence adapter exists yet either.
+  const momenceCard = (
+    <div key="momence" className={styles.codeBlock}>
+      <div className={styles.codeHead}>
+        <span className={styles.codeTitle}>Momence</span>
+      </div>
+      <p className={styles.detail} style={{ marginBottom: 10 }}>
+        Run a studio - gym, pilates, yoga? Momence integration: in progress - register your interest and we&apos;ll
+        notify you.
+      </p>
+      <button type="button" className={styles.connectBtn} onClick={registerMomenceInterest} disabled={momenceInterest}>
+        {momenceInterest ? (
           <>
             <Check size={14} /> Noted
           </>
@@ -333,7 +369,7 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
         </div>
       </div>
       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-        {clinikoFirst ? [clinikoCard, halaxyCard] : [halaxyCard, clinikoCard]}
+        {clinikoFirst ? [clinikoCard, halaxyCard, momenceCard] : [halaxyCard, clinikoCard, momenceCard]}
       </div>
     </div>
   );
@@ -368,7 +404,7 @@ export function ChannelsPageClient({ tenantSlug, channels, businessName, showPra
               </div>
 
               {c.id === "webchat" && <EmbedSnippet tenantSlug={tenantSlug} businessName={businessName} />}
-              {c.id === "social" && !live && <LeadsieConnect tenantSlug={tenantSlug} />}
+              {c.id === "social" && !live && c.status !== "upgrade" && <LeadsieConnect tenantSlug={tenantSlug} />}
             </div>
           );
         })}

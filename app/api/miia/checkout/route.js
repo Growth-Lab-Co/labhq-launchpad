@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { miiaStripeConfigured, createMiiaCheckoutSession } from "@/lib/miiaStripe";
 import { SITE_URL } from "@/components/miia/site";
 
-const VALID_PLANS = ["chat", "everywhere", "complete"];
+// Job 3 (2026-07-29): "complete" (Miia Voice) removed from self-serve
+// checkout - sold by demo now (components/miia/site.js's BOOKING_URL), not
+// instant purchase. The Stripe price itself is untouched
+// (lib/miiaStripe.js's PLAN_ENV_KEY still has it) - it's just unreachable
+// through this route.
+const VALID_PLANS = ["chat", "everywhere"];
 
 // Always uses meetmiia.com URLs (SITE_URL), regardless of which attached
 // domain the request itself arrived on.

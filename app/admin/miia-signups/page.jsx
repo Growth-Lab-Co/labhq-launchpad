@@ -12,7 +12,9 @@ const CHECKLIST_ITEMS = [
   { id: "day2Check", label: "Day-2" },
 ];
 
-const PLAN_LABEL = { chat: "Miia Chat", everywhere: "Miia Everywhere", complete: "Miia Complete" };
+// "complete" is the unchanged internal plan id for Miia Voice (job 3,
+// 2026-07-29) - see components/miia/plans.js's LEGACY_COMPLETE_PLAN.
+const PLAN_LABEL = { chat: "Miia Chat", everywhere: "Miia Everywhere", complete: "Miia Voice" };
 
 function ChecklistChip({ signup, item, onToggle }) {
   const on = Boolean(signup.checklist?.[item.id]);

@@ -77,6 +77,11 @@
   box-shadow: var(--miia-shadow-lift);
   cursor: pointer;
 }
+.cardVoice {
+  border-style: dashed;
+  border-color: var(--miia-line-strong);
+  background: var(--miia-bg-alt);
+}
 
 .badge {
   position: absolute;
