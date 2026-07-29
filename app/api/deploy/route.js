@@ -1,19 +1,12 @@
 import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
-import { getTenant, ghlCredsFor, markTenantDeployed, setHealthcareMode, updateTenant } from "@/lib/tenants";
+import { getTenant, markTenantDeployed, setHealthcareMode, updateTenant } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
 import { buildHardGuardrails, classifyHealthcareBusiness } from "@/lib/guardrails";
-import {
-  createSubAccount,
-  pushAllCustomValues,
-  createContact,
-  getForms,
-  resolveSubAccountAuth,
-  resolveLocationDataAuth,
-} from "@/lib/ghl";
+import { runGhlProvisioning } from "@/lib/ghlProvisioning";
 import { recordDeployment } from "@/lib/deployments";
 import { logActivity } from "@/lib/activity";
-import { getActiveSnapshotId } from "@/lib/snapshotTemplates";
+import { createSession, setSessionCookie, cookieDomainForRequest } from "@/lib/miiaCustomerAuth";
 
 export const maxDuration = 120;
 
@@ -53,6 +46,35 @@ async function lockDeployedTenant(tenant, slug) {
   } catch (e) {
     console.error(`[DEPLOY-LOCK-FAIL] tenant=${slug}`, e.message);
   }
+}
+
+// Job 2b (2026-07-29 "simplification build") - the morning report's #1
+// wince: a customer landed on a sign-in screen straight after finishing
+// intake, because the dashboard's auth gate (lib/dashboardAccess.js) only
+// ever recognised a magic-link session, and deploying never minted one.
+//
+// The fix mints the exact same session a magic-link click creates
+// (lib/miiaCustomerAuth.js's createSession/setSessionCookie - same 30-day
+// token, same cookie, same store) directly on this response, the moment
+// intake finishes deploying. Deliberately the "boring" option: reusing the
+// existing session mechanism verbatim rather than inventing a shorter-lived
+// or differently-scoped token for this one moment - the trust boundary is
+// identical to what a magic link already grants (whoever completes intake
+// on this exact tenant's not-yet-deployed URL), so a new mechanism would
+// only add complexity without changing what's actually being trusted.
+//
+// Cross-device is a non-issue for this specific bridge, by construction:
+// the browser that calls this deploy endpoint is necessarily the same
+// browser that then follows the redirect to the dashboard (Chat.jsx does
+// both in one client-side flow) - there's no window where the cookie needs
+// to travel to a different device. A genuinely different device visiting
+// later (checked email on a different phone, say) still needs the normal
+// magic link, exactly as before - this only ever smooths the one redirect
+// that happens right after deploying, not future return visits.
+async function attachDashboardSession(res, tenant, slug, req) {
+  if (tenant.product !== "miia") return res;
+  const { token, expiresAt } = await createSession({ tenantSlug: slug });
+  return setSessionCookie(res, token, expiresAt, cookieDomainForRequest(req));
 }
 
 export async function POST(req) {
@@ -181,122 +203,79 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       const lock = claimDeployLock(sessionId);
       if (!lock.ok) return NextResponse.json({ error: lock.message }, { status: 409 });
 
-      try {
-        const legacyCreds = ghlCredsFor(tenant);
-        const agencyAuth = await resolveSubAccountAuth(slug, legacyCreds);
-        const activeSnapshotId = await getActiveSnapshotId(slug, legacyCreds.snapshotId);
-        const configured = Boolean(activeSnapshotId && agencyAuth.token && agencyAuth.companyId);
+      const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
 
-        // Demo mode: no usable GHL auth for this tenant -> simulate success.
-        if (!configured) {
+      // Miia Chat tier only (job 2a, 2026-07-29 "simplification build") -
+      // "live in minutes": don't make the customer wait on any GHL step at
+      // all. A deployment record + working widget exist immediately;
+      // sub-account provisioning runs quietly afterward via a Netlify
+      // Background Function and is never allowed to surface an error back
+      // to this customer - see netlify/functions/ghl-provision-background.mjs.
+      // Everywhere keeps the honest 48-hour framing and the full
+      // synchronous path below, unchanged.
+      if (tenant.product === "miia" && tenant.plan === "chat") {
+        deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+        await lockDeployedTenant(tenant, slug);
+
+        const deployRecord = await recordDeployment({
+          tenant: slug,
+          businessName,
+          contactName: answers.contact_name || "",
+          locationId: null,
+          demo: false,
+          answers,
+          customValues,
+          ghlStatus: "pending",
+        });
+
+        await logActivity({ tenant: slug, deploymentId: deployRecord?.id, businessName, type: "deployment", text: "System deployed" });
+
+        const site = process.env.URL || `https://${req.headers.get("host")}`;
+        fetch(`${site}/.netlify/functions/ghl-provision-background`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ tenantSlug: slug, answers, customValues, deploymentId: deployRecord?.id, businessName }),
+        }).catch((e) => console.error(`[DEPLOY] failed to enqueue background provisioning for ${slug}:`, e.message));
+
+        return attachDashboardSession(
+          NextResponse.json({ ok: true, demo: false, instant: true, locationId: null, pushed: [], locationAuthNeeded: false }),
+          tenant,
+          slug,
+          req
+        );
+      }
+
+      try {
+        const result = await runGhlProvisioning({ tenant, slug, answers, customValues });
+
+        if (result.demo) {
           await new Promise((r) => setTimeout(r, 4000));
-          if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
+          deployLocks.set(sessionId, { status: "done", ts: Date.now() });
           await lockDeployedTenant(tenant, slug);
-          const demoLocationId = "demo-" + Math.random().toString(36).slice(2, 8);
-          const demoBusinessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
           const demoRecord = await recordDeployment({
             tenant: slug,
-            businessName: demoBusinessName,
+            businessName,
             contactName: answers.contact_name || "",
-            locationId: demoLocationId,
+            locationId: result.locationId,
             demo: true,
             answers,
             customValues,
           });
-          await logActivity({
-            tenant: slug,
-            deploymentId: demoRecord?.id,
-            businessName: demoBusinessName,
-            type: "deployment",
-            text: "System deployed",
-          });
-          return NextResponse.json({
-            ok: true,
-            demo: true,
-            locationId: demoLocationId,
-            pushed: Object.keys(customValues).map((name) => ({ name, ok: true })),
-          });
+          await logActivity({ tenant: slug, deploymentId: demoRecord?.id, businessName, type: "deployment", text: "System deployed" });
+          return attachDashboardSession(
+            NextResponse.json({
+              ok: true,
+              demo: true,
+              locationId: result.locationId,
+              pushed: Object.keys(customValues).map((name) => ({ name, ok: true })),
+            }),
+            tenant,
+            slug,
+            req
+          );
         }
 
-        const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
-        const { id: locationId } = await createSubAccount({
-          token: agencyAuth.token,
-          companyId: agencyAuth.companyId,
-          snapshotId: activeSnapshotId,
-          businessName,
-          contact: { website: customValues.website_url },
-        });
-
-        // All location-data writes below use the LOCATION APP's auth for this
-        // specific location, falling back to the legacy agency PI token. If
-        // neither is available yet, [LOCATION-AUTH-NEEDED] is logged and the
-        // deploy still succeeds - the operator retries the sync from Mission
-        // Control once the location app is authorised.
-        const locationAuth = await resolveLocationDataAuth({ tenantSlug: slug, locationId, legacyCreds });
-        const locationAuthNeeded = !locationAuth.token;
-
-        const pushed = locationAuth.token
-          ? await pushAllCustomValues({
-              token: locationAuth.token,
-              companyId: agencyAuth.companyId,
-              locationId,
-              values: customValues,
-            })
-          : Object.keys(customValues).map((name) => ({ name, ok: false }));
-        const failures = pushed.filter((p) => !p.ok);
-
-        // Post-deploy contact: fires the snapshot's Go-Live workflow (trigger:
-        // contact tagged "onboarding"). Never fails the whole deploy - surface
-        // a warning instead so the operator can add it manually.
-        let contactWarning = null;
-        let contactCreated = false;
-        if (locationAuth.token) {
-          const rawName = (answers.contact_name || "").trim();
-          const [firstName, ...rest] = rawName.split(/\s+/).filter(Boolean);
-          try {
-            await createContact({
-              token: locationAuth.token,
-              locationId,
-              firstName,
-              lastName: rest.join(" "),
-              tags: ["onboarding"],
-            });
-            contactCreated = true;
-          } catch (e) {
-            console.error(
-              `[DEPLOY-FAIL] tenant=${slug} step=createContact locationId=${locationId} status=${e.status ?? "-"}`,
-              e.body ?? e.message
-            );
-            contactWarning =
-              "We couldn't automatically create the onboarding contact — add it manually in GHL so the Go-Live workflow fires.";
-          }
-        } else {
-          contactWarning =
-            "This sub-account is waiting on location app authorisation before we can sync its data — use \"Retry data sync\" in Mission Control once it's connected.";
-        }
-
-        // Form embed for the client's website - best effort, skip silently on failure.
-        let formEmbed = null;
-        if (locationAuth.token) {
-          try {
-            const forms = await getForms({ token: locationAuth.token, locationId });
-            const form = forms[0];
-            if (form?.id) {
-              const formName = form.name || "Contact form";
-              formEmbed = {
-                formId: form.id,
-                name: formName,
-                snippet: `<script src="https://link.msgsndr.com/js/form_embed.js"></script>\n<iframe src="https://api.leadconnectorhq.com/widget/form/${form.id}" style="width:100%;height:600px;border:none;border-radius:4px" id="inline-${form.id}" data-form-id="${form.id}" title="${formName}"></iframe>`,
-              };
-            }
-          } catch (e) {
-            // Forms aren't essential to a successful deploy - skip silently for the user.
-            console.error(
-              `[DEPLOY-FAIL] tenant=${slug} step=getForms locationId=${locationId} status=${e.status ?? "-"}`,
-              e.body ?? e.message
-            );
-          }
-        }
+        const { locationId, pushed, failures, contactWarning, contactCreated, formEmbed, locationAuthNeeded, authorizeUrl } = result;
 
         if (sessionId) deployLocks.set(sessionId, { status: "done", ts: Date.now() });
         await lockDeployedTenant(tenant, slug);
@@ -332,22 +311,27 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
           });
         }
 
-        return NextResponse.json({
-          ok: true,
-          demo: false,
-          locationId,
-          pushed,
-          warning:
-            !locationAuthNeeded && failures.length
-              ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
-                  .map((f) => f.name)
-                  .join(", ")}`
-              : null,
-          contactWarning,
-          formEmbed,
-          locationAuthNeeded,
-          authorizeUrl: locationAuthNeeded ? locationAuth.authorizeUrl : null,
-        });
+        return attachDashboardSession(
+          NextResponse.json({
+            ok: true,
+            demo: false,
+            locationId,
+            pushed,
+            warning:
+              !locationAuthNeeded && failures.length
+                ? `${failures.length} custom value(s) failed to push - check GHL and re-add manually: ${failures
+                    .map((f) => f.name)
+                    .join(", ")}`
+                : null,
+            contactWarning,
+            formEmbed,
+            locationAuthNeeded,
+            authorizeUrl,
+          }),
+          tenant,
+          slug,
+          req
+        );
       } catch (e) {
         // Allow a legitimate retry after a genuine failure.
         if (sessionId) deployLocks.delete(sessionId);

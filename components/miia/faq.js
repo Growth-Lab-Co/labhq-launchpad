@@ -14,7 +14,7 @@ export const FAQ_ITEMS = [
   {
     id: "speed",
     q: "How fast is she actually live?",
-    a: "Web chat and social channels can be live the same day. A dedicated phone number needs carrier registration, which usually clears within 48 hours. Either way, Miia is trained and ready the moment you finish the chat.",
+    a: "Miia Chat is live in minutes, straight off the back of your setup chat. Miia Everywhere adds Facebook, Instagram and SMS, which take a little wiring on our end, usually live within 48 hours.",
   },
   {
     id: "handoff",

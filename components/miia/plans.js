@@ -9,7 +9,7 @@ export const PLANS = [
     price: 99,
     foundingPrice: 79,
     replies: "500 replies a month",
-    features: ["One channel of your choice", "500 replies a month", "Trained in one 10 minute chat", "Live in 48 hours"],
+    features: ["One channel of your choice", "500 replies a month", "Trained in one 10 minute chat", "Live in minutes"],
     popular: false,
   },
   {
