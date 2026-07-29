@@ -4,15 +4,6 @@ import { MessageCircle, Smartphone, AtSign, Phone, Check, Mail, X } from "lucide
 import { MIIA_CHANNEL_COPY } from "@/lib/channelWiring";
 import styles from "./ChannelsPageClient.module.css";
 
-// Set this to your Leadsie connect-request URL once one exists (Leadsie
-// Dashboard -> your request -> "embed on your website" -> copy the page's
-// URL, e.g. https://app.leadsie.com/connect/{agency}/{request}) - one
-// request, reused for every tenant via ?customUserId=<tenantSlug> below, so
-// each webhook call (app/api/leadsie-webhook/route.js) can be mapped back to
-// the right tenant. Left blank until then - the button below shows an
-// honest "not wired up yet" state rather than a broken iframe.
-const LEADSIE_EMBED_URL = "";
-
 const ICONS = { webchat: MessageCircle, sms: Smartphone, social: AtSign, phone: Phone };
 const COPY_KEY = { webchat: "webchat", sms: "sms", social: "fb", phone: null };
 
@@ -109,10 +100,10 @@ function EmbedSnippet({ tenantSlug, businessName }) {
 // Granting access here is NOT the same as being live (see
 // lib/leadsieConnections.js) - the "Connecting" pill above this button
 // reflects that honestly once the webhook fires.
-function LeadsieConnect({ tenantSlug }) {
+function LeadsieConnect({ tenantSlug, leadsieEmbedUrl }) {
   const [open, setOpen] = useState(false);
 
-  if (!LEADSIE_EMBED_URL) {
+  if (!leadsieEmbedUrl) {
     return (
       <p className={styles.detail} style={{ marginTop: 10 }}>
         Facebook and Instagram connection isn&apos;t wired up yet on our end - ask your Miia team and we&apos;ll sort it.
@@ -120,7 +111,7 @@ function LeadsieConnect({ tenantSlug }) {
     );
   }
 
-  const src = `${LEADSIE_EMBED_URL}${LEADSIE_EMBED_URL.includes("?") ? "&" : "?"}customUserId=${encodeURIComponent(tenantSlug)}`;
+  const src = `${leadsieEmbedUrl}${leadsieEmbedUrl.includes("?") ? "&" : "?"}customUserId=${encodeURIComponent(tenantSlug)}`;
 
   return (
     <div className={styles.actions}>
@@ -378,7 +369,7 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
   );
 }
 
-export function ChannelsPageClient({ tenantSlug, channels, businessName, showPracticeCards, practiceSoftware }) {
+export function ChannelsPageClient({ tenantSlug, channels, businessName, showPracticeCards, practiceSoftware, leadsieEmbedUrl }) {
   return (
     <>
       <h1 className={styles.heading}>Channels</h1>
@@ -407,7 +398,9 @@ export function ChannelsPageClient({ tenantSlug, channels, businessName, showPra
               </div>
 
               {c.id === "webchat" && <EmbedSnippet tenantSlug={tenantSlug} businessName={businessName} />}
-              {c.id === "social" && !live && c.status !== "upgrade" && <LeadsieConnect tenantSlug={tenantSlug} />}
+              {c.id === "social" && !live && c.status !== "upgrade" && (
+                <LeadsieConnect tenantSlug={tenantSlug} leadsieEmbedUrl={leadsieEmbedUrl} />
+              )}
             </div>
           );
         })}

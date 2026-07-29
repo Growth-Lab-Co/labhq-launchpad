@@ -19,6 +19,7 @@ export default async function ChannelsPage({ params }) {
       businessName={businessName}
       showPracticeCards={Boolean(tenant.healthcareMode)}
       practiceSoftware={tenant.practiceSoftware || null}
+      leadsieEmbedUrl={process.env.LEADSIE_EMBED_URL || ""}
     />
   );
 }
