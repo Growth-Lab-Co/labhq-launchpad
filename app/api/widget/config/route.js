@@ -9,6 +9,14 @@ import { getPreviewSession, PREVIEW_MESSAGE_CAP, PREVIEW_EMAIL_GATE_AT } from "@
 // sensitive here (name, colour, welcome line), so CORS is wide open -
 // the message endpoint (app/api/widget/message/route.js) is where the
 // origin check and rate limiting that actually matter live.
+//
+// force-dynamic explicitly, not just relying on nextUrl.searchParams
+// counting as a dynamic API - found during verification that a GET route
+// with no explicit dynamic marker can get statically rendered/cached by
+// Next.js on Netlify, which for THIS route would mean serving one cached
+// tenant's branding to every other tenant's widget. Confirmed and fixed
+// the same way on app/api/widget/message/route.js.
+export const dynamic = "force-dynamic";
 function withCors(res) {
   res.headers.set("Access-Control-Allow-Origin", "*");
   res.headers.set("Access-Control-Allow-Methods", "GET, OPTIONS");

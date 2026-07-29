@@ -18,6 +18,14 @@ import { streamReply, fileBookingRequestIfConfirmed } from "@/lib/bot";
 import { streamClaude } from "@/lib/claude";
 
 export const maxDuration = 60;
+// Found during verification: without this, Next.js 14 can statically
+// optimise/cache a route handler's output and Netlify's runtime buffers the
+// whole response instead of streaming it as generated - a ~30s "everything
+// arrives at once, or the proxy gives up first" delay instead of real
+// token-by-token streaming, confirmed with a minimal diagnostic route
+// (same behaviour, fixed the same way). Explicit here rather than relying
+// on POST-implies-dynamic, since that alone didn't prevent the buffering.
+export const dynamic = "force-dynamic";
 
 // The in-house widget's message endpoint (job 1, 2026-07-29) - embedded on
 // arbitrary customer domains via public/widget.js, so this is the one API
