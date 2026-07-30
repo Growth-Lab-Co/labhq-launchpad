@@ -7,6 +7,12 @@ import { MetaPixel } from "@/components/miia/MetaPixel";
 import { MiiaWidgetEmbed } from "@/components/miia/MiiaWidgetEmbed";
 import "@/components/miia/tokens.css";
 
+// Turned off 2026-07-31: the widget was returning "Something went wrong -
+// try again." live on the homepage - a broken chat is worse than no chat.
+// Flip back to true once job 2 (background-function + polling rewrite) is
+// verified 5/5 on staging - see MiiaWidgetEmbed.jsx.
+const MARKETING_WIDGET_ENABLED = false;
+
 // Per Miia-Brand-Guidelines.pdf v1.0: Space Grotesk carries everything
 // (headlines, UI, body), Space Mono is accent-only. Scoped to this route
 // group via the .miia wrapper below so the app shell (Mission Control,
@@ -35,7 +41,7 @@ export default function MarketingLayout({ children }) {
       <Header />
       {children}
       <Footer />
-      <MiiaWidgetEmbed />
+      {MARKETING_WIDGET_ENABLED && <MiiaWidgetEmbed />}
     </div>
   );
 }
