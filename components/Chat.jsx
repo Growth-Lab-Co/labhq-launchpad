@@ -451,8 +451,8 @@ export default function Chat({ tenant }) {
         <section className="success">
           <h2>Your system is deployed.</h2>
           <p>
-            {answers.business_name || "Your business"} is live. {tenant.assistantName} is trained on your
-            business and ready to answer every enquiry.
+            {config?.business_name || answers.business_name || "Your business"} is live. {tenant.assistantName} is
+            trained on your business and ready to answer every enquiry.
           </p>
           <p>Taking you to your dashboard…</p>
           <a className="btn" href={`/${tenant.slug}`}>Go to your dashboard</a>
