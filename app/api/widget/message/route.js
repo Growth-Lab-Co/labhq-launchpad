@@ -83,45 +83,57 @@ export async function OPTIONS(req) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
-// Drains a text-chunk stream to a single string before anything is sent to
-// the client.
+// Streams every chunk to the client as it arrives, then runs onComplete
+// (the persist step) before closing - both requirements at once, found the
+// hard way tonight:
 //
-// Root cause found 2026-07-30: both a shared-TransformStream flush() and a
-// tee()'d background-persist branch depend on the platform keeping this
-// function's execution alive after the response is returned - but direct
-// testing (curl against this exact route, full timing captured) showed the
-// connection can be reset by the platform once the reply's content has
-// finished arriving, well before any of that deferred work has a chance to
-// run: a reply that fully generated in seconds was reliably lost. Buffering
-// here instead means the reply is already persisted, in full, before this
-// route ever constructs a response - nothing async is left riding on the
-// connection's lifecycle. Content generates in 2-5s per prior diagnostics,
-// so this costs a short wait in the "typing" state rather than true
-// token-by-token streaming, in exchange for the reply never going missing.
-async function drainStream(source) {
-  const reader = source.getReader();
-  let full = "";
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      full += value;
-    }
-  } catch (e) {
-    console.error("[WIDGET] reply stream errored before completion:", e.message);
-  }
-  return full;
-}
-
-// The client (TestChat.jsx, public/widget.js) already reads the response as
-// a stream - a single already-complete chunk keeps that code path working
-// unchanged, it just resolves immediately instead of arriving token by token.
-function asSingleChunkStream(text) {
-  const bytes = new TextEncoder().encode(text);
+// 1. A proxy in front of this route enforces its own ~30s inactivity
+//    timeout on the connection (confirmed directly: curl against this exact
+//    route timed out with a 504 "Inactivity Timeout" page after sending
+//    nothing until a fully-buffered reply was ready). Real chunks have to
+//    reach the client as they're generated, or slower replies 504 outright.
+// 2. Persistence can't be deferred past this function's own return, even
+//    via a decoupled tee()'d branch: direct testing showed a reply's
+//    content can fully arrive at the client while the persist step never
+//    runs at all, even minutes later - consistent with the platform
+//    freezing/discarding whatever's still in flight once it considers the
+//    response "sent", the same way AWS Lambda won't reliably run work
+//    queued after the handler's return value settles unless the platform
+//    gives you an explicit waitUntil()/after()-style hook (Netlify's
+//    Next.js runtime doesn't appear to for this route).
+//
+// Doing the persist inside this stream's own start(), before its
+// controller.close(), sidesteps both: the response can't be considered
+// fully sent - and therefore this invocation can't be torn down - until
+// after that close() call, so the awaited persist above it is guaranteed to
+// run to completion first.
+function streamAndPersist(source, onComplete) {
+  const encoder = new TextEncoder();
   return new ReadableStream({
-    start(controller) {
-      controller.enqueue(bytes);
-      controller.close();
+    async start(controller) {
+      const reader = source.getReader();
+      let full = "";
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          full += value;
+          try {
+            controller.enqueue(encoder.encode(value));
+          } catch {
+            // Client disconnected - keep draining and persist anyway.
+          }
+        }
+      } catch (e) {
+        console.error("[WIDGET] reply stream errored before completion:", e.message);
+      }
+      await onComplete(full).catch((e) => console.error("[WIDGET] post-stream persist failed:", e.message));
+      try {
+        controller.close();
+      } catch {
+        // Already closed/errored from a client disconnect - persist above
+        // already ran either way, which is the part that matters.
+      }
     },
   });
 }
@@ -158,20 +170,21 @@ async function handleTenantMessage({ widgetKey, conversationId, message, origin 
   await appendWidgetMessage(conversation.id, { direction: "inbound", body: message });
 
   const { stream } = await streamReply({ deployment, tenant, messages: history, inboundText: message });
-  const fullReply = await drainStream(stream);
 
-  await appendWidgetMessage(conversation.id, { direction: "outbound", body: fullReply });
-  await fileBookingRequestIfConfirmed({
-    tenantSlug,
-    businessName: deployment.businessName,
-    deploymentId: deployment.id,
-    tenantRecord: tenant,
-    messages: history,
-    inboundText: message,
-    reply: fullReply,
+  const tapped = streamAndPersist(stream, async (fullReply) => {
+    await appendWidgetMessage(conversation.id, { direction: "outbound", body: fullReply });
+    await fileBookingRequestIfConfirmed({
+      tenantSlug,
+      businessName: deployment.businessName,
+      deploymentId: deployment.id,
+      tenantRecord: tenant,
+      messages: history,
+      inboundText: message,
+      reply: fullReply,
+    });
   });
 
-  return { status: 200, stream: asSingleChunkStream(fullReply), conversationId: conversation.id };
+  return { status: 200, stream: tapped, conversationId: conversation.id };
 }
 
 async function handlePreviewMessage({ previewId, message }) {
@@ -195,13 +208,14 @@ This is a DEMO for the business owner, not a real customer conversation - be imp
   }));
 
   const stream = await streamClaude({ system, messages: [...history, { role: "user", content: message }], maxTokens: 300 });
-  const fullReply = await drainStream(stream);
 
-  await appendPreviewMessage(previewId, { direction: "inbound", body: message });
-  await appendPreviewMessage(previewId, { direction: "outbound", body: fullReply });
-  await incrementPreviewMessageCount(previewId);
+  const tapped = streamAndPersist(stream, async (fullReply) => {
+    await appendPreviewMessage(previewId, { direction: "inbound", body: message });
+    await appendPreviewMessage(previewId, { direction: "outbound", body: fullReply });
+    await incrementPreviewMessageCount(previewId);
+  });
 
-  return { status: 200, stream: asSingleChunkStream(fullReply) };
+  return { status: 200, stream: tapped };
 }
 
 export async function POST(req) {
