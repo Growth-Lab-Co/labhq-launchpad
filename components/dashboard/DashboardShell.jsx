@@ -145,7 +145,7 @@ export function DashboardShell({ base, tenant, businessName, searchValue, onSear
 
         <div className={styles.main}>
           <header className={styles.topbar}>
-            <div className={[styles.statusPillMobile, styles.mobileOnly].join(" ")}>
+            <div className={styles.statusPillMobile}>
               <TwoDots size="sm" pulse />
               <span>Miia is live</span>
             </div>

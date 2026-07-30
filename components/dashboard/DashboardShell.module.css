@@ -79,7 +79,7 @@
 }
 
 .statusPillMobile {
-  display: none;
+  display: flex;
   align-items: center;
   gap: 8px;
   min-height: 44px;
@@ -92,7 +92,6 @@
   color: var(--dash-ink);
   white-space: nowrap;
 }
-.statusPillMobile.mobileOnly { display: flex; }
 @media (min-width: 900px) {
   .statusPillMobile { display: none; }
 }
