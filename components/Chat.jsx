@@ -128,7 +128,7 @@ export default function Chat({ tenant }) {
     if (stored?.messages?.length) {
       setMessages([
         ...stored.messages,
-        { role: "assistant", content: "Welcome back — picking up where you left off.", time: timeNow() },
+        { role: "assistant", content: "Welcome back, picking up where you left off.", time: timeNow() },
       ]);
       setAnswers(stored.answers || {});
     } else {
@@ -166,7 +166,7 @@ export default function Chat({ tenant }) {
     if (nextMessages.length >= MAX_TURNS) {
       const wrapUp = [
         ...nextMessages,
-        { role: "assistant", content: "We've covered a lot — let's get you to review with what we've got so far.", time: timeNow() },
+        { role: "assistant", content: "We've covered a lot, let's get you to review with what we've got so far.", time: timeNow() },
       ];
       setMessages(wrapUp);
       await generateConfig(answers);
@@ -207,7 +207,17 @@ export default function Chat({ tenant }) {
         body: JSON.stringify({ tenant: tenant.slug, answers: finalAnswers, action: "generate" }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Config generation failed");
+      if (!res.ok) {
+        // Every generation layer failed server-side (rare - see
+        // app/api/deploy/route.js's retry + deterministic-fallback chain).
+        // The customer never sees a raw error here: ops has already been
+        // alerted with the captured answers preserved.
+        if (data.pending) {
+          setPhase("pending");
+          return;
+        }
+        throw new Error(data.error || "Config generation failed");
+      }
       setConfig(data.customValues);
       setComplianceConfirmed(false);
       setPhase("review");
@@ -302,6 +312,19 @@ export default function Chat({ tenant }) {
         </section>
       )}
 
+      {phase === "pending" && (
+        <section className="success">
+          <h2>{tenant.assistantName} is finishing your setup.</h2>
+          <p>
+            We&apos;ve got everything you told us. Your system is being finished on our end, and
+            we&apos;ll email you within the hour once it&apos;s ready.
+          </p>
+          <p>
+            <a href="mailto:hello@growthlabco.com.au">hello@growthlabco.com.au</a>
+          </p>
+        </section>
+      )}
+
       {phase === "chat" && (
         <>
           <div className="progress-track" aria-hidden="true">
@@ -322,7 +345,7 @@ export default function Chat({ tenant }) {
             )}
             <div ref={bottomRef} />
           </div>
-          {error && <div className="error-note">{error} — try sending that again.</div>}
+          {error && <div className="error-note">{error}. Try sending that again.</div>}
           <form
             className="composer"
             onSubmit={(e) => {
@@ -363,7 +386,7 @@ export default function Chat({ tenant }) {
           </div>
           <div className="cv-grid" style={{ marginBottom: 20 }}>
             <p className="sub" style={{ marginBottom: 0 }}>
-              Compliance — these are required for Australian compliance and are included in every
+              Compliance: these are required for Australian compliance and are included in every
               deployment.
             </p>
             {COMPLIANCE_KEYS.map((key) => (

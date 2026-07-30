@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { askClaude, extractJson } from "@/lib/claude";
+import { askClaudeStructured } from "@/lib/claude";
 import { getTenant, markTenantDeployed, setHealthcareMode, updateTenant } from "@/lib/tenants";
 import { CUSTOM_VALUE_KEYS } from "@/lib/questions";
 import { buildHardGuardrails, classifyHealthcareBusiness } from "@/lib/guardrails";
@@ -7,11 +7,73 @@ import { runGhlProvisioning } from "@/lib/ghlProvisioning";
 import { recordDeployment } from "@/lib/deployments";
 import { logActivity } from "@/lib/activity";
 import { createSession, setSessionCookie, cookieDomainForRequest } from "@/lib/miiaCustomerAuth";
+import { sendTransactionalEmail } from "@/lib/emailFailures";
 
 export const maxDuration = 120;
 
 // action: "generate" -> interview answers => custom values JSON (for review screen)
 // action: "deploy"   -> create GHL sub-account from snapshot + push custom values
+
+const MIIA_FROM = process.env.MIIA_RESEND_FROM_EMAIL || "Miia <hello@growthlabco.com.au>";
+const OPS_EMAIL = process.env.MIIA_OPS_ALERT_EMAIL || "hello@growthlabco.com.au";
+
+// booking_link is passthrough-only (see the pickUrl logic below) - never
+// asked of the generation model.
+const GENERATE_KEYS = CUSTOM_VALUE_KEYS.filter((k) => k !== "booking_link");
+
+// Launch-blocker fix (2026-07-30): the generation model can reply in plain
+// prose instead of calling the tool (rare, but when it happens it happens
+// on every retry for the same answers - something about that specific
+// answers object derails it, not random noise). This is the last-resort
+// layer if askClaudeStructured's tool_choice-enforced call AND one retry
+// both fail: build a usable config directly from the raw interview answers,
+// no model call at all, so a paid customer is never blocked here. Every
+// value is still editable on the review screen before deploy.
+function deterministicConfigFromAnswers(answers, tenant) {
+  const businessName = answers.business_name || tenant.name;
+  return {
+    business_name: businessName,
+    services_summary: answers.services || "",
+    service_area: answers.service_area || "",
+    opening_hours: answers.opening_hours || "",
+    qualification_questions: answers.ideal_lead || "",
+    booking_rules: answers.booking_rules || "",
+    faq_block: answers.faqs || "",
+    tone_style: answers.tone || "Friendly and professional.",
+    greeting_line: "",
+    escalation_name: answers.escalation || "the team",
+    escalation_contact: "",
+    website_url: answers.website || "",
+    mia_guardrails: answers.guardrails || "",
+    nurture_hook: `Booking with ${businessName} means a fast reply and a team that knows what they're doing.`,
+    sms_compliance_footer: `${businessName}. Reply STOP to opt out.`,
+    privacy_policy_snippet: `${businessName} uses an AI assistant to help handle calls, messages and bookings. It may collect your name, contact details and the details of your enquiry to respond and to arrange bookings. Calls may be recorded. Automated systems are used in handling enquiries and booking, with a team member available to step in at any time.`,
+  };
+}
+
+// Ops alert for a degraded-but-successful generation (deterministic fallback
+// used) or a genuine total failure (customer sees the calm "finishing your
+// setup" state) - either way, the raw captured answers are preserved in the
+// email so nothing is lost and a human can finish or polish the config by
+// hand. Best-effort: a failed alert must never turn into a customer-facing
+// error on top of whatever already happened.
+async function alertOpsGenerationIssue({ slug, businessName, answers, severity, detail }) {
+  const subject = `[Miia] Config generation ${severity} - ${businessName || slug}`;
+  const text = `Tenant: ${slug}\nBusiness: ${businessName || "-"}\nSeverity: ${severity}\n${detail}\n\nCaptured answers:\n${JSON.stringify(answers, null, 2)}`;
+  try {
+    await sendTransactionalEmail({
+      context: `miia-generate-config-${severity}`,
+      to: OPS_EMAIL,
+      subject,
+      text,
+      html: `<pre style="font-family:monospace;white-space:pre-wrap;">${text}</pre>`,
+      from: MIIA_FROM,
+      tenantSlug: slug,
+    });
+  } catch (e) {
+    console.error(`[GENERATE-CONFIG] ops alert itself failed tenant=${slug}:`, e.message);
+  }
+}
 
 // Best-effort idempotency guard for "deploy": in-memory, per-session, per
 // function instance. Not distributed-safe, but it's exactly what's needed to
@@ -25,7 +87,7 @@ function claimDeployLock(sessionId) {
   if (existing) {
     const age = Date.now() - existing.ts;
     if (existing.status === "in-progress" && age < DEPLOY_LOCK_TTL_MS) {
-      return { ok: false, message: "This system is already being deployed — hang tight, it'll finish shortly." };
+      return { ok: false, message: "This system is already being deployed, hang tight, it'll finish shortly." };
     }
     if (existing.status === "done") {
       return { ok: false, message: "This session has already deployed a system. Refresh to start a new one." };
@@ -85,7 +147,7 @@ export async function POST(req) {
 
     if (action === "generate") {
       const system = `You are configuring an AI-powered onboarding system for a small business, based on an intake interview.
-Produce the configuration values below. Write in Australian English. Be specific to THIS business - no generic filler.
+Produce the configuration values below. Write in Australian English. Be specific to THIS business - no generic filler. Never use em dashes (—) anywhere - use a comma, a full stop, or a simple hyphen (-) instead. The assistant's name is spelled exactly "${tenant.assistantName}" (character for character) wherever you refer to it - never substitute a different or more common spelling.
 
 Keys to produce (ALL required):
 - business_name: clean business name
@@ -106,15 +168,60 @@ Keys to produce (ALL required):
 - privacy_policy_snippet: a ready-to-paste paragraph for the client's privacy policy disclosing that an AI assistant handles calls/messages, what personal information it collects, that calls may be recorded, and that automated systems are used in handling enquiries and booking - plain English, specific to this business
 
 Interview answers:
-${JSON.stringify(answers, null, 2)}
+${JSON.stringify(answers, null, 2)}`;
 
-Respond ONLY with a JSON object of exactly those keys, string values only.`;
-      const raw = await askClaude({
-        system,
-        messages: [{ role: "user", content: "Generate the configuration now." }],
+      const schema = {
+        type: "object",
+        properties: Object.fromEntries(GENERATE_KEYS.map((k) => [k, { type: "string" }])),
+        required: GENERATE_KEYS,
+      };
+      const toolMessages = [{ role: "user", content: "Generate the configuration now." }];
+      const callArgs = {
+        messages: toolMessages,
+        toolName: "submit_configuration",
+        toolDescription: "Submit the generated onboarding configuration values for this business.",
+        schema,
         maxTokens: 1800,
-      });
-      const values = extractJson(raw);
+      };
+
+      let values;
+      let degraded = false;
+      let pending = false;
+      try {
+        values = await askClaudeStructured({ system, ...callArgs });
+      } catch (e1) {
+        console.error(`[GENERATE-CONFIG] first attempt failed tenant=${slug}:`, e1.message);
+        try {
+          values = await askClaudeStructured({
+            system: `${system}\n\nYour previous attempt did not produce a valid tool call with every required field filled in. Call the tool now, with every field filled in.`,
+            ...callArgs,
+          });
+        } catch (e2) {
+          console.error(`[GENERATE-CONFIG] retry also failed tenant=${slug}, falling back to deterministic extraction from captured answers:`, e2.message);
+          try {
+            values = deterministicConfigFromAnswers(answers, tenant);
+            degraded = true;
+          } catch (e3) {
+            console.error(`[GENERATE-CONFIG] deterministic fallback itself failed tenant=${slug}:`, e3.message);
+            pending = true;
+          }
+        }
+      }
+
+      if (pending) {
+        await alertOpsGenerationIssue({
+          slug,
+          businessName: answers.business_name || tenant.name,
+          answers,
+          severity: "failed",
+          detail: "Every generation layer failed (structured call, retry, and deterministic fallback). Customer is seeing the calm 'finishing your setup' state. Finish this manually from the answers below, then use the admin retry path.",
+        });
+        return NextResponse.json(
+          { error: "Miia's finishing your setup. We'll email you within the hour.", pending: true },
+          { status: 502 }
+        );
+      }
+
       // Guarantee every expected key exists so the review screen is stable.
       const complete = {};
       for (const k of CUSTOM_VALUE_KEYS) complete[k] = values[k] ?? "";
@@ -122,7 +229,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       // Australian compliance: these are enforced in code AFTER generation so a
       // creative interview answer can never strip them out. See COMPLIANCE.md.
       const businessName = complete.business_name || answers.business_name || tenant.name;
-      complete.greeting_line = `Hi, you've called ${businessName}. I'm ${tenant.assistantName}, an AI assistant — this call may be recorded. How can I help?`;
+      complete.greeting_line = `Hi, you've called ${businessName}. I'm ${tenant.assistantName}, an AI assistant. This call may be recorded. How can I help?`;
 
       const escalationName = complete.escalation_name || "a human team member";
       complete.mia_guardrails = [complete.mia_guardrails, buildHardGuardrails({ escalationName })]
@@ -143,7 +250,17 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
       const pickUrl = (text) => urlPattern.exec(text || "")?.[0]?.replace(/[.,;]+$/, "") || "";
       complete.booking_link = pickUrl(answers.booking_link) || pickUrl(answers.booking_rules);
 
-      return NextResponse.json({ customValues: complete });
+      if (degraded) {
+        alertOpsGenerationIssue({
+          slug,
+          businessName,
+          answers,
+          severity: "degraded",
+          detail: "The AI generation step failed twice, so this config was built deterministically from the raw captured answers instead - functional but less polished than usual. Worth a manual pass to tidy tone/phrasing once deployed.",
+        }).catch(() => {});
+      }
+
+      return NextResponse.json({ customValues: complete, degraded });
     }
 
     if (action === "deploy") {
@@ -342,7 +459,7 @@ Respond ONLY with a JSON object of exactly those keys, string values only.`;
         return NextResponse.json(
           {
             error:
-              "We hit a snag creating your system — our team has been notified and will finish your setup manually within the hour.",
+              "We hit a snag creating your system. Our team has been notified and will finish your setup manually within the hour.",
           },
           { status: 502 }
         );
