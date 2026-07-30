@@ -46,6 +46,18 @@ function statusBadge(status) {
   return <Badge tone="warning">{status}</Badge>;
 }
 
+// Distinct from statusBadge above - intake has a third state (in_progress)
+// that's only meaningful with a turn count alongside it, so a stalled
+// customer (paid, opened the chat, stopped at turn 4) reads differently
+// from one who hasn't opened it at all.
+function intakeStatusBadge(sg) {
+  if (sg.intakeStatus === "complete") return <Badge tone="success">complete</Badge>;
+  if (sg.intakeStatus === "in_progress") {
+    return <Badge tone="warning">{`in progress (turn ${sg.intakeTurnCount})`}</Badge>;
+  }
+  return <Badge tone="neutral">not started</Badge>;
+}
+
 function sourceBadge(sg) {
   if (!sg.utmSource && !sg.utmMedium && !sg.utmCampaign) {
     return <Badge tone="neutral">Direct</Badge>;
@@ -261,7 +273,7 @@ export default function MiiaSignupsPage() {
                   </div>
                 )}
               </td>
-              <td>{statusBadge(sg.intakeStatus)}</td>
+              <td>{intakeStatusBadge(sg)}</td>
               <td>{statusBadge(sg.deployStatus)}</td>
               <td>
                 <WelcomeEmailCell signup={sg} busy={resendingWelcome === sg.id} onResend={resendWelcome} />

@@ -2,8 +2,29 @@ import { NextResponse } from "next/server";
 import { askClaude, extractJson } from "@/lib/claude";
 import { getTenant } from "@/lib/tenants";
 import { INTERVIEW_FIELDS } from "@/lib/questions";
+import { saveIntakeDraft, getIntakeDraft } from "@/lib/intakeDrafts";
 
 export const maxDuration = 60;
+// This GET reads a per-tenant draft via a query param - without
+// force-dynamic, Next.js can statically cache the first response and serve
+// it to every subsequent tenant (the exact bug class that hit the widget
+// config route previously).
+export const dynamic = "force-dynamic";
+
+// Resume support: components/Chat.jsx fetches this on mount so any device
+// can pick up an in-progress interview via the plain tenant URL, not just
+// the browser that started it (localStorage is now just a same-device
+// cache, not the source of truth - see lib/intakeDrafts.js).
+export async function GET(req) {
+  const slug = req.nextUrl.searchParams.get("tenant");
+  if (!slug) return NextResponse.json({ error: "tenant is required" }, { status: 400 });
+  const tenant = await getTenant(slug);
+  if (!tenant) return NextResponse.json({ error: "Unknown tenant" }, { status: 404 });
+  if (tenant.product !== "miia" || tenant.deployedAt) return NextResponse.json({ draft: null });
+
+  const draft = await getIntakeDraft(slug);
+  return NextResponse.json({ draft: draft ? { messages: draft.messages, answers: draft.answers } : null });
+}
 
 // Basic in-memory per-IP rate limit - best effort (resets on cold start,
 // not shared across instances) but enough to blunt a runaway client loop.
@@ -143,9 +164,22 @@ Respond ONLY with a JSON object, no other text before or after it, no preamble, 
 
     const merged = { ...answers, ...(parsed.captured || {}) };
     const allDone = activeFields.every((f) => merged[f.field]);
+    const replyText = parsed.reply || "Sorry, could you say that again?";
+
+    // Persisted every turn so any device can resume, and so a downstream
+    // generate/deploy failure can never discard a finished interview -
+    // scoped to product:"miia" only, agency onboarding (growthlab/obm/etc)
+    // is untouched by this new store entirely.
+    if (tenant.product === "miia") {
+      const replyTime = new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      await saveIntakeDraft(slug, {
+        messages: [...messages, { role: "assistant", content: replyText, time: replyTime }],
+        answers: merged,
+      });
+    }
 
     return NextResponse.json({
-      reply: parsed.reply || "Sorry, could you say that again?",
+      reply: replyText,
       answers: merged,
       done: Boolean(parsed.done) || allDone,
       remaining: remaining.length,

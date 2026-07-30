@@ -8,6 +8,7 @@ import { recordDeployment } from "@/lib/deployments";
 import { logActivity } from "@/lib/activity";
 import { createSession, setSessionCookie, cookieDomainForRequest } from "@/lib/miiaCustomerAuth";
 import { sendTransactionalEmail } from "@/lib/emailFailures";
+import { clearIntakeDraft } from "@/lib/intakeDrafts";
 
 export const maxDuration = 120;
 
@@ -108,6 +109,11 @@ async function lockDeployedTenant(tenant, slug) {
   } catch (e) {
     console.error(`[DEPLOY-LOCK-FAIL] tenant=${slug}`, e.message);
   }
+  // The draft's answers now live in the deployment record proper - don't
+  // keep a second copy of this customer PII around longer than needed.
+  // Best-effort: a leftover draft is harmless (never read once deployedAt
+  // is set - see app/api/chat's GET), just not tidy.
+  await clearIntakeDraft(slug).catch((e) => console.error(`[DEPLOY] failed to clear intake draft for ${slug}:`, e.message));
 }
 
 // Job 2b (2026-07-29 "simplification build") - the morning report's #1

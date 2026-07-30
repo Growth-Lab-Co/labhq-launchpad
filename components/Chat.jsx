@@ -124,14 +124,38 @@ export default function Chat({ tenant }) {
   useEffect(() => {
     if (startedRef.current || tenant.deployedAt) return;
     startedRef.current = true;
-    const stored = loadStoredChat(tenant.slug);
-    if (stored?.messages?.length) {
-      setMessages([
-        ...stored.messages,
-        { role: "assistant", content: "Welcome back, picking up where you left off.", time: timeNow() },
-      ]);
-      setAnswers(stored.answers || {});
-    } else {
+
+    async function init() {
+      let stored = null;
+
+      // Server draft is the source of truth for Miia tenants (see
+      // lib/intakeDrafts.js) - resuming via the plain URL or the
+      // welcome-email link on any device picks this up, not just the
+      // browser that started the conversation. localStorage below is now
+      // only a same-device fallback (a network hiccup here, or a
+      // conversation that started before this existed). Agency onboarding
+      // (growthlab/obm/etc) has no server draft at all - unchanged,
+      // localStorage-only, exactly as before.
+      if (tenant.product === "miia") {
+        try {
+          const res = await fetch(`/api/chat?tenant=${encodeURIComponent(tenant.slug)}`);
+          const data = await res.json();
+          if (data.draft?.messages?.length) stored = data.draft;
+        } catch {
+          // Fall through to the local cache below.
+        }
+      }
+      if (!stored) stored = loadStoredChat(tenant.slug);
+
+      if (stored?.messages?.length) {
+        setMessages([
+          ...stored.messages,
+          { role: "assistant", content: "Welcome back, picking up where you left off.", time: timeNow() },
+        ]);
+        setAnswers(stored.answers || {});
+        return;
+      }
+
       const opener = scriptedOpener(tenant);
       if (opener) {
         // Scripted path: no API call, just the same typing-delay choreography
@@ -145,6 +169,8 @@ export default function Chat({ tenant }) {
         send(null); // non-Miia tenants: AI-generated opener, unchanged
       }
     }
+
+    init();
   }, []);
 
   // Persist as the conversation progresses, so a reload can restore it.
