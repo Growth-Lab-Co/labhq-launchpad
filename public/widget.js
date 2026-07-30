@@ -155,12 +155,52 @@
         if (data.error) { titleEl.textContent = "Miia"; subEl.textContent = data.error; return; }
         config = data;
         titleEl.textContent = data.assistantName || "Miia";
-        subEl.textContent = data.mode === "preview" ? "Preview of your Miia" : "Usually replies instantly";
+        subEl.textContent = data.mode === "preview" ? "Preview of your Miia" : "Replies in under a minute";
         renderGate();
       })
       .catch(function () {});
   }
   loadConfig();
+
+  // Never a raw error, never "Something went wrong" - a visitor waited for
+  // this, so the least the widget owes them is a calm human line. Kept in
+  // sync in spirit with netlify/functions/widget-reply-background.mjs's own
+  // CALM_FAILURE_TEXT (that one covers the background function giving up;
+  // this one covers the poll itself never landing, e.g. a dropped network).
+  var CALM_FALLBACK_TEXT = "Sorry, that's taking longer than it should. Please try sending that again in a moment.";
+  var POLL_INTERVAL_MS = 1500;
+  // ~2 minutes - comfortably above the background function's own worst
+  // case (3 attempts x a ~30-36s reply + retry delays), so a client giving
+  // up here means the background function itself is stuck, not just slow.
+  var POLL_MAX_ATTEMPTS = 80;
+
+  function pollForReply(query, typingEl) {
+    var attempts = 0;
+    function finish(text) {
+      typingEl.remove();
+      addBubble("out", text);
+      sending = false;
+      if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
+    }
+    function tick() {
+      attempts += 1;
+      fetch(API_BASE + "/api/widget/message?" + query)
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (d.status === "complete" || d.status === "failed") {
+            finish(d.reply || CALM_FALLBACK_TEXT);
+            return;
+          }
+          if (attempts >= POLL_MAX_ATTEMPTS) { finish(CALM_FALLBACK_TEXT); return; }
+          setTimeout(tick, POLL_INTERVAL_MS);
+        })
+        .catch(function () {
+          if (attempts >= POLL_MAX_ATTEMPTS) { finish(CALM_FALLBACK_TEXT); return; }
+          setTimeout(tick, POLL_INTERVAL_MS);
+        });
+    }
+    tick();
+  }
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
@@ -193,78 +233,27 @@
       headers: { "content-type": "application/json" },
       body: JSON.stringify(payload),
     })
-      .then(function (res) {
-        var newConvId = res.headers.get("X-Conversation-Id");
-        if (newConvId) {
-          conversationId = newConvId;
+      .then(function (res) { return res.json().then(function (d) { return { ok: res.ok, d: d }; }); })
+      .then(function (r) {
+        if (!r.ok) throw new Error((r.d && r.d.error) || CALM_FALLBACK_TEXT);
+        if (r.d.conversationId) {
+          conversationId = r.d.conversationId;
           try { localStorage.setItem(STORAGE_KEY, conversationId); } catch (e) {}
         }
-        if (!res.ok) {
-          // Body might not be JSON (a platform error/timeout page rather
-          // than our own route responding) - never let a raw parse error
-          // leak into the chat as if Miia said it.
-          return res.json().then(
-            function (d) { throw new Error(d.error || "Something went wrong - try again."); },
-            function () { throw new Error("Something went wrong - try again."); }
-          );
-        }
-        var contentType = res.headers.get("content-type") || "";
-        if (contentType.indexOf("application/json") !== -1) {
-          return res.json().then(function (d) {
-            typingEl.remove();
-            addBubble("out", d.text || "");
-            if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
-            sending = false;
-          });
-        }
-        typingEl.remove();
-        var bubble = addBubble("out", "");
-        var reader = res.body.getReader();
-        var decoder = new TextDecoder();
-        // The underlying connection has been observed to take much longer to
-        // formally close than the actual reply takes to arrive (a platform
-        // streaming quirk, not a generation-speed problem - confirmed
-        // separately that raw Claude streaming itself is fast). Rather than
-        // block the user from sending their next message until the fetch
-        // promise fully settles, treat the reply as "done" once no new
-        // chunk has arrived for a couple of seconds - the read loop below
-        // keeps running in the background regardless, so nothing is lost if
-        // more text does arrive after that.
-        var settled = false;
-        var quietTimer = null;
-        function settle() {
-          if (settled) return;
-          settled = true;
+        if (r.d.immediate) {
+          typingEl.remove();
+          addBubble("out", r.d.immediate);
           sending = false;
-          if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
+          return;
         }
-        function armQuietTimer() {
-          clearTimeout(quietTimer);
-          quietTimer = setTimeout(settle, 2500);
-        }
-        armQuietTimer();
-        function pump() {
-          return reader.read().then(function (r) {
-            if (r.done) {
-              clearTimeout(quietTimer);
-              settle();
-              return;
-            }
-            bubble.textContent += decoder.decode(r.value, { stream: true });
-            body.scrollTop = body.scrollHeight;
-            armQuietTimer();
-            return pump();
-          });
-        }
-        return pump();
+        var query = WIDGET_KEY
+          ? "conversationId=" + encodeURIComponent(conversationId) + "&widgetKey=" + encodeURIComponent(WIDGET_KEY)
+          : "previewId=" + encodeURIComponent(PREVIEW_ID);
+        pollForReply(query, typingEl);
       })
       .catch(function (err) {
         typingEl.remove();
-        // A raw SyntaxError from a failed .json() parse looks nothing like
-        // something a customer should see - show the honest fallback
-        // instead of leaking a parser error into the transcript.
-        var isParseError = err && err.name === "SyntaxError";
-        addBubble("out", isParseError ? "Couldn't reach Miia - try again." : (err.message || "Couldn't reach Miia - try again."));
+        addBubble("out", (err && err.message) || CALM_FALLBACK_TEXT);
         sending = false;
       });
   });

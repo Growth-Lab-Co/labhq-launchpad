@@ -4,20 +4,53 @@ import { Send } from "lucide-react";
 import { TwoDots } from "./TwoDots";
 import styles from "./TestChat.module.css";
 
+// Never a raw error, never "Couldn't reach Miia" as a scary banner - a
+// visitor waited for this, so the least the chat owes them is a calm human
+// line, shown as the reply itself. Kept in sync in spirit with
+// netlify/functions/widget-reply-background.mjs's own CALM_FAILURE_TEXT
+// (that one covers the background function giving up; this one covers the
+// poll itself never landing, e.g. a dropped network).
+const CALM_FALLBACK_TEXT = "Sorry, that's taking longer than it should. Please try sending that again in a moment.";
+const POLL_INTERVAL_MS = 1500;
+// ~2 minutes - comfortably above the background function's own worst case
+// (3 attempts x a ~30-36s reply + retry delays).
+const POLL_MAX_ATTEMPTS = 80;
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 // The dashboard's "try her yourself" chat and the in-house Miia widget
-// (public/widget.js) are now the same underlying conversation - this talks
-// directly to /api/widget/message with the tenant's own widgetKey, the
-// exact same endpoint a customer's embedded widget calls, with real
-// multi-turn history (see lib/widgetConversations.js) and streaming
-// replies. Same-origin (dashboard is on meetmiia.com), so none of the CORS
-// handling the embedded widget needs applies here.
+// (public/widget.js) share the exact same submit-then-poll contract against
+// /api/widget/message (POST to submit, GET to poll) - a Netlify Background
+// Function generates the reply fully decoupled from any live connection
+// (see that route's own header comment for why: Claude's response time from
+// this environment collided with Netlify's own connection ceiling under the
+// previous streaming design). Same-origin (dashboard is on meetmiia.com),
+// so none of the CORS handling the embedded widget needs applies here.
 export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel = "Open test chat" }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [messages, setMessages] = useState([]); // [{ direction: "inbound"|"outbound", body }]
-  const [error, setError] = useState(null);
   const conversationIdRef = useRef(null);
+
+  async function pollForReply() {
+    const query = `conversationId=${encodeURIComponent(conversationIdRef.current)}&widgetKey=${encodeURIComponent(widgetKey)}`;
+    for (let attempt = 1; attempt <= POLL_MAX_ATTEMPTS; attempt++) {
+      try {
+        const res = await fetch(`/api/widget/message?${query}`);
+        const data = await res.json();
+        if (data.status === "complete" || data.status === "failed") {
+          return data.reply || CALM_FALLBACK_TEXT;
+        }
+      } catch {
+        // Transient - keep polling until the attempt budget runs out.
+      }
+      await wait(POLL_INTERVAL_MS);
+    }
+    return CALM_FALLBACK_TEXT;
+  }
 
   async function send(e) {
     e.preventDefault();
@@ -25,8 +58,16 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
     const text = input.trim();
     setInput("");
     setBusy(true);
-    setError(null);
     setMessages((m) => [...m, { direction: "inbound", body: text }, { direction: "outbound", body: "" }]);
+
+    const finish = (body) => {
+      setMessages((m) => {
+        const next = [...m];
+        next[next.length - 1] = { direction: "outbound", body };
+        return next;
+      });
+      setBusy(false);
+    };
 
     try {
       const res = await fetch("/api/widget/message", {
@@ -34,67 +75,17 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ widgetKey, conversationId: conversationIdRef.current, message: text }),
       });
-      const convId = res.headers.get("X-Conversation-Id");
-      if (convId) conversationIdRef.current = convId;
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Couldn't reach Miia. Try again.");
-      }
-
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        const data = await res.json();
-        setMessages((m) => {
-          const next = [...m];
-          next[next.length - 1] = { direction: "outbound", body: data.text || "" };
-          return next;
-        });
-        setBusy(false);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || CALM_FALLBACK_TEXT);
+      if (data.conversationId) conversationIdRef.current = data.conversationId;
+      if (data.immediate) {
+        finish(data.immediate);
         return;
       }
-
-      // The underlying connection has been observed to take much longer to
-      // formally close than the actual reply takes to arrive (same platform
-      // streaming quirk public/widget.js already works around - see its own
-      // comment). Rather than block the input until the fetch promise fully
-      // settles, stop waiting once no new chunk has arrived for a couple of
-      // seconds - the read loop below keeps running in the background
-      // regardless, so nothing already-read is lost and any later text still
-      // updates the same bubble.
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let full = "";
-      let settled = false;
-      let quietTimer = null;
-      const settle = () => {
-        if (settled) return;
-        settled = true;
-        setBusy(false);
-      };
-      const armQuietTimer = () => {
-        clearTimeout(quietTimer);
-        quietTimer = setTimeout(settle, 2500);
-      };
-      armQuietTimer();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) {
-          clearTimeout(quietTimer);
-          settle();
-          break;
-        }
-        full += decoder.decode(value, { stream: true });
-        setMessages((m) => {
-          const next = [...m];
-          next[next.length - 1] = { direction: "outbound", body: full };
-          return next;
-        });
-        armQuietTimer();
-      }
-    } catch (e) {
-      setError(e.message);
-      setMessages((m) => m.slice(0, -1)); // drop the empty placeholder reply
-      setBusy(false);
+      const reply = await pollForReply();
+      finish(reply);
+    } catch {
+      finish(CALM_FALLBACK_TEXT);
     }
   }
 
@@ -126,7 +117,6 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
           )}
         </div>
       )}
-      {error && <p className={styles.error}>{error}</p>}
       <form onSubmit={send} className={styles.form}>
         <input
           type="text"

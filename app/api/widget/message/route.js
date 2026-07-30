@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getTenant } from "@/lib/tenants";
 import { getTenantSlugForWidgetKey } from "@/lib/widgetKeys";
 import { listDeployments } from "@/lib/deployments";
 import {
@@ -9,46 +8,54 @@ import {
 } from "@/lib/widgetConversations";
 import {
   getPreviewSession,
-  incrementPreviewMessageCount,
   appendPreviewMessage,
   PREVIEW_MESSAGE_CAP,
   PREVIEW_EMAIL_GATE_AT,
 } from "@/lib/previewSessions";
-import { streamReply, fileBookingRequestIfConfirmed } from "@/lib/bot";
-import { streamClaude } from "@/lib/claude";
 
-export const maxDuration = 60;
-// Found during verification: without this, Next.js 14 can statically
-// optimise/cache a route handler's output and Netlify's runtime buffers the
-// whole response instead of streaming it as generated - a ~30s "everything
-// arrives at once, or the proxy gives up first" delay instead of real
-// token-by-token streaming, confirmed with a minimal diagnostic route
-// (same behaviour, fixed the same way). Explicit here rather than relying
-// on POST-implies-dynamic, since that alone didn't prevent the buffering.
 export const dynamic = "force-dynamic";
 
-// The in-house widget's message endpoint (job 1, 2026-07-29) - embedded on
-// arbitrary customer domains via public/widget.js, so this is the one API
-// route in the app that genuinely needs cross-origin handling, an origin
-// check, and its own rate limit (everything else in the app is same-origin
-// or admin/session-gated).
+// The in-house widget's message endpoint (job 1, 2026-07-29; rewritten to
+// submit-then-poll in job 2, 2026-07-31) - embedded on arbitrary customer
+// domains via public/widget.js, so this is the one API route in the app
+// that genuinely needs cross-origin handling, an origin check, and its own
+// rate limit (everything else in the app is same-origin or admin/session-
+// gated).
+//
+// POST submits a message and returns immediately (no reply generation
+// happens inline here at all) - a Netlify Background Function
+// (netlify/functions/widget-reply-background.mjs) does the actual Claude
+// call, fully decoupled from this request's connection. GET polls for that
+// background function's result. This replaced a live-streaming response:
+// direct testing found Claude's response time from this environment is
+// consistently 30-36s, which collides almost exactly with a ~30s
+// connection ceiling Netlify enforces on a route like this one - three
+// different streaming-response designs were tried and each still lost
+// replies or transcripts under that collision (see the git history on this
+// file for what didn't work and why). Submit-then-poll has no connection
+// for a slow reply to collide with in the first place.
 
 // Best-effort, in-memory, per-instance - resets on cold start, not shared
 // across function instances. Enough to blunt a runaway embed or scripted
 // abuse; not a distributed rate limiter. Keyed by IP + widget/preview id so
-// one abusive site can't throttle every other tenant's widget.
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 20;
-const buckets = new Map();
-function withinRateLimit(key) {
+// one abusive site can't throttle every other tenant's widget. Polling gets
+// its own, more generous bucket - a single reply can mean ~40 poll requests
+// while the background function works, which would trip the submit limit.
+const SUBMIT_WINDOW_MS = 60_000;
+const SUBMIT_MAX = 20;
+const POLL_WINDOW_MS = 60_000;
+const POLL_MAX = 90;
+const submitBuckets = new Map();
+const pollBuckets = new Map();
+function withinRateLimit(buckets, key, windowMs, max) {
   const now = Date.now();
   const bucket = buckets.get(key);
-  if (!bucket || now - bucket.windowStart > RATE_LIMIT_WINDOW_MS) {
+  if (!bucket || now - bucket.windowStart > windowMs) {
     buckets.set(key, { count: 1, windowStart: now });
     return true;
   }
   bucket.count += 1;
-  return bucket.count <= RATE_LIMIT_MAX;
+  return bucket.count <= max;
 }
 
 function clientIp(req) {
@@ -74,7 +81,7 @@ function isAllowedOrigin(origin, websiteUrl) {
 function corsHeaders(origin) {
   return {
     "Access-Control-Allow-Origin": origin || "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "content-type",
   };
 }
@@ -83,72 +90,34 @@ export async function OPTIONS(req) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
-// Streams every chunk to the client as it arrives, then runs onComplete
-// (the persist step) before closing - both requirements at once, found the
-// hard way tonight:
-//
-// 1. A proxy in front of this route enforces its own ~30s inactivity
-//    timeout on the connection (confirmed directly: curl against this exact
-//    route timed out with a 504 "Inactivity Timeout" page after sending
-//    nothing until a fully-buffered reply was ready). Real chunks have to
-//    reach the client as they're generated, or slower replies 504 outright.
-// 2. Persistence can't be deferred past this function's own return, even
-//    via a decoupled tee()'d branch: direct testing showed a reply's
-//    content can fully arrive at the client while the persist step never
-//    runs at all, even minutes later - consistent with the platform
-//    freezing/discarding whatever's still in flight once it considers the
-//    response "sent", the same way AWS Lambda won't reliably run work
-//    queued after the handler's return value settles unless the platform
-//    gives you an explicit waitUntil()/after()-style hook (Netlify's
-//    Next.js runtime doesn't appear to for this route).
-//
-// Doing the persist inside this stream's own start(), before its
-// controller.close(), sidesteps both: the response can't be considered
-// fully sent - and therefore this invocation can't be torn down - until
-// after that close() call, so the awaited persist above it is guaranteed to
-// run to completion first.
-function streamAndPersist(source, onComplete) {
-  const encoder = new TextEncoder();
-  return new ReadableStream({
-    async start(controller) {
-      const reader = source.getReader();
-      let full = "";
-      try {
-        for (;;) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          full += value;
-          try {
-            controller.enqueue(encoder.encode(value));
-          } catch {
-            // Client disconnected - keep draining and persist anyway.
-          }
-        }
-      } catch (e) {
-        console.error("[WIDGET] reply stream errored before completion:", e.message);
-      }
-      await onComplete(full).catch((e) => console.error("[WIDGET] post-stream persist failed:", e.message));
-      try {
-        controller.close();
-      } catch {
-        // Already closed/errored from a client disconnect - persist above
-        // already ran either way, which is the part that matters.
-      }
-    },
-  });
+// Fire-and-forget: Netlify invokes a *-background function asynchronously
+// with an immediate 202, so this fetch resolving is just the hand-off, not
+// the reply itself completing. Deliberately built from the inbound
+// request's own host (never process.env.URL, which resolves to the site's
+// production domain regardless of deploy context) so this enqueues against
+// whichever deploy actually received the request - a preview/staging deploy
+// included, not silently against production during verification.
+async function enqueueReplyGeneration(payload, req) {
+  const site = `https://${req.headers.get("host")}`;
+  try {
+    await fetch(`${site}/.netlify/functions/widget-reply-background`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  } catch (e) {
+    console.error("[WIDGET] failed to enqueue background reply:", e.message);
+  }
 }
 
-async function handleTenantMessage({ widgetKey, conversationId, message, origin }) {
+async function submitTenantMessage({ widgetKey, conversationId, message, origin, req }) {
   const tenantSlug = await getTenantSlugForWidgetKey(widgetKey);
   if (!tenantSlug) return { status: 404, error: "Unknown widget key" };
-
-  const tenant = await getTenant(tenantSlug);
-  if (!tenant) return { status: 404, error: "Unknown tenant" };
 
   const deployments = await listDeployments(tenantSlug).catch(() => []);
   const deployment = deployments[0];
   if (!deployment) {
-    return { status: 200, notReady: true, text: "Give us just a moment - your Miia is still finishing setup." };
+    return { status: 200, immediate: "Give us just a moment - your Miia is still finishing setup." };
   }
 
   if (!isAllowedOrigin(origin, deployment.customValues?.website_url)) {
@@ -160,62 +129,35 @@ async function handleTenantMessage({ widgetKey, conversationId, message, origin 
     conversation = await createWidgetConversation({ tenant: tenantSlug, kind: "tenant" });
   }
 
-  const history = conversation.messages;
-
-  // Persisted immediately rather than after the reply - the customer's own
-  // message must never be lost even if reply generation or persistence
-  // fails afterward. Found 2026-07-30: a stalled reply left the transcript
-  // panel completely empty because both messages used to wait on the same
-  // deferred completion signal.
+  // Both appended before this route returns - the customer's own message,
+  // and a placeholder marking a reply as in flight, so a poll that lands
+  // before the background function has even started still sees "pending"
+  // rather than nothing.
   await appendWidgetMessage(conversation.id, { direction: "inbound", body: message });
+  await appendWidgetMessage(conversation.id, { direction: "outbound", body: "", status: "pending" });
 
-  const { stream } = await streamReply({ deployment, tenant, messages: history, inboundText: message });
+  await enqueueReplyGeneration({ kind: "tenant", tenantSlug, conversationId: conversation.id, message }, req);
 
-  const tapped = streamAndPersist(stream, async (fullReply) => {
-    await appendWidgetMessage(conversation.id, { direction: "outbound", body: fullReply });
-    await fileBookingRequestIfConfirmed({
-      tenantSlug,
-      businessName: deployment.businessName,
-      deploymentId: deployment.id,
-      tenantRecord: tenant,
-      messages: history,
-      inboundText: message,
-      reply: fullReply,
-    });
-  });
-
-  return { status: 200, stream: tapped, conversationId: conversation.id };
+  return { status: 200, conversationId: conversation.id };
 }
 
-async function handlePreviewMessage({ previewId, message }) {
+async function submitPreviewMessage({ previewId, message, req }) {
   const session = await getPreviewSession(previewId);
   if (!session) return { status: 404, error: "This preview has expired - paste your website again to start a new one." };
 
   if (session.messageCount >= PREVIEW_MESSAGE_CAP) {
-    return { status: 200, notReady: true, text: "That's the preview limit for now - hit \"Get started\" to keep going with your real Miia." };
+    return { status: 200, immediate: "That's the preview limit for now - hit \"Get started\" to keep going with your real Miia." };
   }
   if (session.messageCount >= PREVIEW_EMAIL_GATE_AT && !session.email) {
     return { status: 403, error: "email-required" };
   }
 
-  const system = `You are Miia, an AI front-desk assistant giving a live PREVIEW to the owner of "${session.businessName}", a business you looked at from their own website.
-What you know about their business (scraped from their site, may be incomplete): ${session.servicesSummary || "not much - keep questions general"}.
-This is a DEMO for the business owner, not a real customer conversation - be impressive, warm, and show how you'd handle a real enquiry for a business like theirs. Keep replies under 100 words. Australian English. If you don't know something specific, say how you'd normally ask the business for it, don't invent facts.`;
+  await appendPreviewMessage(previewId, { direction: "inbound", body: message });
+  await appendPreviewMessage(previewId, { direction: "outbound", body: "", status: "pending" });
 
-  const history = session.messages.map((m) => ({
-    role: m.direction === "outbound" ? "assistant" : "user",
-    content: m.body,
-  }));
+  await enqueueReplyGeneration({ kind: "preview", previewId, message }, req);
 
-  const stream = await streamClaude({ system, messages: [...history, { role: "user", content: message }], maxTokens: 300 });
-
-  const tapped = streamAndPersist(stream, async (fullReply) => {
-    await appendPreviewMessage(previewId, { direction: "inbound", body: message });
-    await appendPreviewMessage(previewId, { direction: "outbound", body: fullReply });
-    await incrementPreviewMessageCount(previewId);
-  });
-
-  return { status: 200, stream: tapped };
+  return { status: 200, conversationId: previewId };
 }
 
 export async function POST(req) {
@@ -229,28 +171,66 @@ export async function POST(req) {
   if (!widgetKey && !previewId) {
     return NextResponse.json({ error: "Missing key or preview" }, { status: 400, headers: corsHeaders(origin) });
   }
-  if (!withinRateLimit(`${ip}:${widgetKey || previewId}`)) {
+  if (!withinRateLimit(submitBuckets, `${ip}:${widgetKey || previewId}`, SUBMIT_WINDOW_MS, SUBMIT_MAX)) {
     return NextResponse.json({ error: "Slow down a little and try again in a minute." }, { status: 429, headers: corsHeaders(origin) });
   }
 
   const result = widgetKey
-    ? await handleTenantMessage({ widgetKey, conversationId, message: message.trim(), origin })
-    : await handlePreviewMessage({ previewId, message: message.trim() });
+    ? await submitTenantMessage({ widgetKey, conversationId, message: message.trim(), origin, req })
+    : await submitPreviewMessage({ previewId, message: message.trim(), req });
 
   if (result.error) {
     return NextResponse.json({ error: result.error }, { status: result.status, headers: corsHeaders(origin) });
   }
-  if (result.notReady) {
-    return NextResponse.json({ text: result.text }, { status: 200, headers: corsHeaders(origin) });
+
+  return NextResponse.json(
+    { conversationId: result.conversationId, immediate: result.immediate || null },
+    { status: 200, headers: { ...corsHeaders(origin), ...(result.conversationId ? { "X-Conversation-Id": result.conversationId } : {}) } }
+  );
+}
+
+// Polling: the client already has whichever identifier it got back from
+// POST (a tenant conversationId + its own widgetKey, or a previewId) and
+// asks "is it done yet" every couple of seconds. Returns the LAST outbound
+// message's status/body - only one reply is ever in flight per
+// conversation at a time, so there's no ambiguity about which one a poll
+// is asking about.
+export async function GET(req) {
+  const origin = req.headers.get("origin");
+  const { searchParams } = new URL(req.url);
+  const conversationId = searchParams.get("conversationId");
+  const widgetKey = searchParams.get("widgetKey");
+  const previewId = searchParams.get("previewId");
+  const ip = clientIp(req);
+
+  if (!conversationId && !previewId) {
+    return NextResponse.json({ error: "Missing conversationId or previewId" }, { status: 400, headers: corsHeaders(origin) });
+  }
+  if (!withinRateLimit(pollBuckets, `${ip}:${widgetKey || previewId || conversationId}`, POLL_WINDOW_MS, POLL_MAX)) {
+    return NextResponse.json({ error: "Slow down a little and try again in a minute." }, { status: 429, headers: corsHeaders(origin) });
   }
 
-  return new NextResponse(result.stream, {
-    status: 200,
-    headers: {
-      ...corsHeaders(origin),
-      "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
-      ...(result.conversationId ? { "X-Conversation-Id": result.conversationId } : {}),
-    },
-  });
+  let messages;
+  if (previewId) {
+    const session = await getPreviewSession(previewId);
+    if (!session) return NextResponse.json({ error: "This preview has expired." }, { status: 404, headers: corsHeaders(origin) });
+    messages = session.messages;
+  } else {
+    if (!widgetKey) return NextResponse.json({ error: "Missing widgetKey" }, { status: 400, headers: corsHeaders(origin) });
+    const tenantSlug = await getTenantSlugForWidgetKey(widgetKey);
+    const conversation = tenantSlug ? await getWidgetConversation(conversationId) : null;
+    if (!conversation || conversation.tenant !== tenantSlug) {
+      return NextResponse.json({ error: "Unknown conversation" }, { status: 404, headers: corsHeaders(origin) });
+    }
+    messages = conversation.messages;
+  }
+
+  const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
+  if (!lastOutbound) {
+    return NextResponse.json({ status: "pending", reply: null }, { status: 200, headers: corsHeaders(origin) });
+  }
+  return NextResponse.json(
+    { status: lastOutbound.status || "complete", reply: lastOutbound.status === "pending" ? null : lastOutbound.body },
+    { status: 200, headers: corsHeaders(origin) }
+  );
 }
