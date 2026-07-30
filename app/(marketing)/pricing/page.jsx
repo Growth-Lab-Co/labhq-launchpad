@@ -23,7 +23,7 @@ export const metadata = {
 export default function Page() {
   return (
     <Suspense fallback={null}>
-      <PricingPage />
+      <PricingPage whiteGloveEnabled={process.env.WHITEGLOVE_ENABLED === "true"} />
     </Suspense>
   );
 }

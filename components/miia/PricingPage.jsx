@@ -13,7 +13,7 @@ import styles from "./pricing.module.css";
 // (e.g. /allied-health -> /pricing?vertical=allied-health) or a plan link
 // (?plan=everywhere) arrives with state that must survive straight into
 // checkout, not just onto the page.
-export function PricingPage() {
+export function PricingPage({ whiteGloveEnabled = false }) {
   const searchParams = useSearchParams();
   const vertical = searchParams.get("vertical") || "";
   const planParam = searchParams.get("plan");
@@ -42,16 +42,18 @@ export function PricingPage() {
 
         <p className={styles.incGst}>All prices inc. GST.</p>
 
-        <Reveal className={styles.whiteGlove}>
-          <div className={styles.whiteGloveText}>
-            <h3 className={styles.whiteGloveHeading}>{WHITE_GLOVE.name}</h3>
-            <p className={styles.whiteGloveBody}>{WHITE_GLOVE.tagline}</p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div className={styles.whiteGlovePrice}>${WHITE_GLOVE.price}</div>
-            <div className={styles.whiteGlovePriceNote}>one time</div>
-          </div>
-        </Reveal>
+        {whiteGloveEnabled && (
+          <Reveal className={styles.whiteGlove}>
+            <div className={styles.whiteGloveText}>
+              <h3 className={styles.whiteGloveHeading}>{WHITE_GLOVE.name}</h3>
+              <p className={styles.whiteGloveBody}>{WHITE_GLOVE.tagline}</p>
+            </div>
+            <div style={{ textAlign: "right" }}>
+              <div className={styles.whiteGlovePrice}>${WHITE_GLOVE.price}</div>
+              <div className={styles.whiteGlovePriceNote}>one time</div>
+            </div>
+          </Reveal>
+        )}
 
         <Reveal className={styles.guarantee}>
           <strong>Our guarantee.</strong> Better than voicemail in 30 days or that month is refunded.
