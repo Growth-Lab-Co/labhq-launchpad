@@ -198,8 +198,10 @@
   place-items: center;
   width: 32px;
   height: 32px;
+  flex-shrink: 0;
   border-radius: 8px;
   background: var(--dash-violet-15);
+  line-height: 1;
   font-family: var(--dash-font-display);
   font-size: 13px;
   font-weight: 700;

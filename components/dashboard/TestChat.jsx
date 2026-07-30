@@ -49,26 +49,51 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
           next[next.length - 1] = { direction: "outbound", body: data.text || "" };
           return next;
         });
+        setBusy(false);
         return;
       }
 
+      // The underlying connection has been observed to take much longer to
+      // formally close than the actual reply takes to arrive (same platform
+      // streaming quirk public/widget.js already works around - see its own
+      // comment). Rather than block the input until the fetch promise fully
+      // settles, stop waiting once no new chunk has arrived for a couple of
+      // seconds - the read loop below keeps running in the background
+      // regardless, so nothing already-read is lost and any later text still
+      // updates the same bubble.
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let full = "";
+      let settled = false;
+      let quietTimer = null;
+      const settle = () => {
+        if (settled) return;
+        settled = true;
+        setBusy(false);
+      };
+      const armQuietTimer = () => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(settle, 2500);
+      };
+      armQuietTimer();
       for (;;) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          clearTimeout(quietTimer);
+          settle();
+          break;
+        }
         full += decoder.decode(value, { stream: true });
         setMessages((m) => {
           const next = [...m];
           next[next.length - 1] = { direction: "outbound", body: full };
           return next;
         });
+        armQuietTimer();
       }
     } catch (e) {
       setError(e.message);
       setMessages((m) => m.slice(0, -1)); // drop the empty placeholder reply
-    } finally {
       setBusy(false);
     }
   }

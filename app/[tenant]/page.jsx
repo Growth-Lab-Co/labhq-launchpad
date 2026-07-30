@@ -63,11 +63,22 @@ async function MiiaDashboardHome({ slug }) {
   ]);
 
   const base = `/${slug}`;
-  const businessName = deployment?.businessName || tenant.name;
-  const contactFirstName = (deployment?.contactName || "").trim().split(/\s+/)[0] || null;
+  // Prefer the signup record (captured from Stripe checkout at payment time)
+  // over the deployment/intake record: the intake interview's own
+  // business_name/contact_name answers can end up swapped or otherwise
+  // corrupted by the known field-splitting issue (one real customer's own
+  // answers had "business name" and "contact name" reversed) - the signup's
+  // fields were captured independently, before the interview even started,
+  // and are never subject to that failure mode.
+  const businessName = signup?.businessName || deployment?.businessName || tenant.name;
+  const contactName = signup?.contactName || deployment?.contactName || "";
+  const contactFirstName = contactName.trim().split(/\s+/)[0] || null;
+  // Account chip's second line: contact name, falling back to their email
+  // (never the business name again - that's line one) if no name is on file.
+  const contactDisplay = contactName.trim() || signup?.email || "";
 
   return (
-    <DashboardShell base={base} tenant={{ ...tenant, contactName: deployment?.contactName }} businessName={businessName}>
+    <DashboardShell base={base} tenant={{ ...tenant, contactName: contactDisplay }} businessName={businessName}>
       <DashboardHome
         tenant={tenant}
         deployment={deployment}

@@ -137,10 +137,18 @@ async function handleTenantMessage({ widgetKey, conversationId, message, origin 
   }
 
   const history = conversation.messages;
+
+  // Persisted immediately, not deferred to the stream's flush() - a slow or
+  // dropped connection on the reply side (see tapStream's own comment on
+  // the ~30s formal-close characteristic) must never cost the customer
+  // their own message too. Found 2026-07-30: a stalled reply left the
+  // transcript panel completely empty because both messages used to wait
+  // for the same flush() that never fired.
+  await appendWidgetMessage(conversation.id, { direction: "inbound", body: message });
+
   const { stream } = await streamReply({ deployment, tenant, messages: history, inboundText: message });
 
   const tapped = tapStream(stream, async (fullReply) => {
-    await appendWidgetMessage(conversation.id, { direction: "inbound", body: message });
     await appendWidgetMessage(conversation.id, { direction: "outbound", body: fullReply });
     await fileBookingRequestIfConfirmed({
       tenantSlug,

@@ -111,11 +111,15 @@ function BottomTabBar({ base, pathname, moreOpen, onToggleMore }) {
 export function DashboardShell({ base, tenant, businessName, searchValue, onSearchChange, searchPlaceholder, children }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
+  // Only real letters count as an initial - a business name like "Miia (by
+  // Growth Lab Co)" was producing "M(" (the "(" from the second word),
+  // which then rendered off-centre in the fixed-size avatar circle.
   const initials = (businessName || tenant?.name || "?")
     .trim()
     .split(/\s+/)
-    .slice(0, 2)
     .map((w) => w.charAt(0).toUpperCase())
+    .filter((c) => /[A-Z]/.test(c))
+    .slice(0, 2)
     .join("");
 
   return (
@@ -170,8 +174,8 @@ export function DashboardShell({ base, tenant, businessName, searchValue, onSear
               <div className={styles.accountChip}>
                 <div className={styles.accountAvatar}>{initials || "M"}</div>
                 <div className={styles.accountText}>
-                  <p className={styles.accountName}>{tenant?.contactName || "Your team"}</p>
-                  <p className={styles.accountBusiness}>{businessName || tenant?.name}</p>
+                  <p className={styles.accountName}>{businessName || tenant?.name}</p>
+                  <p className={styles.accountBusiness}>{tenant?.contactName || "Your team"}</p>
                 </div>
               </div>
             </div>
