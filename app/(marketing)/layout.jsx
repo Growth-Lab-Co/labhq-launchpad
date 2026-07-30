@@ -4,6 +4,7 @@ import { Header } from "@/components/miia/Header";
 import { Footer } from "@/components/miia/Footer";
 import { ScrollbarTheme } from "@/components/miia/ScrollbarTheme";
 import { MetaPixel } from "@/components/miia/MetaPixel";
+import { MiiaWidgetEmbed } from "@/components/miia/MiiaWidgetEmbed";
 import "@/components/miia/tokens.css";
 
 // Per Miia-Brand-Guidelines.pdf v1.0: Space Grotesk carries everything
@@ -34,6 +35,7 @@ export default function MarketingLayout({ children }) {
       <Header />
       {children}
       <Footer />
+      <MiiaWidgetEmbed />
     </div>
   );
 }
