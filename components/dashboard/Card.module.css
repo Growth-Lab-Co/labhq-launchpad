@@ -16,6 +16,9 @@
 .emptyIcon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--dash-violet-10); color: var(--dash-violet); margin: 0 auto 14px; }
 .emptyTitle { font-size: 14.5px; font-weight: 600; color: var(--dash-ink); margin-bottom: 4px; }
 .emptyBody { font-size: 13.5px; color: var(--dash-secondary); line-height: 1.5; max-width: 320px; margin: 0 auto; }
+@media (max-width: 899px) {
+  .emptyBody { font-size: 14px; }
+}
 .emptyAction { margin-top: 16px; }
 
 .loading { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 40px 12px; color: var(--dash-secondary); font-size: 13.5px; }
@@ -34,3 +37,6 @@
   cursor: pointer;
 }
 .retryButton:hover { border-color: var(--dash-violet); color: var(--dash-violet); }
+@media (max-width: 899px) {
+  .retryButton { min-height: 44px; }
+}

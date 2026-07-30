@@ -10,6 +10,8 @@
   padding: 10px 14px;
   font-size: 14px;
   color: var(--dash-ink);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .bubbleOut {
   align-self: flex-end;
@@ -19,6 +21,8 @@
   padding: 10px 14px;
   font-size: 14px;
   color: #fff;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .typing { align-self: flex-end; padding: 8px 12px; }
 .error { font-size: 13px; color: var(--dash-bad); margin-bottom: 10px; }

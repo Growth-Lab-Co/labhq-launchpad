@@ -43,6 +43,7 @@
   background: var(--dash-canvas);
   color: var(--dash-ink);
   font-family: var(--dash-font-body);
+  overflow-x: hidden;
 }
 
 .miia-dashboard * { box-sizing: border-box; }
@@ -61,5 +62,19 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile-polish sweep (2026-07-30): iOS Safari auto-zooms the whole
+   viewport on focus of any input/textarea under 16px, then has to zoom
+   back out on blur - the exact "viewport jump" the mobile-polish brief
+   calls out. Scoped to mobile only (desktop's smaller type scale is
+   unaffected and unchanged) and beats individual component font-sizes on
+   specificity (.miia-dashboard + tag beats a single class), so it doesn't
+   require touching every input's own stylesheet. */
+@media (max-width: 899px) {
+  .miia-dashboard input,
+  .miia-dashboard textarea {
+    font-size: 16px;
   }
 }

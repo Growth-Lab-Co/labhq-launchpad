@@ -35,6 +35,32 @@
   .layout { grid-template-columns: 340px 1fr; align-items: start; }
 }
 
+/* Below 900px, list and transcript are a master-detail pair: only one
+   shows at a time, toggled by whether a conversation is selected - see
+   ConversationsPageClient.jsx's `hasSelection` class and back button.
+   At 900px+ both always show side by side, unchanged from before. */
+@media (max-width: 899px) {
+  .layout.hasSelection .list { display: none; }
+  .layout:not(.hasSelection) .transcript { display: none; }
+}
+
+.backBtn {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  margin: -4px -4px 12px;
+  padding: 0 10px;
+  border: none;
+  background: none;
+  color: var(--dash-violet);
+  font-size: 14px;
+  font-weight: 600;
+}
+@media (max-width: 899px) {
+  .backBtn { display: inline-flex; }
+}
+
 .list {
   border-radius: var(--dash-radius-card);
   border: 1px solid var(--dash-border);
@@ -49,6 +75,9 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--dash-border);
   min-height: 44px;
+}
+@media (max-width: 899px) {
+  .row { min-height: 56px; padding: 16px; }
 }
 .row:last-child { border-bottom: none; }
 .row:hover { background: var(--dash-canvas); }
@@ -88,6 +117,8 @@
   padding: 10px 14px;
   font-size: 14px;
   color: var(--dash-ink);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .bubbleOut {
   align-self: flex-end;
@@ -97,4 +128,6 @@
   padding: 10px 14px;
   font-size: 14px;
   color: #fff;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }

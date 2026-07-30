@@ -21,6 +21,10 @@
 .usageNote { margin-top: 8px; font-size: 11.5px; color: var(--dash-secondary); }
 
 .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+@media (max-width: 479px) {
+  .actions { flex-direction: column; }
+  .actions > button { width: 100%; }
+}
 .primaryBtn {
   min-height: 44px;
   padding: 0 18px;
@@ -51,3 +55,6 @@
 
 .error { font-size: 13px; color: var(--dash-bad); margin-top: 10px; }
 .confirmText { font-size: 13.5px; color: var(--dash-secondary); margin-top: 10px; line-height: 1.5; }
+@media (max-width: 899px) {
+  .confirmText { font-size: 14px; }
+}

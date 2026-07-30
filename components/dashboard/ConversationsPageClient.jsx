@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Search, MessageSquare } from "lucide-react";
+import { Search, MessageSquare, ArrowLeft } from "lucide-react";
 import { Card, CardEmpty, CardLoading } from "./Card";
 import { TestChat } from "./TestChat";
 import styles from "./ConversationsPageClient.module.css";
@@ -69,7 +69,7 @@ export function ConversationsPageClient({ tenantSlug, widgetKey, conversations }
           <CardEmpty icon={MessageSquare} title="No matches" body="Try a different search." />
         </Card>
       ) : (
-        <div className={styles.layout}>
+        <div className={[styles.layout, selectedId ? styles.hasSelection : ""].filter(Boolean).join(" ")}>
           <div className={styles.list}>
             {filtered.map((c) => (
               <button
@@ -88,6 +88,11 @@ export function ConversationsPageClient({ tenantSlug, widgetKey, conversations }
             ))}
           </div>
           <div className={styles.transcript}>
+            {selectedId && (
+              <button type="button" className={styles.backBtn} onClick={() => setSelectedId(null)}>
+                <ArrowLeft size={16} /> Back to conversations
+              </button>
+            )}
             {!selectedId ? (
               <CardEmpty icon={MessageSquare} title="Pick a conversation" body="Select one from the list to read the full transcript." />
             ) : loading ? (

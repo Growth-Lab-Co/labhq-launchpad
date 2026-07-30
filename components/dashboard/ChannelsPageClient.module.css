@@ -8,9 +8,9 @@
   box-shadow: var(--dash-shadow-card);
   padding: 20px;
 }
-.rowHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.rowLeft { display: flex; align-items: center; gap: 14px; }
-.iconWrap { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; }
+.rowHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.rowLeft { display: flex; align-items: center; gap: 14px; min-width: 0; flex: 1 1 220px; }
+.iconWrap { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 12px; }
 .iconLive { background: var(--dash-violet-12); color: var(--dash-violet); }
 .iconOff { background: rgba(228, 224, 214, 0.6); color: var(--dash-secondary); }
 .name { font-size: 16px; font-weight: 700; color: var(--dash-ink); font-family: var(--dash-font-display); }
@@ -39,6 +39,9 @@
   white-space: nowrap;
 }
 .connectBtn:hover { border-color: var(--dash-violet); color: var(--dash-violet); }
+@media (max-width: 899px) {
+  .connectBtn { min-height: 44px; }
+}
 
 .codeBlock {
   margin-top: 14px;
@@ -46,11 +49,24 @@
   border: 1px solid var(--dash-border);
   background: var(--dash-canvas);
   padding: 14px;
+  min-width: 0;
 }
 .codeHead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .codeHeadActions { display: flex; align-items: center; gap: 8px; }
 .codeTitle { font-size: 12.5px; font-weight: 600; color: var(--dash-secondary); }
-.pre { font-size: 12px; font-family: monospace; white-space: pre-wrap; word-break: break-all; color: var(--dash-ink); max-height: 160px; overflow-y: auto; }
+/* Scrolls horizontally inside its own container rather than wrapping or
+   pushing the page wide - a code/snippet block reads better this way and
+   it's how customers on a phone copy the widget snippet to send to
+   whoever manages their site (Channels' most mobile-critical action). */
+.pre {
+  font-size: 12px;
+  font-family: monospace;
+  white-space: pre;
+  color: var(--dash-ink);
+  max-height: 160px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 .modalOverlay {
   position: fixed;
@@ -61,18 +77,47 @@
   z-index: 100;
   padding: 20px;
 }
+@media (max-width: 599px) {
+  .modalOverlay { padding: 0; }
+}
 .modalCard {
   width: 100%;
   max-width: 560px;
+  max-height: calc(100% - 40px);
   background: var(--dash-surface);
   border-radius: var(--dash-radius-card);
   border: 1px solid var(--dash-border);
   box-shadow: var(--dash-shadow-card);
   overflow: hidden;
 }
-.modalHead { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--dash-border); }
+@media (max-width: 599px) {
+  .modalCard {
+    max-width: 100%;
+    height: 100%;
+    max-height: 100%;
+    border-radius: 0;
+    border: none;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+.modalHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--dash-border);
+  flex-shrink: 0;
+}
 .modalClose { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; border: 1px solid var(--dash-border); background: var(--dash-canvas); color: var(--dash-ink); }
+@media (max-width: 899px) {
+  .modalClose { width: 44px; height: 44px; }
+}
 .modalFrame { width: 100%; height: 560px; border: none; display: block; }
+@media (max-width: 599px) {
+  .modalFrame { height: auto; flex: 1; }
+}
 
 .linkRowInline { display: flex; gap: 8px; flex-wrap: wrap; }
 .linkInput {
@@ -86,3 +131,6 @@
   font-size: 13.5px;
 }
 .linkError { margin-top: 8px; font-size: 12.5px; color: var(--dash-warn, #b45309); }
+@media (max-width: 899px) {
+  .linkInput { min-height: 44px; }
+}
