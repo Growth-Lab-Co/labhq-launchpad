@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { resolveDashboardAccess } from "@/lib/dashboardAccess";
+import { resolveDashboardAccess, resolveDisplayIdentity } from "@/lib/dashboardAccess";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { SignInGate } from "@/components/dashboard/SignInGate";
 import "@/components/dashboard/tokens.css";
@@ -18,10 +18,10 @@ export default async function DashboardLayout({ children, params }) {
 
   const { tenant, deployment } = access;
   const base = `/${params.tenant}`;
-  const businessName = deployment?.businessName || tenant.name;
+  const { businessName, contactDisplay } = await resolveDisplayIdentity(params.tenant, tenant, deployment);
 
   return (
-    <DashboardShell base={base} tenant={{ ...tenant, contactName: deployment?.contactName }} businessName={businessName}>
+    <DashboardShell base={base} tenant={{ ...tenant, contactName: contactDisplay }} businessName={businessName}>
       {children}
     </DashboardShell>
   );

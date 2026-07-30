@@ -2,9 +2,8 @@ import { notFound } from "next/navigation";
 import { getPublicTenant, tenantProductType } from "@/lib/tenants";
 import { getBranding } from "@/lib/branding";
 import Chat from "@/components/Chat";
-import { resolveDashboardAccess } from "@/lib/dashboardAccess";
+import { resolveDashboardAccess, resolveDisplayIdentity } from "@/lib/dashboardAccess";
 import { getDashboardHomeData, getChannelsData } from "@/lib/dashboardData";
-import { getSignupByTenantSlug } from "@/lib/miiaSignups";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardHome } from "@/components/dashboard/DashboardHome";
 import { SignInGate } from "@/components/dashboard/SignInGate";
@@ -56,26 +55,13 @@ async function MiiaDashboardHome({ slug }) {
   }
 
   const { tenant, deployment } = access;
-  const signup = await getSignupByTenantSlug(slug).catch(() => null);
+  const { signup, businessName, contactFirstName, contactDisplay } = await resolveDisplayIdentity(slug, tenant, deployment);
   const [data, channelsData] = await Promise.all([
     getDashboardHomeData(tenant, deployment, signup),
     getChannelsData(tenant, deployment, signup),
   ]);
 
   const base = `/${slug}`;
-  // Prefer the signup record (captured from Stripe checkout at payment time)
-  // over the deployment/intake record: the intake interview's own
-  // business_name/contact_name answers can end up swapped or otherwise
-  // corrupted by the known field-splitting issue (one real customer's own
-  // answers had "business name" and "contact name" reversed) - the signup's
-  // fields were captured independently, before the interview even started,
-  // and are never subject to that failure mode.
-  const businessName = signup?.businessName || deployment?.businessName || tenant.name;
-  const contactName = signup?.contactName || deployment?.contactName || "";
-  const contactFirstName = contactName.trim().split(/\s+/)[0] || null;
-  // Account chip's second line: contact name, falling back to their email
-  // (never the business name again - that's line one) if no name is on file.
-  const contactDisplay = contactName.trim() || signup?.email || "";
 
   return (
     <DashboardShell base={base} tenant={{ ...tenant, contactName: contactDisplay }} businessName={businessName}>

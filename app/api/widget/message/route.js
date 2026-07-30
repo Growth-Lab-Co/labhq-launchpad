@@ -83,35 +83,42 @@ export async function OPTIONS(req) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
-// Wraps a Claude text-chunk stream: forwards every chunk to the client
-// immediately, while buffering the full text so the caller can persist it
-// once the stream ends (awaited inside flush() so the persist genuinely
-// finishes before the HTTP response closes - can't rely on work continuing
-// after the response is fully sent on a serverless platform).
+// Forwards every chunk to the client while persisting the full reply once
+// generation finishes, via two independent branches of the same source
+// stream (source.tee()) rather than one shared TransformStream.
 //
-// Known gap: the underlying connection has been observed to take far
-// longer to formally close (~30s) than the actual reply takes to arrive
-// (confirmed the visible text streams in 2-5s; raw Claude streaming
-// independently timed at under 2s to first byte) - looks like a
-// Netlify/Next.js response-streaming characteristic on this route rather
-// than anything in this function, but wasn't fully root-caused tonight.
-// public/widget.js works around it client-side (treats a reply as "done"
-// once chunks stop arriving for ~2.5s, rather than waiting for the fetch
-// promise to fully settle) so it doesn't block the next message - see its
-// own comment for why that's safe.
+// Root cause found 2026-07-30: a single shared TransformStream's flush()
+// only fires once its readable side is fully drained - and that side is
+// only drained by whatever reads the outer HTTP response. streamClaude's
+// ReadableStream is pull-based, so on the connections where the platform's
+// slow-to-formally-close behaviour (documented for months, never fully
+// root-caused - visible text streams in 2-5s, raw Claude streaming
+// independently timed at under 2s to first byte, but the underlying
+// connection can take ~30s+ to formally close) stalls the client-facing
+// read, the upstream pull() simply stops being called again - flush()
+// never fires, and a reply that fully generated in seconds silently never
+// gets persisted. tee()'s persist branch pulls from the underlying stream
+// on its own schedule, independent of the client branch, so it drains and
+// completes regardless of what the client connection does.
 function tapStream(source, onDone) {
-  let full = "";
-  return source.pipeThrough(
-    new TransformStream({
-      transform(chunk, controller) {
-        full += chunk;
-        controller.enqueue(new TextEncoder().encode(chunk));
-      },
-      async flush() {
-        await onDone(full).catch((e) => console.error("[WIDGET] post-stream persist failed:", e.message));
-      },
-    })
-  );
+  const [toClient, toPersist] = source.tee();
+
+  (async () => {
+    const reader = toPersist.getReader();
+    let full = "";
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        full += value;
+      }
+      await onDone(full);
+    } catch (e) {
+      console.error("[WIDGET] post-stream persist failed:", e.message);
+    }
+  })();
+
+  return toClient.pipeThrough(new TextEncoderStream());
 }
 
 async function handleTenantMessage({ widgetKey, conversationId, message, origin }) {
