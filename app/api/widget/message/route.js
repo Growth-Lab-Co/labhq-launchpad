@@ -83,42 +83,47 @@ export async function OPTIONS(req) {
   return new NextResponse(null, { status: 204, headers: corsHeaders(req.headers.get("origin")) });
 }
 
-// Forwards every chunk to the client while persisting the full reply once
-// generation finishes, via two independent branches of the same source
-// stream (source.tee()) rather than one shared TransformStream.
+// Drains a text-chunk stream to a single string before anything is sent to
+// the client.
 //
-// Root cause found 2026-07-30: a single shared TransformStream's flush()
-// only fires once its readable side is fully drained - and that side is
-// only drained by whatever reads the outer HTTP response. streamClaude's
-// ReadableStream is pull-based, so on the connections where the platform's
-// slow-to-formally-close behaviour (documented for months, never fully
-// root-caused - visible text streams in 2-5s, raw Claude streaming
-// independently timed at under 2s to first byte, but the underlying
-// connection can take ~30s+ to formally close) stalls the client-facing
-// read, the upstream pull() simply stops being called again - flush()
-// never fires, and a reply that fully generated in seconds silently never
-// gets persisted. tee()'s persist branch pulls from the underlying stream
-// on its own schedule, independent of the client branch, so it drains and
-// completes regardless of what the client connection does.
-function tapStream(source, onDone) {
-  const [toClient, toPersist] = source.tee();
-
-  (async () => {
-    const reader = toPersist.getReader();
-    let full = "";
-    try {
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        full += value;
-      }
-      await onDone(full);
-    } catch (e) {
-      console.error("[WIDGET] post-stream persist failed:", e.message);
+// Root cause found 2026-07-30: both a shared-TransformStream flush() and a
+// tee()'d background-persist branch depend on the platform keeping this
+// function's execution alive after the response is returned - but direct
+// testing (curl against this exact route, full timing captured) showed the
+// connection can be reset by the platform once the reply's content has
+// finished arriving, well before any of that deferred work has a chance to
+// run: a reply that fully generated in seconds was reliably lost. Buffering
+// here instead means the reply is already persisted, in full, before this
+// route ever constructs a response - nothing async is left riding on the
+// connection's lifecycle. Content generates in 2-5s per prior diagnostics,
+// so this costs a short wait in the "typing" state rather than true
+// token-by-token streaming, in exchange for the reply never going missing.
+async function drainStream(source) {
+  const reader = source.getReader();
+  let full = "";
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      full += value;
     }
-  })();
+  } catch (e) {
+    console.error("[WIDGET] reply stream errored before completion:", e.message);
+  }
+  return full;
+}
 
-  return toClient.pipeThrough(new TextEncoderStream());
+// The client (TestChat.jsx, public/widget.js) already reads the response as
+// a stream - a single already-complete chunk keeps that code path working
+// unchanged, it just resolves immediately instead of arriving token by token.
+function asSingleChunkStream(text) {
+  const bytes = new TextEncoder().encode(text);
+  return new ReadableStream({
+    start(controller) {
+      controller.enqueue(bytes);
+      controller.close();
+    },
+  });
 }
 
 async function handleTenantMessage({ widgetKey, conversationId, message, origin }) {
@@ -145,30 +150,28 @@ async function handleTenantMessage({ widgetKey, conversationId, message, origin 
 
   const history = conversation.messages;
 
-  // Persisted immediately, not deferred to the stream's flush() - a slow or
-  // dropped connection on the reply side (see tapStream's own comment on
-  // the ~30s formal-close characteristic) must never cost the customer
-  // their own message too. Found 2026-07-30: a stalled reply left the
-  // transcript panel completely empty because both messages used to wait
-  // for the same flush() that never fired.
+  // Persisted immediately rather than after the reply - the customer's own
+  // message must never be lost even if reply generation or persistence
+  // fails afterward. Found 2026-07-30: a stalled reply left the transcript
+  // panel completely empty because both messages used to wait on the same
+  // deferred completion signal.
   await appendWidgetMessage(conversation.id, { direction: "inbound", body: message });
 
   const { stream } = await streamReply({ deployment, tenant, messages: history, inboundText: message });
+  const fullReply = await drainStream(stream);
 
-  const tapped = tapStream(stream, async (fullReply) => {
-    await appendWidgetMessage(conversation.id, { direction: "outbound", body: fullReply });
-    await fileBookingRequestIfConfirmed({
-      tenantSlug,
-      businessName: deployment.businessName,
-      deploymentId: deployment.id,
-      tenantRecord: tenant,
-      messages: history,
-      inboundText: message,
-      reply: fullReply,
-    });
+  await appendWidgetMessage(conversation.id, { direction: "outbound", body: fullReply });
+  await fileBookingRequestIfConfirmed({
+    tenantSlug,
+    businessName: deployment.businessName,
+    deploymentId: deployment.id,
+    tenantRecord: tenant,
+    messages: history,
+    inboundText: message,
+    reply: fullReply,
   });
 
-  return { status: 200, stream: tapped, conversationId: conversation.id };
+  return { status: 200, stream: asSingleChunkStream(fullReply), conversationId: conversation.id };
 }
 
 async function handlePreviewMessage({ previewId, message }) {
@@ -192,14 +195,13 @@ This is a DEMO for the business owner, not a real customer conversation - be imp
   }));
 
   const stream = await streamClaude({ system, messages: [...history, { role: "user", content: message }], maxTokens: 300 });
+  const fullReply = await drainStream(stream);
 
-  const tapped = tapStream(stream, async (fullReply) => {
-    await appendPreviewMessage(previewId, { direction: "inbound", body: message });
-    await appendPreviewMessage(previewId, { direction: "outbound", body: fullReply });
-    await incrementPreviewMessageCount(previewId);
-  });
+  await appendPreviewMessage(previewId, { direction: "inbound", body: message });
+  await appendPreviewMessage(previewId, { direction: "outbound", body: fullReply });
+  await incrementPreviewMessageCount(previewId);
 
-  return { status: 200, stream: tapped };
+  return { status: 200, stream: asSingleChunkStream(fullReply) };
 }
 
 export async function POST(req) {
