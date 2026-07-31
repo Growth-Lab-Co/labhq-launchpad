@@ -29,13 +29,21 @@ async function getConversations(tenantSlug, tenant) {
   }
 
   const widgetConversations = await listWidgetConversationsForTenant(tenantSlug).catch(() => []);
-  const normalizedWidget = widgetConversations.map((c) => ({
-    id: c.id,
-    source: "widget",
-    contactName: c.contactEmail || "Website visitor",
-    lastMessageBody: c.messages[c.messages.length - 1]?.body || "",
-    dateUpdated: c.updatedAt,
-  }));
+  const normalizedWidget = widgetConversations.map((c) => {
+    // The visitor's own first message, not whichever message happens to be
+    // last (often Miia's own reply, or briefly a still-pending placeholder
+    // - see lib/widgetConversations.js) - this is what actually tells two
+    // rows apart at a glance, since every row's name is the same generic
+    // "Website visitor".
+    const firstInbound = c.messages.find((m) => m.direction === "inbound");
+    return {
+      id: c.id,
+      source: "widget",
+      contactName: c.contactEmail || "Website visitor",
+      lastMessageBody: firstInbound?.body || c.messages[c.messages.length - 1]?.body || "",
+      dateUpdated: c.updatedAt,
+    };
+  });
 
   if (ghlConversations === null && normalizedWidget.length === 0) return null;
 

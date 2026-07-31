@@ -1,10 +1,14 @@
 import Link from "next/link";
-import { MessageCircle, Smartphone, AtSign, Phone } from "lucide-react";
+import { MessageCircle, Smartphone, AtSign, Phone, Globe } from "lucide-react";
 import { Card, CardHead } from "./Card";
 import styles from "./ChannelsCard.module.css";
 
 // Same icon choices as components/miia/FeatureVisuals.jsx's ChannelsVisual -
-// lucide-react (this version) has no Facebook/Instagram brand icons.
+// lucide-react (this version) has no Facebook/Instagram brand icons. Globe
+// is a fallback for any future channel id added here without a matching
+// icon yet (previously referenced but never imported - unreachable today
+// since every current channel id has a mapping, but a real bug once one
+// doesn't).
 const ICONS = { webchat: MessageCircle, sms: Smartphone, social: AtSign, phone: Phone };
 
 export function ChannelsCard({ channels, base }) {
@@ -29,10 +33,17 @@ export function ChannelsCard({ channels, base }) {
                   {c.hint && <p className={styles.hint}>{c.hint}</p>}
                 </div>
               </div>
-              <span className={[styles.statusPill, live ? styles.live : styles.notStarted].join(" ")}>
-                <span className={styles.pillDot} />
-                {live ? "Live" : c.status === "upgrade" ? "Upgrade" : "Not started"}
-              </span>
+              {c.status === "upgrade" ? (
+                <Link href={`${base}/channels`} className={[styles.statusPill, styles.notStarted].join(" ")}>
+                  <span className={styles.pillDot} />
+                  Upgrade
+                </Link>
+              ) : (
+                <span className={[styles.statusPill, live ? styles.live : styles.notStarted].join(" ")}>
+                  <span className={styles.pillDot} />
+                  {live ? "Live" : "Not started"}
+                </span>
+              )}
             </li>
           );
         })}

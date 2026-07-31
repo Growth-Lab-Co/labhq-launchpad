@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { MessageCircle, Smartphone, AtSign, Phone, Check, Mail, X } from "lucide-react";
 import { MIIA_CHANNEL_COPY } from "@/lib/channelWiring";
 import styles from "./ChannelsPageClient.module.css";
@@ -135,6 +136,66 @@ function LeadsieConnect({ tenantSlug, leadsieEmbedUrl }) {
   );
 }
 
+// Real self-serve upgrade (job 4, 2026-07-31) - was a dead "Upgrade" pill
+// with no click handler at all. Chat -> Everywhere only, the one path the
+// dashboard actually offers (see app/api/miia/dashboard/upgrade-plan's own
+// header comment for why). On success the new plan is already saved
+// server-side, so router.refresh() re-fetches this page's channels with
+// SMS/Facebook/Instagram unlocked - no separate "success" state needed.
+function UpgradeButton({ tenantSlug }) {
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function confirmUpgrade() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/miia/dashboard/upgrade-plan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ tenantSlug }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Couldn't upgrade - try again.");
+      router.refresh();
+    } catch (e) {
+      setError(e.message);
+      setBusy(false);
+    }
+  }
+
+  if (!confirming) {
+    return (
+      <div className={styles.actions}>
+        <button type="button" className={styles.connectBtn} onClick={() => setConfirming(true)}>
+          Upgrade to Everywhere
+        </button>
+        {error && <p className={styles.linkError}>{error}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.actions}>
+      <p className={styles.detail}>
+        Switch to Miia Everywhere - SMS, Facebook and Instagram unlock immediately. You&apos;ll be charged a prorated
+        amount on your next invoice.
+      </p>
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button type="button" className={styles.connectBtn} onClick={confirmUpgrade} disabled={busy}>
+          {busy ? "Upgrading…" : "Confirm upgrade"}
+        </button>
+        <button type="button" className={styles.connectBtn} onClick={() => setConfirming(false)} disabled={busy}>
+          Cancel
+        </button>
+      </div>
+      {error && <p className={styles.linkError}>{error}</p>}
+    </div>
+  );
+}
+
 // "Connect your calendar" - no Google OAuth app exists anywhere in this
 // codebase today (grepped before building this - confirmed, not assumed),
 // so this can't be a real connect flow yet. Files an ops task instead of
@@ -202,6 +263,8 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
   const [error, setError] = useState(null);
   const [halaxyInterest, setHalaxyInterest] = useState(false);
   const [momenceInterest, setMomenceInterest] = useState(false);
+  const [mindbodyInterest, setMindbodyInterest] = useState(false);
+  const [freshaInterest, setFreshaInterest] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -248,6 +311,24 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ tenantSlug, interest: "momence" }),
+    }).catch(() => {});
+  }
+
+  async function registerMindbodyInterest() {
+    setMindbodyInterest(true);
+    await fetch("/api/miia/dashboard/practice-integration", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantSlug, interest: "mindbody" }),
+    }).catch(() => {});
+  }
+
+  async function registerFreshaInterest() {
+    setFreshaInterest(true);
+    await fetch("/api/miia/dashboard/practice-integration", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ tenantSlug, interest: "fresha" }),
     }).catch(() => {});
   }
 
@@ -348,6 +429,48 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
       </button>
     </div>
   );
+  // Mindbody and Fresha (2026-07-31): same honest "register interest, file
+  // an ops note" stub as Momence above - studio/salon software, no adapter
+  // exists for either yet either. Never claims a connection that isn't
+  // real.
+  const mindbodyCard = (
+    <div key="mindbody" className={styles.codeBlock}>
+      <div className={styles.codeHead}>
+        <span className={styles.codeTitle}>Mindbody</span>
+      </div>
+      <p className={styles.detail} style={{ marginBottom: 10 }}>
+        Run a studio on Mindbody? Integration: in progress - register your interest and we&apos;ll notify you.
+      </p>
+      <button type="button" className={styles.connectBtn} onClick={registerMindbodyInterest} disabled={mindbodyInterest}>
+        {mindbodyInterest ? (
+          <>
+            <Check size={14} /> Noted
+          </>
+        ) : (
+          "Register interest"
+        )}
+      </button>
+    </div>
+  );
+  const freshaCard = (
+    <div key="fresha" className={styles.codeBlock}>
+      <div className={styles.codeHead}>
+        <span className={styles.codeTitle}>Fresha</span>
+      </div>
+      <p className={styles.detail} style={{ marginBottom: 10 }}>
+        Run a salon or clinic on Fresha? Integration: in progress - register your interest and we&apos;ll notify you.
+      </p>
+      <button type="button" className={styles.connectBtn} onClick={registerFreshaInterest} disabled={freshaInterest}>
+        {freshaInterest ? (
+          <>
+            <Check size={14} /> Noted
+          </>
+        ) : (
+          "Register interest"
+        )}
+      </button>
+    </div>
+  );
 
   return (
     <div className={styles.row} style={{ marginTop: 16 }}>
@@ -363,7 +486,9 @@ function PracticeIntegrationCard({ tenantSlug, practiceSoftware }) {
         </div>
       </div>
       <div style={{ display: "grid", gap: 12, marginTop: 12 }}>
-        {clinikoFirst ? [clinikoCard, halaxyCard, momenceCard] : [halaxyCard, clinikoCard, momenceCard]}
+        {clinikoFirst
+          ? [clinikoCard, halaxyCard, momenceCard, mindbodyCard, freshaCard]
+          : [halaxyCard, clinikoCard, momenceCard, mindbodyCard, freshaCard]}
       </div>
     </div>
   );
@@ -400,6 +525,12 @@ export function ChannelsPageClient({ tenantSlug, channels, businessName, showPra
               {c.id === "webchat" && <EmbedSnippet tenantSlug={tenantSlug} businessName={businessName} />}
               {c.id === "social" && !live && c.status !== "upgrade" && (
                 <LeadsieConnect tenantSlug={tenantSlug} leadsieEmbedUrl={leadsieEmbedUrl} />
+              )}
+              {/* Phone/voice's own "upgrade" status is invitation-only (see
+                  lib/dashboardData.js), never self-serve - this button is
+                  deliberately scoped to just sms/social. */}
+              {(c.id === "sms" || c.id === "social") && c.status === "upgrade" && (
+                <UpgradeButton tenantSlug={tenantSlug} />
               )}
             </div>
           );

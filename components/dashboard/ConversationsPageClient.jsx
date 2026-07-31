@@ -9,6 +9,44 @@ function timeOf(iso) {
   return iso ? new Date(iso).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "";
 }
 
+function startOfDay(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
+}
+
+function dateGroupLabel(iso) {
+  const date = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.round((startOfDay(now) - startOfDay(date)) / 86_400_000);
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  return date.toLocaleDateString([], {
+    day: "numeric",
+    month: "long",
+    year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+  });
+}
+
+// `conversations` already arrives newest-first (see the page's own
+// getConversations()) - grouping by first-seen label preserves that order
+// group-to-group, so this never needs its own sort.
+function groupByDate(conversations) {
+  const groups = [];
+  const byLabel = new Map();
+  for (const c of conversations) {
+    const label = dateGroupLabel(c.dateUpdated);
+    let group = byLabel.get(label);
+    if (!group) {
+      group = { label, items: [] };
+      byLabel.set(label, group);
+      groups.push(group);
+    }
+    group.items.push(c);
+  }
+  return groups;
+}
+
 export function ConversationsPageClient({ tenantSlug, widgetKey, conversations }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState(null);
@@ -21,6 +59,7 @@ export function ConversationsPageClient({ tenantSlug, widgetKey, conversations }
     const q = query.trim().toLowerCase();
     return (c.contactName || "").toLowerCase().includes(q) || (c.lastMessageBody || "").toLowerCase().includes(q);
   });
+  const grouped = groupByDate(filtered);
 
   async function selectConversation(id) {
     setSelectedId(id);
@@ -71,20 +110,25 @@ export function ConversationsPageClient({ tenantSlug, widgetKey, conversations }
       ) : (
         <div className={[styles.layout, selectedId ? styles.hasSelection : ""].filter(Boolean).join(" ")}>
           <div className={styles.list}>
-            {filtered.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => selectConversation(c.id)}
-                className={[styles.row, selectedId === c.id ? styles.rowActive : ""].filter(Boolean).join(" ")}
-              >
-                <p className={styles.rowName}>
-                  {c.contactName || "Unknown contact"}
-                  {c.source === "widget" && <span className={styles.sourceBadge}>Website</span>}
-                </p>
-                <p className={styles.rowSnippet}>{c.lastMessageBody || " "}</p>
-                <p className={styles.rowTime}>{timeOf(c.dateUpdated)}</p>
-              </button>
+            {grouped.map((group) => (
+              <div key={group.label}>
+                <p className={styles.groupHeading}>{group.label}</p>
+                {group.items.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => selectConversation(c.id)}
+                    className={[styles.row, selectedId === c.id ? styles.rowActive : ""].filter(Boolean).join(" ")}
+                  >
+                    <p className={styles.rowName}>
+                      {c.contactName || "Unknown contact"}
+                      {c.source === "widget" && <span className={styles.sourceBadge}>Website</span>}
+                    </p>
+                    <p className={styles.rowSnippet}>{c.lastMessageBody || " "}</p>
+                    <p className={styles.rowTime}>{timeOf(c.dateUpdated)}</p>
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
           <div className={styles.transcript}>

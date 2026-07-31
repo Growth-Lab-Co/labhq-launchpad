@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { blobStore } from "@/lib/blobsFetch";
-import { verifyMiiaWebhookSignature } from "@/lib/miiaStripe";
+import { verifyMiiaWebhookSignature, planForPriceId } from "@/lib/miiaStripe";
 import { handleCompletedCheckoutSession } from "@/lib/miiaProvisioning";
 import { setJSONAtomic } from "@/lib/blobsAtomic";
+import { getSignupByStripeCustomerId, updateSignup } from "@/lib/miiaSignups";
+import { updateTenant } from "@/lib/tenants";
 
 function eventsStore() {
   return blobStore({ name: "miia-stripe-events", consistency: "strong" });
@@ -45,15 +47,34 @@ export async function POST(req) {
     }
   }
 
-  // Subscription lifecycle events: no activation logic needed today (the
-  // subscription's existence isn't what gates provisioning - payment is),
-  // but received + acknowledged so Stripe doesn't retry them and future
-  // billing-status handling (e.g. dunning, cancellation) has a landing spot.
-  if (
-    event.type === "customer.subscription.updated" ||
-    event.type === "customer.subscription.deleted" ||
-    event.type === "invoice.payment_failed"
-  ) {
+  // Backstop for whatever changed the subscription's price outside the
+  // dashboard's own "Upgrade" button (app/api/miia/dashboard/upgrade-plan),
+  // which already syncs tenant/signup.plan synchronously on that path - a
+  // plan change made directly in Stripe (support, dunning recovery, a
+  // future portal-driven change) would otherwise leave our own records
+  // showing the old plan indefinitely.
+  if (event.type === "customer.subscription.updated") {
+    try {
+      const subscription = event.data.object;
+      const priceId = subscription.items?.data?.[0]?.price?.id;
+      const plan = planForPriceId(priceId);
+      if (plan) {
+        const signup = await getSignupByStripeCustomerId(subscription.customer);
+        if (signup && signup.plan !== plan) {
+          await updateSignup(signup.id, { plan });
+          if (signup.tenantSlug) await updateTenant(signup.tenantSlug, { plan }).catch(() => {});
+          console.log(`[miia-webhook] synced plan=${plan} for tenant=${signup.tenantSlug || signup.id} from subscription.updated`);
+        }
+      }
+    } catch (e) {
+      console.error("[miia-webhook] subscription.updated sync failed:", e.message);
+    }
+  }
+
+  // Deletion/dunning: received + acknowledged so Stripe doesn't retry them
+  // and future billing-status handling has a landing spot - no action taken
+  // yet, unchanged from before.
+  if (event.type === "customer.subscription.deleted" || event.type === "invoice.payment_failed") {
     console.log(`[miia-webhook] received ${event.type} for ${event.data.object.id} - no handler yet`);
   }
 
