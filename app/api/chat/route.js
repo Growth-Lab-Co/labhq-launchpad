@@ -1,8 +1,48 @@
 import { NextResponse } from "next/server";
-import { askClaude, extractJson } from "@/lib/claude";
+import { askClaudeStructured } from "@/lib/claude";
 import { getTenant } from "@/lib/tenants";
 import { INTERVIEW_FIELDS } from "@/lib/questions";
 import { saveIntakeDraft, getIntakeDraft } from "@/lib/intakeDrafts";
+
+// Fields that must read as a short name, not a sentence - the two fields
+// the field-splitting bug actually swapped in production (2026-07-31 postmortem:
+// a real customer's own business_name and contact_name ended up reversed,
+// including once with an entire multi-sentence business description landing
+// in contact_name). Value is the character ceiling for that field.
+const NAME_LIKE_FIELD_MAX_LENGTH = { contact_name: 60, business_name: 80 };
+
+// Rejects a captured value that doesn't plausibly belong in this field,
+// rather than accepting whatever the model produced. A rejected value is
+// simply not merged into answers - the field stays uncaptured and the
+// interview naturally asks again next turn (see fieldList's [CAPTURED]
+// marker below), which is safer than guessing or accepting corrupted data.
+function isPlausibleCapture(field, value, currentAnswers) {
+  if (typeof value !== "string") return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+
+  const maxLen = NAME_LIKE_FIELD_MAX_LENGTH[field];
+  if (maxLen) {
+    if (trimmed.length > maxLen) return false;
+    // A real name is one clause, not multiple sentences - more than one
+    // sentence-ending mark or a line break means this is prose that
+    // belongs in a different field, not a name.
+    const sentenceEnders = (trimmed.match(/[.!?]/g) || []).length;
+    if (sentenceEnders > 1 || trimmed.includes("\n")) return false;
+  }
+
+  // A value byte-identical (case/whitespace-insensitive) to a DIFFERENT
+  // field's already-known value is the swap bug's own fingerprint - reject
+  // rather than accept a value that's already known to belong elsewhere.
+  const normalized = trimmed.toLowerCase();
+  for (const [otherField, otherValue] of Object.entries(currentAnswers)) {
+    if (otherField !== field && typeof otherValue === "string" && otherValue.trim().toLowerCase() === normalized) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 export const maxDuration = 60;
 // This GET reads a per-tenant draft via a query param - without
@@ -125,10 +165,7 @@ ${
         ? ` On that final turn only, after the review-is-coming line, add this exact sentence: "If you ever want ${tenant.assistantName} answering your phone too, that's Miia Voice, just say the word and we'll book you a quick call."`
         : ""
     }
-- Once done is true, if the user sends anything further (thanks, a goodbye, small talk), reply warmly in 1 sentence and keep done=true and captured={} - never re-open the interview or change any already-captured field.
-
-Respond ONLY with a JSON object, no other text before or after it, no preamble, no markdown fences:
-{"reply": "<your conversational message>", "captured": {"field_name": "value", ...} or {}, "done": true|false}`;
+- Once done is true, if the user sends anything further (thanks, a goodbye, small talk), reply warmly in 1 sentence and keep done=true and captured={} - never re-open the interview or change any already-captured field.`;
 
     const claudeMessages =
       messages.length > 0
@@ -144,25 +181,80 @@ Respond ONLY with a JSON object, no other text before or after it, no preamble, 
       claudeMessages.unshift({ role: "user", content: "(The visitor has just opened the page.)" });
     }
 
-    const raw = await askClaude({ system, messages: claudeMessages, maxTokens: 900 });
+    // Forced tool-use (2026-07-31 field-splitting fix), replacing the old
+    // "please reply with only JSON" convention + a positional-guess fallback
+    // for when the model didn't comply. That fallback is exactly how a real
+    // customer's business_name and contact_name ended up swapped in
+    // production: an unparsed reply meant the interview just grabbed
+    // whatever the user's last message was and assigned it to "the next
+    // uncaptured field" by position, with no check it actually belonged
+    // there. `captured` now has an explicit property PER active field
+    // (additionalProperties: false) so the model can only place a value
+    // under a real field key, never invent or mis-key one - and
+    // isPlausibleCapture() below still validates the VALUE against its
+    // field afterward, since a schema can't catch "a paragraph landed in a
+    // name field" on its own.
+    const capturedProperties = Object.fromEntries(
+      activeFields.map((f) => [f.field, { type: "string", description: f.ask.replaceAll("{{assistant}}", tenant.assistantName) }])
+    );
+    const schema = {
+      type: "object",
+      properties: {
+        reply: { type: "string", description: "Your conversational reply to the user, 2 to 4 sentences." },
+        captured: {
+          type: "object",
+          properties: capturedProperties,
+          additionalProperties: false,
+          description: "Only include a key for a field the user's LAST message actually answered this turn. Omit every field not just answered.",
+        },
+        done: { type: "boolean", description: "true once every interview field is captured." },
+      },
+      required: ["reply", "captured", "done"],
+    };
+    const callArgs = {
+      system,
+      messages: claudeMessages,
+      toolName: "submit_interview_turn",
+      toolDescription: "Submit your conversational reply and whatever the user's last message captured.",
+      schema,
+      maxTokens: 900,
+    };
+
     let parsed;
     try {
-      parsed = extractJson(raw);
-    } catch {
-      // Model replied in plain text instead of JSON. The interview still
-      // moved forward - the user just answered the next uncaptured field -
-      // so fall back to capturing their last message against it rather
-      // than silently dropping the answer.
-      const nextField = remaining[0];
-      const lastUserMessage = [...messages].reverse().find((m) => m.role === "user")?.content;
-      parsed = {
-        reply: raw.trim(),
-        captured: nextField && lastUserMessage ? { [nextField.field]: lastUserMessage } : {},
-        done: false,
-      };
+      parsed = await askClaudeStructured(callArgs);
+    } catch (e1) {
+      console.error(`[INTAKE] structured call failed tenant=${slug}:`, e1.message);
+      try {
+        parsed = await askClaudeStructured(callArgs);
+      } catch (e2) {
+        console.error(`[INTAKE] retry also failed tenant=${slug}:`, e2.message);
+        // No positional guessing here either - if we genuinely can't get a
+        // valid structured reply twice, ask the user to try again rather
+        // than capture anything on a guess.
+        return NextResponse.json({
+          reply: "Sorry, I had a hiccup there - could you say that again?",
+          answers,
+          done: false,
+          remaining: remaining.length,
+        });
+      }
     }
 
-    const merged = { ...answers, ...(parsed.captured || {}) };
+    const rejectedFields = [];
+    const validCaptured = {};
+    for (const [field, value] of Object.entries(parsed.captured || {})) {
+      if (isPlausibleCapture(field, value, answers)) {
+        validCaptured[field] = value;
+      } else {
+        rejectedFields.push(field);
+      }
+    }
+    if (rejectedFields.length) {
+      console.error(`[INTAKE] rejected implausible capture tenant=${slug} fields=${rejectedFields.join(",")}`);
+    }
+
+    const merged = { ...answers, ...validCaptured };
     const allDone = activeFields.every((f) => merged[f.field]);
     const replyText = parsed.reply || "Sorry, could you say that again?";
 
@@ -178,10 +270,13 @@ Respond ONLY with a JSON object, no other text before or after it, no preamble, 
       });
     }
 
+    // allDone alone, not parsed.done - the model's own done flag reflects
+    // what IT believes was captured this turn, which can be stale if
+    // isPlausibleCapture() just rejected one of those captures above.
     return NextResponse.json({
       reply: replyText,
       answers: merged,
-      done: Boolean(parsed.done) || allDone,
+      done: allDone,
       remaining: remaining.length,
     });
   } catch (e) {

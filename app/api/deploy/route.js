@@ -9,6 +9,7 @@ import { logActivity } from "@/lib/activity";
 import { createSession, setSessionCookie, cookieDomainForRequest } from "@/lib/miiaCustomerAuth";
 import { sendTransactionalEmail } from "@/lib/emailFailures";
 import { clearIntakeDraft } from "@/lib/intakeDrafts";
+import { getSignupByTenantSlug } from "@/lib/miiaSignups";
 
 export const maxDuration = 120;
 
@@ -234,6 +235,17 @@ ${JSON.stringify(answers, null, 2)}`;
       const complete = {};
       for (const k of CUSTOM_VALUE_KEYS) complete[k] = values[k] ?? "";
 
+      // Signup-authoritative (2026-07-31 field-splitting fix): business name
+      // is a fact Stripe checkout already captured directly from the
+      // customer, before the intake interview - and its own extraction risk
+      // - ever starts. Unconditional override, not a fallback-if-empty: even
+      // a plausible-looking intake/generation value is wrong if it disagrees
+      // with what the customer told Stripe. See lib/miiaSignups.js.
+      const signup = await getSignupByTenantSlug(slug).catch(() => null);
+      if (signup?.businessName) {
+        complete.business_name = signup.businessName;
+      }
+
       // Australian compliance: these are enforced in code AFTER generation so a
       // creative interview answer can never strip them out. See COMPLIANCE.md.
       const businessName = complete.business_name || answers.business_name || tenant.name;
@@ -346,7 +358,23 @@ ${JSON.stringify(answers, null, 2)}`;
       const lock = claimDeployLock(sessionId);
       if (!lock.ok) return NextResponse.json({ error: lock.message }, { status: 409 });
 
-      const businessName = customValues.business_name || answers.business_name || "New Lab HQ Client";
+      // Signup-authoritative (2026-07-31 field-splitting fix) - same
+      // reasoning as the "generate" action above, enforced again here so
+      // this can't be bypassed by any path that reaches "deploy" without
+      // going through "generate" first (a demo/test flow constructing
+      // customValues directly, say). Unconditional: Stripe checkout facts
+      // win over whatever customValues/answers contain by this point.
+      const deploySignup = await getSignupByTenantSlug(slug).catch(() => null);
+      const businessName = deploySignup?.businessName || customValues.business_name || answers.business_name || "New Lab HQ Client";
+      const contactName = deploySignup?.contactName || answers.contact_name || "";
+      // Also force it into the stored customValues itself, not just the
+      // local variable above - lib/bot.js's buildSystemPrompt reads
+      // customValues.business_name directly, so this is what actually
+      // guarantees the bot's own replies never say the wrong name,
+      // regardless of what customValues looked like on the way in here.
+      if (deploySignup?.businessName) {
+        customValues.business_name = deploySignup.businessName;
+      }
 
       // Miia Chat tier only (job 2a, 2026-07-29 "simplification build") -
       // "live in minutes": don't make the customer wait on any GHL step at
@@ -363,7 +391,7 @@ ${JSON.stringify(answers, null, 2)}`;
         const deployRecord = await recordDeployment({
           tenant: slug,
           businessName,
-          contactName: answers.contact_name || "",
+          contactName,
           locationId: null,
           demo: false,
           answers,
@@ -398,7 +426,7 @@ ${JSON.stringify(answers, null, 2)}`;
           const demoRecord = await recordDeployment({
             tenant: slug,
             businessName,
-            contactName: answers.contact_name || "",
+            contactName,
             locationId: result.locationId,
             demo: true,
             answers,
@@ -426,7 +454,7 @@ ${JSON.stringify(answers, null, 2)}`;
         const deployRecord = await recordDeployment({
           tenant: slug,
           businessName,
-          contactName: answers.contact_name || "",
+          contactName,
           locationId,
           demo: false,
           answers,
