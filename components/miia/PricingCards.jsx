@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Check } from "lucide-react";
 import { Button, PRIMARY_CTA_LABEL } from "./Button";
-import { PLANS, VOICE_PLAN, yearlyPerMonth, yearlyTotal } from "./plans";
+import { PLANS, VOICE_PLAN } from "./plans";
 import { BOOKING_URL } from "./site";
 import { trackInitiateCheckout } from "@/lib/metaPixel";
 import { readUtm } from "@/lib/utm";
@@ -62,44 +62,23 @@ function useRollingNumber(value) {
   return Math.round(display);
 }
 
-export function PricingToggle({ yearly, onChange, foundingMode }) {
-  return (
-    <div className={styles.toggleWrap}>
-      <div className={styles.toggleRowInner}>
-        <span className={!yearly ? styles.toggleLabelActive : styles.toggleLabel}>Monthly</span>
-        <button
-          type="button"
-          className={styles.toggle}
-          role="switch"
-          aria-checked={yearly}
-          onClick={() => onChange(!yearly)}
-        >
-          <span className={[styles.toggleKnob, yearly ? styles.toggleKnobYearly : ""].join(" ")} />
-        </button>
-        <span className={yearly ? styles.toggleLabelActive : styles.toggleLabel}>
-          Yearly <span className={styles.toggleBadge}>2 months free</span>
-        </span>
-      </div>
-      {foundingMode && <p className={styles.toggleNote}>Founding pricing is monthly only. Yearly uses standard pricing.</p>}
-    </div>
-  );
-}
+// No yearly toggle (removed 2026-07-31 - see git history): the offer
+// changed since it was built and only Miia Everywhere ever had a real
+// annual price, Chat never did and Voice is demo-only, so a single
+// monthly/yearly switch across all cards was never going to be correct for
+// all of them. Founding pricing is monthly-only anyway, so every visitor
+// during founding is on this path regardless. Always shows founding (with
+// strikethrough) while founding mode is on, plain price once it's off.
+function PriceTag({ plan, foundingMode }) {
+  const standardDisplay = useRollingNumber(plan.price);
+  const foundingDisplay = useRollingNumber(plan.foundingPrice);
 
-// Yearly is always the standard price (no founding-yearly price exists).
-// Monthly shows founding-with-strikethrough only while founding mode is on.
-function PriceTag({ plan, yearly, foundingMode }) {
-  const showFounding = foundingMode && !yearly;
-  const standard = yearly ? yearlyPerMonth(plan.price) : plan.price;
-  const founding = yearly ? standard : plan.foundingPrice;
-  const standardDisplay = useRollingNumber(standard);
-  const foundingDisplay = useRollingNumber(founding);
-
-  if (!showFounding) {
+  if (!foundingMode) {
     return (
       <div className={styles.priceRow}>
         <span className={styles.priceFounding}>
           ${standardDisplay}
-          <span className={styles.pricePer}>/mo{yearly ? ", billed yearly" : ""}</span>
+          <span className={styles.pricePer}>/mo</span>
         </span>
       </div>
     );
@@ -116,10 +95,7 @@ function PriceTag({ plan, yearly, foundingMode }) {
   );
 }
 
-export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yearlyProp, onYearlyChange, vertical, highlightId }) {
-  const [yearlyState, setYearlyState] = useState(false);
-  const yearly = yearlyProp !== undefined ? yearlyProp : yearlyState;
-  const setYearly = onYearlyChange || setYearlyState;
+export function PricingCards({ selectedId, onSelect, showCta = true, vertical, highlightId }) {
   const foundingMode = useFoundingMode();
 
   // Direct-checkout mode (showCta, not selectable - i.e. /pricing itself):
@@ -135,16 +111,15 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
     setCheckoutPlanId(plan.id);
     setCheckoutError(null);
     try {
-      const monthlyPrice = foundingMode && !yearly ? plan.foundingPrice : plan.price;
-      const value = yearly ? yearlyTotal(monthlyPrice) : monthlyPrice;
-      trackInitiateCheckout({ value, currency: "AUD", content_name: plan.id });
+      const monthlyPrice = foundingMode ? plan.foundingPrice : plan.price;
+      trackInitiateCheckout({ value: monthlyPrice, currency: "AUD", content_name: plan.id });
       const utm = readUtm() || {};
       const res = await fetch("/api/miia/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           plan: plan.id,
-          billingPeriod: yearly ? "yearly" : "monthly",
+          billingPeriod: "monthly",
           vertical: vertical || "",
           utmSource: utm.utmSource || "",
           utmMedium: utm.utmMedium || "",
@@ -162,10 +137,6 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
 
   return (
     <div>
-      <div className={styles.toggleRow}>
-        <PricingToggle yearly={yearly} onChange={setYearly} foundingMode={foundingMode} />
-      </div>
-
       <div className={styles.grid}>
         {PLANS.map((plan) => {
           const selectable = typeof onSelect === "function";
@@ -187,7 +158,7 @@ export function PricingCards({ selectedId, onSelect, showCta = true, yearly: yea
               <h3 className={styles.name}>{plan.name}</h3>
               <p className={styles.tagline}>{plan.tagline}</p>
 
-              <PriceTag plan={plan} yearly={yearly} foundingMode={foundingMode} />
+              <PriceTag plan={plan} foundingMode={foundingMode} />
 
               <ul className={styles.features}>
                 {plan.features.map((f) => (

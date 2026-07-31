@@ -18,7 +18,6 @@ export function PricingPage({ whiteGloveEnabled = false }) {
   const vertical = searchParams.get("vertical") || "";
   const planParam = searchParams.get("plan");
   const highlightId = getPlan(planParam) ? planParam : null;
-  const yearly = searchParams.get("billing") === "yearly";
 
   return (
     <div className={styles.page}>
@@ -37,7 +36,7 @@ export function PricingPage({ whiteGloveEnabled = false }) {
         </div>
 
         <Reveal className={styles.cardsSection}>
-          <PricingCards vertical={vertical} highlightId={highlightId} yearly={yearly} />
+          <PricingCards vertical={vertical} highlightId={highlightId} />
         </Reveal>
 
         <p className={styles.incGst}>All prices inc. GST.</p>

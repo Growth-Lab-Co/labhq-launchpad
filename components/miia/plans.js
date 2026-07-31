@@ -74,10 +74,9 @@ const LEGACY_COMPLETE_PLAN = {
   replies: "300 call minutes a month",
 };
 
-export function yearlyPerMonth(price) {
-  return Math.round((price * 10) / 12);
-}
-
+// Still used by CheckoutSuccessPage.jsx to compute a completed purchase's
+// tracked value when billingPeriod is "yearly" - not driven by the pricing
+// page's own toggle (removed 2026-07-31), which only ever offered monthly.
 export function yearlyTotal(price) {
   return price * 10;
 }
