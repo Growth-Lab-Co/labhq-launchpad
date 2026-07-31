@@ -7,6 +7,7 @@ import {
   MessageSquare,
   CalendarDays,
   Radio,
+  Settings,
   CreditCard,
   LifeBuoy,
   Search,
@@ -22,6 +23,7 @@ const NAV = [
   { label: "Conversations", icon: MessageSquare, path: (base) => `${base}/conversations` },
   { label: "Bookings", icon: CalendarDays, path: (base) => `${base}/bookings` },
   { label: "Channels", icon: Radio, path: (base) => `${base}/channels` },
+  { label: "Settings", icon: Settings, path: (base) => `${base}/settings` },
   { label: "Billing", icon: CreditCard, path: (base) => `${base}/billing` },
   { label: "Help", icon: LifeBuoy, path: (base) => `${base}/help` },
 ];
