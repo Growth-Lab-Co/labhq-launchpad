@@ -35,6 +35,7 @@ function deterministicConfigFromAnswers(answers, tenant) {
   return {
     business_name: businessName,
     services_summary: answers.services || "",
+    pricing_summary: answers.pricing || "",
     service_area: answers.service_area || "",
     opening_hours: answers.opening_hours || "",
     qualification_questions: answers.ideal_lead || "",
@@ -158,6 +159,7 @@ Produce the configuration values below. Write in Australian English. Be specific
 Keys to produce (ALL required):
 - business_name: clean business name
 - services_summary: 2-3 sentences describing what they do, written for an AI receptionist to reference
+- pricing_summary: their actual plans/prices with real numbers, written so the AI receptionist can quote them directly when a customer asks "how much" - never vague, never "see our website" if real figures were given in the interview
 - service_area: where they operate
 - opening_hours: their hours, plain format
 - qualification_questions: the 1-3 questions the AI receptionist should ask to qualify a caller, phrased naturally as questions
@@ -263,6 +265,24 @@ ${JSON.stringify(answers, null, 2)}`;
           answers,
           severity: "degraded",
           detail: "The AI generation step failed twice, so this config was built deterministically from the raw captured answers instead - functional but less polished than usual. Worth a manual pass to tidy tone/phrasing once deployed.",
+        }).catch(() => {});
+      }
+
+      // Pricing is the single most common thing a customer asks the bot -
+      // catches it whether the interview genuinely never got an answer
+      // (shouldn't happen now pricing is a required INTERVIEW_FIELD, but a
+      // vague non-answer like "n/a" or "see website" can still slip through)
+      // or the generation step technically satisfied its schema with an
+      // empty/junk string. Never blocks the deploy itself - same philosophy
+      // as the "degraded" alert above, a paid customer is never held up
+      // here - just makes sure a human finds out and fills it in by hand.
+      if (!complete.pricing_summary || complete.pricing_summary.trim().length < 10) {
+        alertOpsGenerationIssue({
+          slug,
+          businessName,
+          answers,
+          severity: "missing-pricing",
+          detail: "pricing_summary came out empty or too short after generation. This bot will not be able to answer 'how much is it' correctly until this is filled in by hand - it's the most common question a customer asks.",
         }).catch(() => {});
       }
 
