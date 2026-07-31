@@ -26,7 +26,7 @@ export async function POST(req, { params }) {
   const { inboundText } = await req.json().catch(() => ({}));
   if (!inboundText) return NextResponse.json({ error: "Missing inboundText" }, { status: 400 });
 
-  const reply = await generateReply({
+  const { reply } = await generateReply({
     deployment: { tenant: params.slug, businessName: tenant.name, customValues: {} },
     messages: [],
     inboundText,

@@ -41,7 +41,10 @@
     ".miia-widget-send:disabled{opacity:.5;cursor:default;}" +
     ".miia-widget-note{font-size:11.5px;color:#5A5A66;text-align:center;padding:8px 12px 0;}" +
     ".miia-widget-cta{display:block;text-align:center;background:#A070F8;color:#fff;text-decoration:none;padding:10px;margin:8px 12px 12px;border-radius:10px;font-size:13.5px;font-weight:700;}" +
-    ".miia-widget-email-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #E4E0D6;background:#fff;}";
+    ".miia-widget-email-form{display:flex;gap:8px;padding:10px 12px;border-top:1px solid #E4E0D6;background:#fff;}" +
+    ".miia-widget-actions{align-self:flex-start;display:flex;flex-wrap:wrap;gap:6px;max-width:80%;}" +
+    ".miia-widget-action{background:#fff;color:#A070F8;border:1px solid #A070F8;border-radius:999px;padding:7px 13px;font-size:12.5px;font-weight:700;text-decoration:none;cursor:pointer;}" +
+    ".miia-widget-action:hover{background:#F5EFFF;}";
   var styleTag = document.createElement("style");
   styleTag.textContent = css;
   document.head.appendChild(styleTag);
@@ -103,6 +106,28 @@
     body.appendChild(el);
     body.scrollTop = body.scrollHeight;
     return el;
+  }
+
+  // Suggested action buttons (job 1, 2026-07-31) - `actions` always comes
+  // straight from the server's own fixed, resolved-URL list (see
+  // lib/widgetActions.js and app/api/widget/message GET) - this file never
+  // invents a label or href, only renders what it's given. New tab so
+  // clicking one never loses the visitor's place in the conversation.
+  function addActionButtons(actions) {
+    if (!actions || !actions.length) return;
+    var wrap = document.createElement("div");
+    wrap.className = "miia-widget-actions";
+    for (var i = 0; i < actions.length; i++) {
+      var a = document.createElement("a");
+      a.className = "miia-widget-action";
+      a.href = actions[i].href;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = actions[i].label;
+      wrap.appendChild(a);
+    }
+    body.appendChild(wrap);
+    body.scrollTop = body.scrollHeight;
   }
 
   function renderGate() {
@@ -176,9 +201,10 @@
 
   function pollForReply(query, typingEl) {
     var attempts = 0;
-    function finish(text) {
+    function finish(text, actions) {
       typingEl.remove();
       addBubble("out", text);
+      addActionButtons(actions);
       sending = false;
       if (config) { config.messageCount = (config.messageCount || 0) + 1; renderGate(); }
     }
@@ -188,7 +214,7 @@
         .then(function (r) { return r.json(); })
         .then(function (d) {
           if (d.status === "complete" || d.status === "failed") {
-            finish(d.reply || CALM_FALLBACK_TEXT);
+            finish(d.reply || CALM_FALLBACK_TEXT, d.actions);
             return;
           }
           if (attempts >= POLL_MAX_ATTEMPTS) { finish(CALM_FALLBACK_TEXT); return; }

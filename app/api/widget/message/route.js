@@ -227,10 +227,14 @@ export async function GET(req) {
 
   const lastOutbound = [...messages].reverse().find((m) => m.direction === "outbound");
   if (!lastOutbound) {
-    return NextResponse.json({ status: "pending", reply: null }, { status: 200, headers: corsHeaders(origin) });
+    return NextResponse.json({ status: "pending", reply: null, actions: [] }, { status: 200, headers: corsHeaders(origin) });
   }
   return NextResponse.json(
-    { status: lastOutbound.status || "complete", reply: lastOutbound.status === "pending" ? null : lastOutbound.body },
+    {
+      status: lastOutbound.status || "complete",
+      reply: lastOutbound.status === "pending" ? null : lastOutbound.body,
+      actions: lastOutbound.status === "pending" ? [] : lastOutbound.actions || [],
+    },
     { status: 200, headers: corsHeaders(origin) }
   );
 }

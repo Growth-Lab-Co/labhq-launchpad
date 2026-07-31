@@ -25,6 +25,17 @@
   word-break: break-word;
 }
 .typing { align-self: flex-end; padding: 8px 12px; }
+.actions { align-self: flex-end; display: flex; flex-wrap: wrap; gap: 6px; max-width: 85%; justify-content: flex-end; }
+.actionBtn {
+  border: 1px solid var(--dash-violet);
+  background: #fff;
+  color: var(--dash-violet);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.actionBtn:hover { background: var(--dash-violet-10); }
 .error { font-size: 13px; color: var(--dash-bad); margin-bottom: 10px; }
 
 .form { display: flex; gap: 8px; }

@@ -24,12 +24,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withRetries(generate) {
+// getText extracts the string to validate from whatever generate() resolves
+// to - a plain string for the preview path, generateReply's own
+// { reply, actions } shape for the tenant path - so retries work the same
+// way for both without generateReply needing to return a bare string.
+async function withRetries(generate, getText = (result) => result) {
   let lastError;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      const text = (await generate()).trim();
-      if (text) return text;
+      const result = await generate();
+      const text = getText(result).trim();
+      if (text) return result;
       lastError = new Error("empty reply from model");
     } catch (e) {
       lastError = e;
@@ -50,8 +55,15 @@ async function handleTenantReply({ tenantSlug, conversationId, message }) {
   // model never sees its own empty in-flight reply as part of the history.
   const history = conversation.messages.filter((m) => m.status !== "pending");
 
-  const reply = await withRetries(() => generateReply({ deployment, messages: history, inboundText: message }));
-  await resolvePendingWidgetReply(conversationId, { body: reply, status: "complete" });
+  // offerActions: true - the one and only place suggested action buttons
+  // get turned on (see lib/bot.js generateReply's own comment on why this
+  // is the whole channel-awareness mechanism: TestChat shares this same
+  // path deliberately, so Bec previews the exact thing a real visitor sees).
+  const { reply, actions } = await withRetries(
+    () => generateReply({ deployment, messages: history, inboundText: message, offerActions: true }),
+    (result) => result.reply
+  );
+  await resolvePendingWidgetReply(conversationId, { body: reply, status: "complete", actions });
 
   const tenant = await getTenant(tenantSlug).catch(() => null);
   await fileBookingRequestIfConfirmed({

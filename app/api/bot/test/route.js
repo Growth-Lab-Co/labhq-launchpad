@@ -26,7 +26,7 @@ export async function POST(req) {
     const settings = await getBotSettings(tenant, deployment.locationId || deploymentId);
     const category = await classifyInbound({ text: inboundText, handoffKeyword: settings.handoffKeyword });
     const reply =
-      category === "normal" ? await generateReply({ deployment, messages, inboundText }) : null;
+      category === "normal" ? (await generateReply({ deployment, messages, inboundText })).reply : null;
 
     return NextResponse.json({ category, reply });
   } catch (e) {

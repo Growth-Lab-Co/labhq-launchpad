@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { TwoDots } from "./TwoDots";
 import styles from "./TestChat.module.css";
@@ -42,14 +42,14 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
         const res = await fetch(`/api/widget/message?${query}`);
         const data = await res.json();
         if (data.status === "complete" || data.status === "failed") {
-          return data.reply || CALM_FALLBACK_TEXT;
+          return { body: data.reply || CALM_FALLBACK_TEXT, actions: data.actions || [] };
         }
       } catch {
         // Transient - keep polling until the attempt budget runs out.
       }
       await wait(POLL_INTERVAL_MS);
     }
-    return CALM_FALLBACK_TEXT;
+    return { body: CALM_FALLBACK_TEXT, actions: [] };
   }
 
   async function send(e) {
@@ -60,10 +60,10 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
     setBusy(true);
     setMessages((m) => [...m, { direction: "inbound", body: text }, { direction: "outbound", body: "" }]);
 
-    const finish = (body) => {
+    const finish = (body, actions) => {
       setMessages((m) => {
         const next = [...m];
-        next[next.length - 1] = { direction: "outbound", body };
+        next[next.length - 1] = { direction: "outbound", body, actions: actions || [] };
         return next;
       });
       setBusy(false);
@@ -82,8 +82,8 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
         finish(data.immediate);
         return;
       }
-      const reply = await pollForReply();
-      finish(reply);
+      const { body, actions } = await pollForReply();
+      finish(body, actions);
     } catch {
       finish(CALM_FALLBACK_TEXT);
     }
@@ -110,9 +110,18 @@ export function TestChat({ tenantSlug, widgetKey, triggerClassName, triggerLabel
                 <TwoDots size="sm" pulse />
               </div>
             ) : (
-              <div key={i} className={m.direction === "inbound" ? styles.bubbleIn : styles.bubbleOut}>
-                {m.body}
-              </div>
+              <Fragment key={i}>
+                <div className={m.direction === "inbound" ? styles.bubbleIn : styles.bubbleOut}>{m.body}</div>
+                {m.actions?.length > 0 && (
+                  <div className={styles.actions}>
+                    {m.actions.map((a) => (
+                      <a key={a.key} href={a.href} target="_blank" rel="noreferrer" className={styles.actionBtn}>
+                        {a.label}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </Fragment>
             )
           )}
         </div>
